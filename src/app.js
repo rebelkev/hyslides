@@ -44,6 +44,7 @@ const dom = {
   app: document.querySelector("#app"),
   canvas: document.querySelector("#slideCanvas"),
   presenterCanvas: document.querySelector("#presenterCanvas"),
+  audienceCanvas: document.querySelector("#audienceCanvas"),
   nextCanvas: document.querySelector("#nextCanvas"),
   viewport: document.querySelector("#canvasViewport"),
   textEditor: document.querySelector("#textEditor"),
@@ -89,6 +90,9 @@ let dragState = null;
 let clipboard = [];
 let saveTimer = null;
 let presenterOpen = false;
+let presenterWindow = null;
+const presenterWindowMode = location.hash === "#presenter";
+const presenterChannel = "BroadcastChannel" in window ? new BroadcastChannel("hyslides-presenter") : null;
 let audienceOpen = false;
 let audienceResponses = {};
 let templatesExpanded = readTemplatesExpandedPreference();
@@ -118,6 +122,7 @@ const BULLET_EDITOR_PREFIX = "\u2022 ";
 
 const ctx = dom.canvas.getContext("2d");
 const presenterCtx = dom.presenterCanvas.getContext("2d");
+const audienceCtx = dom.audienceCanvas.getContext("2d");
 const nextCtx = dom.nextCanvas.getContext("2d");
 
 init();
@@ -129,7 +134,12 @@ async function init() {
   bindEvents();
   renderAll();
   setStatus("Ready");
-  if (location.hash.startsWith("#audience")) {
+  bindPresenterChannel();
+  if (presenterWindowMode) {
+    document.body.classList.add("presenter-window");
+    presenterChannel?.postMessage({ type: "presenter-ready" });
+    openPresenterMode();
+  } else if (location.hash.startsWith("#audience")) {
     openAudience();
   }
 }
@@ -242,7 +252,7 @@ function bindEvents() {
     }
   });
 
-  document.querySelector("#presentBtn").addEventListener("click", openPresenter);
+  document.querySelector("#presentBtn").addEventListener("click", launchPresenterWindow);
   document.querySelector("#audienceBtn").addEventListener("click", openAudience);
   document.querySelector("#closePresenterBtn").addEventListener("click", closePresenter);
   document.querySelector("#closeAudienceBtn").addEventListener("click", closeAudience);
@@ -253,6 +263,9 @@ function bindEvents() {
   });
   document.querySelector("#prevSlideBtn").addEventListener("click", () => stepSlide(-1));
   document.querySelector("#nextSlideBtn").addEventListener("click", () => stepSlide(1));
+  document.querySelector("#fullscreenPresenterBtn").addEventListener("click", () => {
+    document.documentElement.requestFullscreen?.().catch(() => {});
+  });
   dom.presenterNotes.addEventListener("input", () => {
     currentSlide().notes = dom.presenterNotes.value;
     markChanged("Presenter notes updated");
@@ -2245,6 +2258,16 @@ function onKeyDown(event) {
     return;
   }
   const shortcut = event.metaKey || event.ctrlKey;
+  if (presenterOpen && ["ArrowRight", "ArrowDown", "PageDown", " ", "Enter"].includes(event.key)) {
+    event.preventDefault();
+    stepSlide(1);
+    return;
+  }
+  if (presenterOpen && ["ArrowLeft", "ArrowUp", "PageUp"].includes(event.key)) {
+    event.preventDefault();
+    stepSlide(-1);
+    return;
+  }
   if (shortcut && event.key.toLowerCase() === "s") {
     event.preventDefault();
     saveDeck(deck).then((saved) => {
@@ -2309,13 +2332,28 @@ function onKeyDown(event) {
   }
 }
 
-function openPresenter() {
+function launchPresenterWindow() {
+  presenterWindow = window.open(
+    `${location.href.split("#")[0]}#presenter`,
+    "hyslides-presenter",
+    "popup=yes,width=1440,height=900"
+  );
+  if (!presenterWindow) {
+    setStatus("Allow pop-ups to open presenter mode in a separate window");
+    return;
+  }
+  presenterWindow.focus();
+  saveDeck(deck).catch(() => null);
+  sendPresenterSnapshot();
+  setTimeout(sendPresenterSnapshot, 500);
+}
+
+function openPresenterMode() {
   presenterOpen = true;
   startLiveSession();
   dom.presenterOverlay.classList.remove("hidden");
   dom.presenterOverlay.setAttribute("aria-hidden", "false");
   dom.app.dataset.mode = "present";
-  document.documentElement.requestFullscreen?.().catch(() => {});
   renderPresenter();
 }
 
@@ -2328,6 +2366,41 @@ function closePresenter() {
   if (document.fullscreenElement) {
     document.exitFullscreen?.();
   }
+  if (presenterWindowMode) {
+    window.close();
+  }
+}
+
+function bindPresenterChannel() {
+  if (!presenterChannel) {
+    return;
+  }
+  presenterChannel.addEventListener("message", (event) => {
+    const message = event.data || {};
+    if (message.type === "presenter-ready" && !presenterWindowMode) {
+      sendPresenterSnapshot();
+    }
+    if (message.type === "presenter-snapshot" && presenterWindowMode && message.deck) {
+      deck = normalizeDeck(message.deck);
+      activeSlideIndex = Math.max(0, Math.min(deck.slides.length - 1, Number(message.activeSlideIndex) || 0));
+      selectedSlideIndexes = new Set([activeSlideIndex]);
+      renderAll();
+      queueLivePublish(true);
+    }
+    if (message.type === "active-slide" && !presenterWindowMode) {
+      activeSlideIndex = Math.max(0, Math.min(deck.slides.length - 1, Number(message.activeSlideIndex) || 0));
+      selectedSlideIndexes = new Set([activeSlideIndex]);
+      renderAll();
+    }
+  });
+}
+
+function sendPresenterSnapshot() {
+  presenterChannel?.postMessage({
+    type: "presenter-snapshot",
+    deck: JSON.parse(JSON.stringify(deck)),
+    activeSlideIndex,
+  });
 }
 
 async function renderPresenter() {
@@ -2546,7 +2619,7 @@ function renderLiveJoinPanel(slide) {
   });
 }
 
-function renderLiveAudience() {
+async function renderLiveAudience() {
   if (!audienceLive.state) {
     dom.audienceContent.innerHTML = `
       <div class="result-row">
@@ -2561,8 +2634,15 @@ function renderLiveAudience() {
     return;
   }
 
-  const liveDeck = liveStateDeck(audienceLive.state);
   const liveSlide = audienceLive.state.slide;
+  const liveDeck = normalizeDeck({
+    ...liveStateDeck(audienceLive.state),
+    slides: [liveSlide],
+  });
+  await drawSlideAsync(audienceCtx, liveSlide, liveDeck, {
+    footer: false,
+    revealCorrectAnswers: shouldRevealCorrectAnswers(liveSlide),
+  });
   const latestResponse = audienceLive.responses[liveSlide.id] || null;
   renderAudienceContent(
     dom.audienceContent,
@@ -2641,6 +2721,11 @@ function stepSlide(delta) {
   openSectionMenuId = null;
   selectedIds = [];
   renderAll();
+  if (presenterWindowMode) {
+    presenterChannel?.postMessage({ type: "active-slide", activeSlideIndex });
+  } else if (presenterWindow && !presenterWindow.closed) {
+    sendPresenterSnapshot();
+  }
 }
 
 function drawThumb(canvas, slide) {
