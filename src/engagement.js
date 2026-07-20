@@ -189,6 +189,25 @@ export function renderAudienceContent(container, deck, slide, onSubmit, latestRe
     }
     container.append(row);
   }
+
+  if (latestResponse) {
+    const results = document.createElement("section");
+    results.className = "audience-results";
+    const heading = document.createElement("strong");
+    heading.textContent = engagement.type === "wordCloud" ? "Everyone's responses" : "Live results";
+    results.append(heading);
+    if (["poll", "multipleChoice", "quiz"].includes(engagement.type)) {
+      renderResults(results, engagement);
+    } else if (engagement.type === "wordCloud") {
+      renderWordCloud(results, engagement);
+    } else if (engagement.type === "qna") {
+      renderQna(results, engagement, () => {});
+      results.querySelectorAll("button").forEach((button) => button.remove());
+    } else if (engagement.type === "reactions") {
+      renderReactions(results, engagement);
+    }
+    container.append(results);
+  }
 }
 
 function renderResults(container, engagement) {
@@ -272,9 +291,9 @@ function renderAudienceFeedback(container, feedback, response) {
 function renderWordCloud(container, engagement) {
   const words = Object.entries(engagement.results).sort((a, b) => b[1] - a[1]).slice(0, 16);
   const row = document.createElement("div");
-  row.className = "result-row";
+  row.className = "result-row word-cloud";
   row.innerHTML = words.length
-    ? words.map(([word, count]) => `<span style="font-size:${14 + count * 3}px">${escapeHtml(word)}</span>`).join(" ")
+    ? words.map(([word, count]) => `<span style="font-size:${Math.min(42, 15 + count * 4)}px">${escapeHtml(word)}</span>`).join(" ")
     : "<span>No words yet</span>";
   container.append(row);
 }
