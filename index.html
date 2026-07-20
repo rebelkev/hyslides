@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>HySlides</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <svg class="icon-sprite" aria-hidden="true" width="0" height="0">
+      <defs>
+        <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+        <symbol id="icon-save" viewBox="0 0 24 24"><path d="M5 4h12l2 2v14H5zM8 4v6h8V4M8 18h8" /></symbol>
+        <symbol id="icon-folder" viewBox="0 0 24 24"><path d="M3 6h7l2 3h9v10H3zM3 9h18" /></symbol>
+        <symbol id="icon-upload" viewBox="0 0 24 24"><path d="M12 16V5M8 9l4-4 4 4M5 19h14" /></symbol>
+        <symbol id="icon-file-export" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v5h5M10 13h8M15 10l3 3-3 3" /></symbol>
+        <symbol id="icon-file-text" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v5h5M9 12h6M9 16h6" /></symbol>
+        <symbol id="icon-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></symbol>
+        <symbol id="icon-users" viewBox="0 0 24 24"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21c1-4 4-6 7-6s6 2 7 6M17 11a3 3 0 1 0 0-6M18 15c2 1 3 3 4 6" /></symbol>
+        <symbol id="icon-cursor" viewBox="0 0 24 24"><path d="M5 3l14 9-7 2-3 7z" /></symbol>
+        <symbol id="icon-type" viewBox="0 0 24 24"><path d="M5 6h14M12 6v12M9 18h6" /></symbol>
+        <symbol id="icon-image" viewBox="0 0 24 24"><path d="M4 5h16v14H4zM8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM5 18l5-5 3 3 2-2 4 4" /></symbol>
+        <symbol id="icon-shapes" viewBox="0 0 24 24"><path d="M5 5h8v8H5zM16 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM13 17h7v4h-7z" /></symbol>
+        <symbol id="icon-star" viewBox="0 0 24 24"><path d="M12 3l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z" /></symbol>
+        <symbol id="icon-chart" viewBox="0 0 24 24"><path d="M5 19V5M5 19h14M9 16V9M13 16V6M17 16v-4" /></symbol>
+        <symbol id="icon-table" viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 10h16M4 15h16M10 5v14M16 5v14" /></symbol>
+        <symbol id="icon-minus" viewBox="0 0 24 24"><path d="M5 12h14" /></symbol>
+        <symbol id="icon-engagement" viewBox="0 0 24 24"><path d="M4 5h16v10H8l-4 4zM8 10h1M12 10h1M16 10h1" /></symbol>
+        <symbol id="icon-copy" viewBox="0 0 24 24"><path d="M8 8h11v11H8zM5 16H4V4h12v1" /></symbol>
+        <symbol id="icon-group" viewBox="0 0 24 24"><path d="M5 6h6v6H5zM13 6h6v6h-6zM8 14h8v5H8z" /></symbol>
+        <symbol id="icon-lock" viewBox="0 0 24 24"><path d="M6 11h12v9H6zM8 11V8a4 4 0 0 1 8 0v3" /></symbol>
+        <symbol id="icon-layer-up" viewBox="0 0 24 24"><path d="M5 15l7 4 7-4M5 10l7 4 7-4-7-4zM12 14V6M9 9l3-3 3 3" /></symbol>
+        <symbol id="icon-layer-down" viewBox="0 0 24 24"><path d="M5 9l7-4 7 4M5 14l7 4 7-4-7-4zM12 10v8M9 15l3 3 3-3" /></symbol>
+        <symbol id="icon-to-front" viewBox="0 0 24 24"><path d="M4 19h16M7 12l5-5 5 5M12 7v10M5 5h14" /></symbol>
+        <symbol id="icon-to-back" viewBox="0 0 24 24"><path d="M4 5h16M7 12l5 5 5-5M12 17V7M5 19h14" /></symbol>
+        <symbol id="icon-align-horizontal" viewBox="0 0 24 24"><path d="M12 4v16M6 8h12v8H6z" /></symbol>
+        <symbol id="icon-align-vertical" viewBox="0 0 24 24"><path d="M4 12h16M8 6h8v12H8z" /></symbol>
+        <symbol id="icon-zoom-out" viewBox="0 0 24 24"><path d="M10 17a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM15 15l5 5M7 10h6" /></symbol>
+        <symbol id="icon-zoom-in" viewBox="0 0 24 24"><path d="M10 17a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM15 15l5 5M10 7v6M7 10h6" /></symbol>
+      </defs>
+    </svg>
+    <div id="app" class="app-shell" data-mode="edit">
+      <header class="topbar" aria-label="Main toolbar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">H</span>
+          <span>HySlides</span>
+        </div>
+        <nav class="toolbar" aria-label="Deck actions">
+          <button id="newDeckBtn" type="button" title="New deck" data-icon="plus">New</button>
+          <button id="saveDeckBtn" type="button" title="Save deck" data-icon="save">Save</button>
+          <button id="deckLibraryBtn" type="button" title="Open saved decks" data-icon="folder">Decks</button>
+          <label class="button" for="pptxInput" title="Import PowerPoint" data-icon="upload">Import PPTX</label>
+          <input id="pptxInput" class="sr-only" type="file" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" />
+          <button id="exportPptxBtn" type="button" title="Export PowerPoint" data-icon="file-export">PPTX</button>
+          <button id="exportPdfBtn" type="button" title="Export PDF" data-icon="file-text">PDF</button>
+          <button id="presentBtn" type="button" title="Presenter mode" data-icon="play">Present</button>
+          <button id="audienceBtn" type="button" title="Audience view" data-icon="users">Audience</button>
+        </nav>
+        <div class="deck-title">
+          <input id="deckTitle" type="text" aria-label="Deck title" />
+        </div>
+      </header>
+
+      <aside class="rail rail-left" aria-label="Slides">
+        <div class="panel-header">
+          <strong>Slides</strong>
+          <span class="panel-actions">
+            <button id="addSectionBtn" type="button" title="Add section">Section</button>
+            <button id="addSlideBtn" type="button" title="Add slide">+</button>
+          </span>
+        </div>
+        <div id="slideList" class="slide-list" role="listbox" aria-multiselectable="true"></div>
+        <div id="templateSection" class="panel-section templates-section">
+          <div class="panel-section-header">
+            <strong>Templates</strong>
+            <button id="templateToggleBtn" class="template-toggle" type="button" aria-expanded="true" aria-controls="templateList" title="Collapse templates">v</button>
+          </div>
+          <div id="templateList" class="template-list"></div>
+        </div>
+      </aside>
+
+      <main class="stage-wrap" aria-label="Slide editor">
+        <section class="tool-row" aria-label="Element tools">
+          <button data-tool="select" class="active" type="button" title="Select" data-icon="cursor">Select</button>
+          <button data-add="text" type="button" title="Text box" data-icon="type">Text</button>
+          <button data-add="shape" type="button" title="Shape" data-icon="shapes">Shape</button>
+          <button data-add="image" type="button" title="Image" data-icon="image">Image</button>
+          <button data-add="icon" type="button" title="Icon" data-icon="star">Icon</button>
+          <button data-add="chart" type="button" title="Chart" data-icon="chart">Chart</button>
+          <button data-add="table" type="button" title="Table" data-icon="table">Table</button>
+          <button data-add="divider" type="button" title="Divider" data-icon="minus">Divider</button>
+          <button data-add="engagement" type="button" title="Engagement" data-icon="engagement">Engagement</button>
+          <span class="tool-separator"></span>
+          <button id="duplicateBtn" type="button" title="Duplicate" data-icon="copy">Duplicate</button>
+          <button id="groupBtn" type="button" title="Group" data-icon="group">Group</button>
+          <button id="lockBtn" type="button" title="Lock" data-icon="lock">Lock</button>
+          <button id="centerHorizontalBtn" type="button" title="Center horizontally" data-icon="align-horizontal">Center H</button>
+          <button id="centerVerticalBtn" type="button" title="Center vertically" data-icon="align-vertical">Center V</button>
+          <button id="frontBtn" type="button" title="Bring forward" data-icon="layer-up">Forward</button>
+          <button id="backBtn" type="button" title="Send backward" data-icon="layer-down">Backward</button>
+          <button id="sendFrontBtn" type="button" title="Bring to front" data-icon="to-front">To Front</button>
+          <button id="sendBackBtn" type="button" title="Send to back" data-icon="to-back">To Back</button>
+        </section>
+        <section class="canvas-shell">
+          <div class="zoom-bar">
+            <button id="zoomOutBtn" type="button" title="Zoom out" data-icon="zoom-out">-</button>
+            <input id="zoomRange" type="range" min="35" max="150" value="82" aria-label="Zoom" />
+            <button id="zoomInBtn" type="button" title="Zoom in" data-icon="zoom-in">+</button>
+            <span id="zoomLabel">82%</span>
+          </div>
+          <div id="canvasViewport" class="canvas-viewport">
+            <canvas id="slideCanvas" width="1280" height="720" tabindex="0" aria-label="Editable slide canvas"></canvas>
+            <div id="textEditor" class="text-editor" contenteditable="true" role="textbox" aria-label="Edit slide text"></div>
+          </div>
+        </section>
+        <footer class="statusbar">
+          <span id="statusText">Ready</span>
+          <span id="selectionText">No selection</span>
+        </footer>
+      </main>
+
+      <aside class="rail rail-right" aria-label="Properties">
+        <div class="panel-header">
+          <strong>Inspector</strong>
+          <button id="deleteBtn" type="button" title="Delete">Delete</button>
+        </div>
+        <div id="inspector" class="inspector"></div>
+      </aside>
+    </div>
+
+    <div id="presenterOverlay" class="presenter hidden" aria-hidden="true">
+      <div class="presenter-main">
+        <canvas id="presenterCanvas" width="1280" height="720"></canvas>
+      </div>
+      <aside class="presenter-side">
+        <div class="presenter-head">
+          <strong id="presenterSlideTitle">Slide</strong>
+          <button id="closePresenterBtn" type="button" title="Close">Close</button>
+        </div>
+        <canvas id="nextCanvas" width="320" height="180"></canvas>
+        <label for="presenterNotes">Notes</label>
+        <textarea id="presenterNotes"></textarea>
+        <div id="liveControls" class="live-controls"></div>
+        <div class="presenter-actions">
+          <button id="prevSlideBtn" type="button">Previous</button>
+          <button id="nextSlideBtn" type="button">Next</button>
+        </div>
+      </aside>
+    </div>
+
+    <div id="audienceOverlay" class="audience hidden" aria-hidden="true">
+      <div class="audience-card">
+        <div class="presenter-head">
+          <strong>HySlides Live</strong>
+          <button id="closeAudienceBtn" type="button" title="Close">Close</button>
+        </div>
+        <div id="audienceContent"></div>
+      </div>
+    </div>
+
+    <div id="deckLibraryOverlay" class="deck-library hidden" aria-hidden="true">
+      <div class="deck-library-card" role="dialog" aria-modal="true" aria-labelledby="deckLibraryTitle">
+        <div class="presenter-head">
+          <strong id="deckLibraryTitle">Saved decks</strong>
+          <button id="closeDeckLibraryBtn" type="button" title="Close">Close</button>
+        </div>
+        <div id="deckLibraryList" class="deck-library-list"></div>
+      </div>
+    </div>
+
+    <input id="imageInput" class="sr-only" type="file" accept="image/*" />
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>
