@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
 # dependencies
 /node_modules
 /.pnp
@@ -14,49 +11,30 @@
 # testing
 /coverage
 
-# next.js
+# Next.js and build output
 /.next/
 /out/
-
-# misc
-.DS_Store
-*.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# env files (can opt-in for committing if needed)
-.env*
-
-# vercel
-.vercel
-
-# typescript
-next-env.d.ts
 /dist/
-/.wrangler/
-=======
-# dependencies
-node_modules/
+/static-dist/
 
-# build output
-dist/
-static-dist/
+# Cloudflare
+/.wrangler/
 
 # environment variables
-.env
-.env.local
-.env.*
+.env*
 
-# macOS
+# macOS and certificates
 .DS_Store
+*.pem
 
 # editors
 .vscode/
 
 # logs
 npm-debug.log*
->>>>>>> origin/main
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# TypeScript
+next-env.d.ts
