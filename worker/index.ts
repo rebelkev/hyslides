@@ -29,6 +29,18 @@ const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
+    if (url.pathname === "/") {
+      return Response.redirect(new URL("/hyslides/index.html", url), 307);
+    }
+
+    if (url.pathname === "/hyslides") {
+      return Response.redirect(new URL("/hyslides/index.html", url), 307);
+    }
+
+    if (url.pathname.startsWith("/hyslides/")) {
+      return env.ASSETS.fetch(request);
+    }
+
     if (url.pathname.startsWith("/api/live/")) {
       return handleLiveApi(request, env, url);
     }

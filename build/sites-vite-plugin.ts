@@ -26,7 +26,10 @@ export function sites(): Plugin {
     },
     async closeBundle() {
       const outputDirectory = resolve(root, "dist", ".openai");
-      const hyslidesOutputDirectory = resolve(root, "dist", "server", "public", "hyslides");
+      const hyslidesOutputDirectories = [
+        resolve(root, "dist", "client", "hyslides"),
+        resolve(root, "dist", "server", "public", "hyslides"),
+      ];
       const hostingConfig = resolve(root, ".openai", "hosting.json");
       const drizzleSource = resolve(root, "drizzle");
       const hyslidesFiles = [
@@ -37,8 +40,10 @@ export function sites(): Plugin {
 
       await rm(outputDirectory, { recursive: true, force: true });
       await mkdir(outputDirectory, { recursive: true });
-      await rm(hyslidesOutputDirectory, { recursive: true, force: true });
-      await mkdir(hyslidesOutputDirectory, { recursive: true });
+      for (const output of hyslidesOutputDirectories) {
+        await rm(output, { recursive: true, force: true });
+        await mkdir(output, { recursive: true });
+      }
 
       if (await exists(hostingConfig)) {
         await cp(hostingConfig, resolve(outputDirectory, "hosting.json"));
@@ -48,12 +53,14 @@ export function sites(): Plugin {
           recursive: true,
         });
       }
-      for (const [source, target] of hyslidesFiles) {
-        const sourcePath = resolve(root, source);
-        if (await exists(sourcePath)) {
-          await cp(sourcePath, resolve(hyslidesOutputDirectory, target), {
-            recursive: true,
-          });
+      for (const output of hyslidesOutputDirectories) {
+        for (const [source, target] of hyslidesFiles) {
+          const sourcePath = resolve(root, source);
+          if (await exists(sourcePath)) {
+            await cp(sourcePath, resolve(output, target), {
+              recursive: true,
+            });
+          }
         }
       }
     },
