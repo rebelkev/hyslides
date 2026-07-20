@@ -144,6 +144,7 @@
         <div class="presenter-actions">
           <button id="prevSlideBtn" type="button">Previous</button>
           <button id="nextSlideBtn" type="button">Next</button>
+          <button id="fullscreenPresenterBtn" type="button">Full screen</button>
         </div>
       </aside>
     </div>
@@ -153,6 +154,9 @@
         <div class="presenter-head">
           <strong>HySlides Live</strong>
           <button id="closeAudienceBtn" type="button" title="Close">Close</button>
+        </div>
+        <div class="audience-slide-frame">
+          <canvas id="audienceCanvas" width="1280" height="720" aria-label="Current presentation slide"></canvas>
         </div>
         <div id="audienceContent"></div>
       </div>
