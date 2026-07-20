@@ -77,10 +77,6 @@ export function liveStateDeck(state) {
 }
 
 export async function publishLiveSession(code, snapshot) {
-  if (hasSupabaseLive()) {
-    return publishSupabaseLiveSession(normalizeLiveCode(code), snapshot);
-  }
-
   return requestJson(`${LIVE_API_BASE}/${encodeURIComponent(normalizeLiveCode(code))}`, {
     method: "PUT",
     body: JSON.stringify(snapshot),
@@ -88,18 +84,10 @@ export async function publishLiveSession(code, snapshot) {
 }
 
 export async function getLiveSession(code) {
-  if (hasSupabaseLive()) {
-    return getSupabaseLiveSession(normalizeLiveCode(code));
-  }
-
   return requestJson(`${LIVE_API_BASE}/${encodeURIComponent(normalizeLiveCode(code))}`);
 }
 
 export async function submitLiveResponse(code, payload) {
-  if (hasSupabaseLive()) {
-    return submitSupabaseLiveResponse(normalizeLiveCode(code), payload);
-  }
-
   return requestJson(`${LIVE_API_BASE}/${encodeURIComponent(normalizeLiveCode(code))}/responses`, {
     method: "POST",
     body: JSON.stringify(payload),
