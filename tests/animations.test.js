@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cloneSlide, createElement, createSlide, normalizeElement } from "../src/schema.js";
+import { cloneSlide, createElement, createSlide, normalizeDeck, normalizeElement } from "../src/schema.js";
 
 test("new elements default to no animation", () => {
   const element = createElement("text");
@@ -43,4 +43,19 @@ test("duplicated slides receive independent slide and element identities", () =>
   assert.notEqual(duplicate.elements[0].id, source.elements[0].id);
   assert.equal(duplicate.elements[0].groupId, duplicate.elements[1].groupId);
   assert.notEqual(duplicate.elements[0].groupId, "group-original");
+});
+
+test("legacy saved swatches migrate to named deck color styles", () => {
+  const deck = normalizeDeck({
+    theme: { brandPalette: ["#112233", "#aabbcc"] },
+    slides: [],
+  });
+  assert.deepEqual(deck.theme.brandColorStyles.map((style) => style.color), ["#112233", "#aabbcc"]);
+  assert.equal(deck.theme.brandColorStyles[0].name, "Brand 1");
+  assert.deepEqual(deck.theme.brandPalette, ["#112233", "#aabbcc"]);
+});
+
+test("element color-style links survive normalization", () => {
+  const element = normalizeElement({ type: "text", brandColorStyleId: "brand-primary" });
+  assert.equal(element.brandColorStyleId, "brand-primary");
 });
