@@ -37,6 +37,7 @@
 
 ### Live Sessions
 
+- Replaced the one-click End Session confirmation with a default-checked action checklist for ending, clearing the live display, starting a new session instance, and returning to slide 1; presenters can resume without making changes.
 - Added QR and six-digit access-code joining.
 - Added session instances with default deck/date/time names.
 - Added session history, participant presence, response ratios, and 14-day retention.

@@ -243,6 +243,25 @@
       </div>
     </div>
 
+    <div id="endSessionOverlay" class="end-session-overlay hidden" aria-hidden="true">
+      <div class="end-session-card" role="dialog" aria-modal="true" aria-labelledby="endSessionTitle">
+        <div class="end-session-heading">
+          <strong id="endSessionTitle">Finish this presentation</strong>
+          <span>Choose what should happen next. Completed-session responses remain in Session History for 14 days.</span>
+        </div>
+        <div class="end-session-options">
+          <label><input id="endCurrentSessionOption" type="checkbox" checked /> <span><strong>End current session</strong><small>Archive this session instance and stop accepting responses.</small></span></label>
+          <label><input id="clearSessionResponsesOption" type="checkbox" checked /> <span><strong>Clear responses</strong><small>Reset the live results shown in the presentation.</small></span></label>
+          <label><input id="startNewSessionOption" type="checkbox" checked /> <span><strong>Start new session</strong><small>Create a fresh named session instance for this deck.</small></span></label>
+          <label><input id="returnFirstSlideOption" type="checkbox" checked /> <span><strong>Return to first slide</strong><small>Prepare the presentation to begin again from slide 1.</small></span></label>
+        </div>
+        <div class="end-session-actions">
+          <button id="resumeSessionBtn" type="button">Resume session</button>
+          <button id="continueEndSessionBtn" class="primary" type="button">Continue</button>
+        </div>
+      </div>
+    </div>
+
     <input id="imageInput" class="sr-only" type="file" accept="image/*" />
     <script defer src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" crossorigin="anonymous"></script>
     <script type="module" src="./src/app.js"></script>

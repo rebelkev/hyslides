@@ -88,6 +88,7 @@ const dom = {
   sessionHistoryOverlay: document.querySelector("#sessionHistoryOverlay"),
   sessionHistoryContent: document.querySelector("#sessionHistoryContent"),
   sessionHistorySubtitle: document.querySelector("#sessionHistorySubtitle"),
+  endSessionOverlay: document.querySelector("#endSessionOverlay"),
   presenterNotes: document.querySelector("#presenterNotes"),
   presenterSlideTitle: document.querySelector("#presenterSlideTitle"),
   presenterDeckTitle: document.querySelector("#presenterDeckTitle"),
@@ -320,6 +321,9 @@ function bindEvents() {
   document.querySelector("#audienceBtn").addEventListener("click", openAudience);
   document.querySelector("#closePresenterBtn").addEventListener("click", closePresenter);
   document.querySelector("#closeAudienceBtn").addEventListener("click", closeAudience);
+  document.querySelector("#resumeSessionBtn").addEventListener("click", closeEndSessionDialog);
+  document.querySelector("#continueEndSessionBtn").addEventListener("click", applyEndSessionOptions);
+  document.querySelector("#endCurrentSessionOption").addEventListener("change", updateEndSessionDependencies);
   window.addEventListener("hashchange", () => {
     if (location.hash.startsWith("#audience")) {
       document.body.classList.add("audience-window");
@@ -2840,7 +2844,9 @@ function onKeyDown(event) {
     markChanged("Selection nudged");
     renderAll();
   } else if (event.key === "Escape") {
-    if (openSlideMenuIndex !== null || openSectionMenuId !== null) {
+    if (!dom.endSessionOverlay.classList.contains("hidden")) {
+      closeEndSessionDialog();
+    } else if (openSlideMenuIndex !== null || openSectionMenuId !== null) {
       openSlideMenuIndex = null;
       openSectionMenuId = null;
       renderSlides();
@@ -3668,7 +3674,7 @@ function renderLiveJoinPanel(slide) {
     if (confirm("Clear every response to the current slide? This cannot be undone.")) runLiveControl("clearSlide");
   });
   panel.querySelector("#endLiveSessionBtn")?.addEventListener("click", () => {
-    if (confirm("End this live session? Its responses will remain available for 14 days.")) runLiveControl("end");
+    openEndSessionDialog();
   });
   panel.querySelector("#newLiveSessionBtn")?.addEventListener("click", () => {
     if (confirm("Start a new session instance for this deck?")) {
@@ -3679,6 +3685,84 @@ function renderLiveJoinPanel(slide) {
       queueLivePublish(true);
     }
   });
+}
+
+function openEndSessionDialog() {
+  const ids = [
+    "endCurrentSessionOption",
+    "clearSessionResponsesOption",
+    "startNewSessionOption",
+    "returnFirstSlideOption",
+  ];
+  ids.forEach((id) => { document.querySelector(`#${id}`).checked = true; });
+  updateEndSessionDependencies();
+  dom.endSessionOverlay.classList.remove("hidden");
+  dom.endSessionOverlay.setAttribute("aria-hidden", "false");
+  document.querySelector("#continueEndSessionBtn")?.focus();
+}
+
+function closeEndSessionDialog() {
+  dom.endSessionOverlay.classList.add("hidden");
+  dom.endSessionOverlay.setAttribute("aria-hidden", "true");
+}
+
+function updateEndSessionDependencies() {
+  const ending = document.querySelector("#endCurrentSessionOption").checked;
+  for (const id of ["clearSessionResponsesOption", "startNewSessionOption"]) {
+    const input = document.querySelector(`#${id}`);
+    if (!ending) input.checked = false;
+    input.disabled = !ending;
+    input.closest("label")?.classList.toggle("disabled", !ending);
+  }
+}
+
+async function applyEndSessionOptions() {
+  const continueButton = document.querySelector("#continueEndSessionBtn");
+  const endCurrent = document.querySelector("#endCurrentSessionOption").checked;
+  const clearResponses = document.querySelector("#clearSessionResponsesOption").checked;
+  const startNew = document.querySelector("#startNewSessionOption").checked;
+  const returnFirst = document.querySelector("#returnFirstSlideOption").checked;
+  continueButton.disabled = true;
+  try {
+    if (endCurrent) {
+      const state = await controlLiveSession(liveSession.code, "end", liveSession.presenterToken);
+      applyLiveStateToCurrentSlide(state);
+      liveSession.lifecycleStatus = "ended";
+      clearActiveSession();
+    }
+    if (clearResponses) {
+      clearDeckEngagementResults();
+      liveSession.participantCount = 0;
+      liveSession.responseCount = 0;
+      liveSession.questions = [];
+    }
+    if (returnFirst) {
+      activeSlideIndex = 0;
+      selectedSlideIndexes = new Set([0]);
+      slideSelectionAnchor = 0;
+      selectedIds = [];
+    }
+    if (startNew) {
+      beginNewLiveSession({ clearResponses });
+      liveSession.lifecycleStatus = "active";
+      liveSession.participantCount = 0;
+      liveSession.responseCount = 0;
+      liveSession.questions = [];
+      liveSession.status = "New session ready. Responses sync automatically.";
+      queueLivePublish(true);
+    } else if (endCurrent) {
+      liveSession.status = "Session ended. Responses are available in Session History.";
+    }
+    closeEndSessionDialog();
+    renderAll();
+    presenterChannel?.postMessage({ type: "active-slide", activeSlideIndex });
+    sendPresenterSnapshot();
+  } catch (error) {
+    liveSession.status = `Could not finish the session: ${error.message}`;
+    renderLiveJoinPanel(currentSlide());
+  } finally {
+    continueButton.disabled = false;
+  }
 }
 
 function renderPresenterQna() {
@@ -4867,10 +4951,11 @@ function clearActiveSession() {
   localStorage.removeItem(ACTIVE_SESSION_KEY);
 }
 
-function beginNewLiveSession() {
-  clearDeckEngagementResults();
+function beginNewLiveSession(options = {}) {
+  if (options.clearResponses !== false) clearDeckEngagementResults();
   liveSession.instanceId = crypto.randomUUID();
   liveSession.sessionName = `${deck.title || "Untitled presentation"} — ${new Date().toLocaleString()}`;
+  liveSession.lifecycleStatus = "active";
   liveSession.lastPublishedSignature = "";
   writeActiveSession();
 }
