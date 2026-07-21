@@ -105,6 +105,11 @@ let guides = [];
 let dragState = null;
 let clipboard = [];
 let saveTimer = null;
+let undoStack = [];
+let redoStack = [];
+let lastHistoryMessage = "";
+let lastHistoryAt = 0;
+let restoringHistory = false;
 let presenterOpen = false;
 let presenterWindow = null;
 let presenterAnimation = createAnimationPlaybackState();
@@ -157,6 +162,7 @@ async function init() {
   deck = normalizeDeck(saved || createSeedDeck());
   bindEvents();
   renderAll();
+  resetHistory();
   setupCanvasAutoFit();
   setStatus("Ready");
   bindPresenterChannel();
@@ -188,12 +194,15 @@ function bindEvents() {
     selectedIds = [];
     markChanged("New deck created");
     renderAll();
+    resetHistory();
   });
 
   document.querySelector("#saveDeckBtn").addEventListener("click", async () => {
     deck = await saveDeck(deck);
     setStatus("Deck saved");
   });
+  document.querySelector("#undoBtn").addEventListener("click", undoEdit);
+  document.querySelector("#redoBtn").addEventListener("click", redoEdit);
   document.querySelector("#deckLibraryBtn").addEventListener("click", openDeckLibrary);
   document.querySelector("#closeDeckLibraryBtn").addEventListener("click", closeDeckLibrary);
   document.querySelector("#sessionHistoryBtn").addEventListener("click", openSessionHistory);
@@ -244,6 +253,7 @@ function bindEvents() {
       await saveDeck(deck);
       setStatus("PowerPoint imported");
       renderAll();
+      resetHistory();
     } catch (error) {
       setStatus(`Import failed: ${error.message}`);
     } finally {
@@ -378,6 +388,7 @@ function upgradeIconButtons() {
     "layer-up": "bring-to-front", "layer-down": "send-to-back", "to-front": "chevrons-up",
     "to-back": "chevrons-down", "align-horizontal": "align-horizontal-space-around",
     "align-vertical": "align-vertical-space-around", "zoom-out": "zoom-out", "zoom-in": "zoom-in",
+    undo: "undo-2", redo: "redo-2",
   };
   document.querySelectorAll("[data-icon]").forEach((control) => {
     const label = control.getAttribute("aria-label") || control.getAttribute("title") || control.textContent.trim();
@@ -618,6 +629,7 @@ async function renderDeckLibrary() {
       closeDeckLibrary();
       setStatus("Deck opened");
       renderAll();
+      resetHistory();
     });
   });
 
@@ -642,6 +654,7 @@ async function renderDeckLibrary() {
         openSectionMenuId = null;
         selectedIds = [];
         renderAll();
+        resetHistory();
       }
       setStatus("Deck deleted");
       renderDeckLibrary();
@@ -2683,7 +2696,14 @@ function onKeyDown(event) {
     stepSlide(-1);
     return;
   }
-  if (shortcut && event.key.toLowerCase() === "s") {
+  if (shortcut && event.key.toLowerCase() === "z") {
+    event.preventDefault();
+    if (event.shiftKey) redoEdit();
+    else undoEdit();
+  } else if (shortcut && event.key.toLowerCase() === "y") {
+    event.preventDefault();
+    redoEdit();
+  } else if (shortcut && event.key.toLowerCase() === "s") {
     event.preventDefault();
     saveDeck(deck).then((saved) => {
       deck = saved;
@@ -3878,9 +3898,84 @@ function bindTextFormatButton(selector, apply) {
 
 function markChanged(message) {
   deck.updatedAt = new Date().toISOString();
+  recordHistory(message);
   setStatus(message);
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => saveDeck(deck).catch(() => {}), 500);
+}
+
+function captureHistorySnapshot() {
+  return {
+    deckJson: JSON.stringify(deck),
+    activeSlideIndex,
+    selectedSlideIndexes: selectedSlideIndexesSorted(),
+    selectedIds: [...selectedIds],
+  };
+}
+
+function resetHistory() {
+  undoStack = [captureHistorySnapshot()];
+  redoStack = [];
+  lastHistoryMessage = "";
+  lastHistoryAt = 0;
+  updateHistoryButtons();
+}
+
+function recordHistory(message) {
+  if (restoringHistory) return;
+  const snapshot = captureHistorySnapshot();
+  const previous = undoStack[undoStack.length - 1];
+  if (previous?.deckJson === snapshot.deckJson) return;
+  const now = Date.now();
+  const shouldCoalesce = undoStack.length > 1 && message === lastHistoryMessage && now - lastHistoryAt < 700;
+  if (shouldCoalesce) undoStack[undoStack.length - 1] = snapshot;
+  else undoStack.push(snapshot);
+  if (undoStack.length > 100) undoStack.shift();
+  redoStack = [];
+  lastHistoryMessage = message;
+  lastHistoryAt = now;
+  updateHistoryButtons();
+}
+
+function undoEdit() {
+  if (dom.textEditor.classList.contains("open")) closeTextEditor();
+  if (undoStack.length <= 1) return;
+  redoStack.push(undoStack.pop());
+  restoreHistorySnapshot(undoStack[undoStack.length - 1], "Undo");
+}
+
+function redoEdit() {
+  if (!redoStack.length) return;
+  const snapshot = redoStack.pop();
+  undoStack.push(snapshot);
+  restoreHistorySnapshot(snapshot, "Redo");
+}
+
+function restoreHistorySnapshot(snapshot, status) {
+  if (!snapshot) return;
+  restoringHistory = true;
+  deck = normalizeDeck(JSON.parse(snapshot.deckJson));
+  activeSlideIndex = clamp(snapshot.activeSlideIndex, 0, Math.max(0, deck.slides.length - 1));
+  selectedSlideIndexes = new Set(snapshot.selectedSlideIndexes.filter((index) => index >= 0 && index < deck.slides.length));
+  if (!selectedSlideIndexes.size && deck.slides.length) selectedSlideIndexes.add(activeSlideIndex);
+  slideSelectionAnchor = activeSlideIndex;
+  selectedIds = snapshot.selectedIds.filter((id) => currentSlide()?.elements.some((element) => element.id === id));
+  openSlideMenuIndex = null;
+  openSectionMenuId = null;
+  restoringHistory = false;
+  renderAll();
+  setStatus(status);
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => saveDeck(deck).catch(() => {}), 250);
+  if (presenterWindow && !presenterWindow.closed) sendPresenterSnapshot();
+  updateHistoryButtons();
+}
+
+function updateHistoryButtons() {
+  const undoButton = document.querySelector("#undoBtn");
+  const redoButton = document.querySelector("#redoBtn");
+  if (undoButton) undoButton.disabled = undoStack.length <= 1;
+  if (redoButton) redoButton.disabled = redoStack.length === 0;
 }
 
 function parseLineHeightMultiplier(value) {
