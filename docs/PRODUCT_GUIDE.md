@@ -16,7 +16,7 @@ The clean, full-screen slide show displayed to the room or shared during a video
 
 ### Participant View
 
-The standalone phone, tablet, or computer webpage opened using a deck’s QR code or six-digit access code. It fills the browser without exposing Editor View or an overlay Close button. Participants follow the active slide, submit responses on engagement slides, and see aggregated results after responding. Presentation-only slides display without unnecessary status copy.
+The standalone phone, tablet, or computer webpage opened using a deck’s QR code or six-digit access code. It fills the browser without exposing Editor View or an overlay Close button. Participants follow the active slide, submit responses on engagement slides, and see aggregated results after responding. Presentation-only slides display without unnecessary status copy. YouTube elements remain static placeholders on participant devices; video playback and audio occur only in the room’s Presentation View.
 
 ### Presenter View
 

@@ -4285,77 +4285,12 @@ async function renderLiveAudience() {
   audienceLive.lastRenderSignature = audienceRenderSignature();
 }
 
-function syncAudienceEmbeds(slide) {
+function syncAudienceEmbeds() {
   const layer = dom.audienceEmbedLayer;
   if (!layer || !audienceOpen) return;
-  const embeds = (slide?.elements || []).filter((element) =>
-    element.type === "embed" && youtubeVideoId(element.url || element.videoId)
-  );
-  const activeIds = new Set(embeds.map((element) => element.id));
-  layer.querySelectorAll("[data-embed-id]").forEach((node) => {
-    if (!activeIds.has(node.dataset.embedId)) node.remove();
-  });
-
-  const canvasRect = dom.audienceCanvas.getBoundingClientRect();
-  const parentRect = layer.parentElement.getBoundingClientRect();
-  const scaleX = canvasRect.width / SLIDE_SIZE.width;
-  const scaleY = canvasRect.height / SLIDE_SIZE.height;
-  for (const element of embeds) {
-    let frame = layer.querySelector(`[data-embed-id="${CSS.escape(element.id)}"]`);
-    if (!frame) {
-      frame = document.createElement("div");
-      frame.className = "audience-embed-frame";
-      frame.dataset.embedId = element.id;
-      layer.append(frame);
-    }
-    frame.style.left = `${canvasRect.left - parentRect.left + element.x * scaleX}px`;
-    frame.style.top = `${canvasRect.top - parentRect.top + element.y * scaleY}px`;
-    frame.style.width = `${element.w * scaleX}px`;
-    frame.style.height = `${element.h * scaleY}px`;
-    frame.style.transform = `rotate(${Number(element.rotation) || 0}deg)`;
-    frame.style.opacity = String(element.opacity ?? 1);
-
-    let iframe = frame.querySelector("iframe");
-    const playerElement = { ...element, autoplay: false, volume: 0, showControls: false, fullscreenOnPlay: false };
-    const source = youtubeEmbedUrl(playerElement, location.origin);
-    if (!iframe || frame.dataset.source !== source) {
-      frame.dataset.source = source;
-      iframe = document.createElement("iframe");
-      iframe.src = source;
-      iframe.title = element.name || "YouTube video";
-      iframe.allow = "autoplay; encrypted-media; picture-in-picture";
-      iframe.referrerPolicy = "strict-origin-when-cross-origin";
-      iframe.addEventListener("load", () => {
-        configureYouTubePlayer(iframe, playerElement);
-        delete frame.dataset.videoInitialized;
-        delete frame.dataset.stateKey;
-        window.setTimeout(() => syncAudienceVideoState(frame, element), 650);
-      });
-      frame.replaceChildren(iframe);
-    }
-    syncAudienceVideoState(frame, element);
-  }
-}
-
-function syncAudienceVideoState(frame, element) {
-  const iframe = frame.querySelector("iframe");
-  const state = element.runtimeVideoState;
-  if (!iframe || !state) return;
-  const stateKey = `${Number(state.playerState)}:${Number(state.time).toFixed(1)}:${Number(state.updatedAt)}`;
-  if (frame.dataset.stateKey === stateKey) return;
-  frame.dataset.stateKey = stateKey;
-  const playerState = Number(state.playerState);
-  const stateChanged = frame.dataset.lastPlayerState !== String(playerState);
-  const shouldSeek = !frame.dataset.videoInitialized || stateChanged || Date.now() - Number(frame.dataset.lastSeekAt || 0) > 10000;
-  if (shouldSeek) {
-    sendYouTubeCommand(iframe, "seekTo", [Math.max(0, Number(state.time) || 0), true]);
-    frame.dataset.lastSeekAt = String(Date.now());
-  }
-  if (!frame.dataset.videoInitialized || stateChanged) {
-    sendYouTubeCommand(iframe, playerState === 1 ? "playVideo" : "pauseVideo");
-  }
-  frame.dataset.videoInitialized = "true";
-  frame.dataset.lastPlayerState = String(playerState);
+  // Participant devices intentionally retain the canvas-rendered YouTube
+  // placeholder. Playback belongs only to the room's Presentation View.
+  layer.replaceChildren();
 }
 
 function participantTextEntryActive() {
