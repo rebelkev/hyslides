@@ -1119,7 +1119,7 @@ label {
     "top top top"
     "flow workspace live"
     "flow actions live";
-  grid-template-columns: 220px minmax(460px, 1fr) 320px;
+  grid-template-columns: 220px minmax(520px, 1fr) 360px;
   grid-template-rows: auto minmax(0, 1fr) auto;
   padding: 12px;
 }
@@ -1148,8 +1148,9 @@ label {
 .presenter-filmstrip,
 .presenter-side,
 .presenter-current-card,
-.presenter-next-card,
-.presenter-notes-card {
+.presenter-notes-card,
+.presenter-live-card,
+.presenter-qna-card {
   background: #f5f7fb;
   border-radius: 10px;
 }
@@ -1166,12 +1167,11 @@ label {
 .presenter-flow-slide canvas { background: #fff; display: block; height: auto; width: 100%; }
 .presenter-flow-slide strong { display: block; font-size: 12px; margin-top: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.presenter-workspace { display: grid; gap: 12px; grid-area: workspace; grid-template-columns: minmax(0, 1fr) 220px; grid-template-rows: minmax(0, 1fr) auto; min-height: 0; }
-.presenter-current-card { display: grid; grid-row: 1 / -1; grid-template-rows: auto minmax(0, 1fr); min-height: 0; padding: 10px; }
-.presenter-next-card { align-self: start; padding: 10px; }
-.presenter-notes-card { display: grid; gap: 6px; grid-template-rows: auto minmax(120px, 1fr); min-height: 0; padding: 10px; }
+.presenter-workspace { display: grid; grid-area: workspace; min-height: 0; }
+.presenter-current-card { display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; padding: 10px; }
+.presenter-notes-card { display: grid; gap: 6px; padding: 10px; }
 .presenter-notes-card label { font-weight: 700; }
-.presenter-notes-card textarea { min-height: 120px; resize: none; }
+.presenter-notes-card textarea { min-height: 92px; resize: vertical; }
 .presenter-card-head { align-items: center; display: flex; justify-content: space-between; margin-bottom: 8px; }
 .presenter-card-head span { color: var(--muted); font-size: 11px; }
 
@@ -1194,10 +1194,15 @@ label {
   display: grid;
   grid-area: live;
   gap: 12px;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(180px, auto) minmax(220px, 1fr);
   min-height: 0;
-  padding: 12px;
+  overflow: hidden;
 }
+
+.presenter-live-card,
+.presenter-qna-card { display: grid; min-height: 0; padding: 10px; }
+.presenter-live-card { grid-template-rows: auto minmax(0, 1fr); }
+.presenter-qna-card { grid-template-rows: auto auto minmax(0, 1fr); }
 
 .presenter-head {
   align-items: center;
@@ -1219,6 +1224,17 @@ label {
   overflow: auto;
   padding-top: 12px;
 }
+
+.presenter-qna-tabs { display: grid; gap: 6px; grid-template-columns: 1fr 1fr; margin-bottom: 8px; }
+.presenter-qna-tabs button.active { background: #e6efff; border-color: #88aaf8; color: #17449d; }
+.presenter-qna-list { display: grid; gap: 7px; overflow: auto; }
+.presenter-qna-empty { color: var(--muted); font-size: 12px; padding: 18px 4px; text-align: center; }
+.presenter-qna-item { background: #fff; border: 1px solid var(--line); border-radius: 8px; display: grid; gap: 7px; padding: 9px; }
+.presenter-qna-item.pending { border-left: 4px solid #e0a52b; }
+.presenter-qna-item.displayed { border-left: 4px solid var(--teal); }
+.presenter-qna-item span { color: var(--muted); font-size: 11px; }
+.presenter-qna-item-actions { display: flex; flex-wrap: wrap; gap: 5px; }
+.presenter-qna-item-actions button { min-height: 30px; padding: 4px 7px; }
 
 .countdown-control-panel {
   background: #eef4ff;
@@ -1270,7 +1286,7 @@ label {
   border-radius: 8px;
   display: grid;
   gap: 10px;
-  grid-template-columns: 104px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   padding: 10px;
 }
 
@@ -1460,6 +1476,9 @@ label {
 .audience-question.answered {
   opacity: .62;
 }
+
+.session-qna-form { display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr) auto; }
+.session-qna-public { display: grid; gap: 8px; }
 
 .audience-join-form {
   display: grid;
