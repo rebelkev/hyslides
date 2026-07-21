@@ -87,6 +87,7 @@ export function createElement(type, overrides = {}) {
       align: "left",
       verticalAlign: "top",
       lineHeight: 1.12,
+      autoHeight: true,
       fill: "transparent",
     },
     shape: {
