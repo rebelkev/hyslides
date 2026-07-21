@@ -1133,31 +1133,84 @@ label {
 }
 
 .background-style-swatches {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin-top: 3px;
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
 }
 
 .background-style-swatch {
-  border-radius: 6px;
-  height: 24px;
-  min-height: 24px;
-  min-width: 24px;
-  padding: 3px;
-  width: 24px;
-}
-
-.background-style-swatch span {
-  border-radius: 3px;
-  display: block;
-  height: 100%;
-  width: 100%;
+  min-height: 36px;
+  padding: 6px 8px;
 }
 
 .background-style-swatch.active {
   border-color: #2454d6;
   box-shadow: 0 0 0 2px #dbe6ff;
+}
+
+.background-color-picker { position: relative; }
+
+.background-color-picker > summary {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  cursor: pointer;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 34px minmax(0, 1fr);
+  list-style: none;
+  min-height: 42px;
+  padding: 5px 9px;
+}
+
+.background-color-picker > summary::-webkit-details-marker { display: none; }
+
+.background-color-picker[open] > summary {
+  border-color: #7ea0ff;
+  box-shadow: 0 0 0 2px #e0e8ff;
+}
+
+.background-color-preview {
+  border: 1px solid #9ca3af;
+  border-radius: 4px;
+  display: block;
+  height: 28px;
+  width: 34px;
+}
+
+.background-color-value {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.background-color-picker-menu {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, .18);
+  left: 0;
+  margin-top: 6px;
+  min-width: 220px;
+  padding: 10px;
+  position: absolute;
+  top: 100%;
+  width: max(100%, 220px);
+  z-index: 20;
+}
+
+.background-color-picker-menu > input[type="color"] {
+  cursor: pointer;
+  min-height: 42px;
+  width: 100%;
+}
+
+.background-swatch-heading {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 2px;
 }
 
 .live-link-card {

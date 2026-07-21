@@ -2061,12 +2061,21 @@ function brandColorStyles() {
 
 function backgroundColorControlMarkup(inputId, label, value, colorKey, styleKey, activeStyleId) {
   const swatches = brandColorStyles().map((style) => `
-    <button class="background-style-swatch ${activeStyleId === style.id ? "active" : ""}" type="button"
+    <button class="background-style-swatch brand-style-chip ${activeStyleId === style.id ? "active" : ""}" type="button"
       data-background-color-key="${attr(colorKey)}" data-background-style-key="${attr(styleKey)}"
       data-background-style-id="${attr(style.id)}" title="${attr(style.name)}" aria-label="Use ${attr(style.name)}">
-      <span style="background:${attr(style.color)}"></span>
+      <span class="swatch" style="background:${attr(style.color)}"></span><span>${escapeHtml(style.name)}</span>
     </button>`).join("");
-  return `<div class="field-row background-color-control"><label for="${attr(inputId)}">${escapeHtml(label)}</label><input id="${attr(inputId)}" type="color" value="${attr(value)}" data-background-color-input="${attr(colorKey)}" data-background-style-key="${attr(styleKey)}" /><div class="background-style-swatches">${swatches}</div></div>`;
+  return `<div class="field-row background-color-control"><label>${escapeHtml(label)}</label>
+    <details class="background-color-picker">
+      <summary aria-label="Choose ${attr(label)}"><span class="background-color-preview" style="background:${attr(value)}"></span><span class="background-color-value">${escapeHtml(String(value).toUpperCase())}</span></summary>
+      <div class="background-color-picker-menu">
+        <label for="${attr(inputId)}">Custom color</label>
+        <input id="${attr(inputId)}" type="color" value="${attr(value)}" data-background-color-input="${attr(colorKey)}" data-background-style-key="${attr(styleKey)}" />
+        ${swatches ? `<div class="background-style-swatches"><span class="background-swatch-heading">Theme colors</span>${swatches}</div>` : ""}
+      </div>
+    </details>
+  </div>`;
 }
 
 function bindBackgroundColorControls(slide) {
@@ -2074,6 +2083,11 @@ function bindBackgroundColorControls(slide) {
     input.addEventListener("input", () => {
       slide[input.dataset.backgroundColorInput] = input.value;
       slide[input.dataset.backgroundStyleKey] = null;
+      const picker = input.closest(".background-color-picker");
+      const preview = picker?.querySelector(".background-color-preview");
+      const value = picker?.querySelector(".background-color-value");
+      if (preview) preview.style.background = input.value;
+      if (value) value.textContent = input.value.toUpperCase();
       markChanged("Background color updated");
       renderCanvas();
       renderSlides();
