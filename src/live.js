@@ -55,8 +55,9 @@ export function isLocalJoinUrl(value) {
   }
 }
 
-export function liveSnapshotForDeck(deck, slide, activeSlideIndex) {
+export function liveSnapshotForDeck(deck, slide, activeSlideIndex, instanceId = "") {
   return {
+    instanceId,
     deckId: deck.id,
     deckTitle: deck.title,
     audienceCode: normalizeLiveCode(deck.settings?.audienceCode),
