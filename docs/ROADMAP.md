@@ -30,7 +30,7 @@
 
 ## Following Milestones
 
-- Live Q&A submission and moderation
+- Q&A enhancements: pinning, presenter spotlight layouts, and CSV export
 - User accounts and authentication
 - Server-backed deck library and media storage
 - Admin access and template management
