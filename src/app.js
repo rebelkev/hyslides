@@ -4389,14 +4389,21 @@ function renderSessionQnaForAudience() {
   launcher.innerHTML = `<span aria-hidden="true">?</span>`;
   const panel = document.createElement("section");
   panel.className = `audience-results session-qna-panel${participantQnaOpen ? "" : " hidden"}`;
+  panel.setAttribute("role", "dialog");
+  panel.setAttribute("aria-modal", "true");
+  panel.setAttribute("aria-label", "Ask the presenter");
   const questions = audienceLive.state?.questions || [];
   panel.innerHTML = `
-    <strong>Ask the presenter</strong>
-    <form class="session-qna-form"><input type="text" maxlength="500" required placeholder="Type a question at any time"><button type="submit">Submit question</button></form>
-    <div class="session-qna-public">${questions.length ? questions.map((question) => `<div class="result-row audience-question${question.answered ? " answered" : ""}" data-question-id="${attr(question.id)}"><strong>${escapeHtml(question.text)}</strong><button type="button">▲ ${question.upvotes || 0}</button></div>`).join("") : "<span>No questions have been displayed yet.</span>"}</div>`;
+    <div class="session-qna-head"><div><strong>Ask the presenter</strong><span>Questions are reviewed before they appear.</span></div><button class="session-qna-close" type="button" aria-label="Close questions">&times;</button></div>
+    <form class="session-qna-form">
+      <label for="participantQuestion">Your question</label>
+      <textarea id="participantQuestion" maxlength="500" rows="4" required placeholder="Type your question here"></textarea>
+      <button type="submit">Submit question</button>
+    </form>
+    <div class="session-qna-public"><strong>Displayed questions</strong>${questions.length ? questions.map((question) => `<div class="result-row audience-question${question.answered ? " answered" : ""}" data-question-id="${attr(question.id)}"><strong>${escapeHtml(question.text)}</strong><button type="button" aria-label="Upvote this question">▲ ${question.upvotes || 0}</button></div>`).join("") : "<span>No questions have been displayed yet.</span>"}</div>`;
   panel.querySelector("form").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const input = panel.querySelector("input");
+    const input = panel.querySelector("textarea");
     try {
       audienceLive.state = await submitLiveQuestion(audienceLive.code, input.value, participantId);
       audienceLive.error = "Question submitted for presenter review.";
@@ -4415,10 +4422,15 @@ function renderSessionQnaForAudience() {
     }
     renderLiveAudience();
   }));
+  panel.querySelector(".session-qna-close").addEventListener("click", () => {
+    participantQnaOpen = false;
+    panel.classList.add("hidden");
+    launcher.focus();
+  });
   launcher.addEventListener("click", () => {
     participantQnaOpen = !participantQnaOpen;
     panel.classList.toggle("hidden", !participantQnaOpen);
-    if (participantQnaOpen) panel.querySelector("input")?.focus();
+    if (participantQnaOpen) panel.querySelector("textarea")?.focus();
   });
   dom.audienceContent.append(panel, launcher);
 }

@@ -184,6 +184,13 @@ export function renderAudienceContent(container, deck, slide, onSubmit, latestRe
     container.append(row);
   }
 
+  if (engagement.type === "qna") {
+    const guidance = document.createElement("div");
+    guidance.className = "participant-qna-guidance";
+    guidance.textContent = "Use the question button to submit a question. Questions appear here only after the presenter displays them.";
+    container.append(guidance);
+  }
+
   if (latestResponses.length) {
     const results = document.createElement("section");
     results.className = "audience-results";

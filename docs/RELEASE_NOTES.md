@@ -81,6 +81,8 @@
 
 ### Live Q&A Moderation
 
+- Improved Participant View Q&A with a mobile bottom sheet, a multi-line question field, and a clear separation between private submissions and presenter-approved displayed questions.
+
 - Added persistent, hidden-by-default Q&A submissions with stable question IDs.
 - Added Presenter View moderation actions: Display, Hide, Mark answered/unanswered, and Delete.
 - Added participant upvoting with one vote per device and private filtering of unapproved questions.
