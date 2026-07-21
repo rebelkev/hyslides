@@ -4,6 +4,7 @@
 
 ### Editor
 
+- Moved engagement type, prompt, options, and response settings exclusively to the selected Engagement element; the slide-level inspector now focuses on audience-access visibility.
 - Added a safe YouTube Embed element with URL, volume, playback speed, start time, autoplay, loop, native-controls, positioning, resizing, and animation settings.
 - Added an Ungroup toolbar control directly beside Group.
 - Added toolbar Undo and Redo controls with standard keyboard shortcuts and a 100-state editing history.

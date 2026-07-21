@@ -1603,12 +1603,7 @@ function renderSlideInspector(slide) {
       <div class="check-row"><input id="guideToggle" type="checkbox" ${deck.settings.showGuides ? "checked" : ""} /><label for="guideToggle">Alignment guides</label></div>
     </section>
     <section class="inspector-section">
-      <strong>Engagement</strong>
-      <div class="check-row"><input id="engagementToggle" type="checkbox" ${slide.engagement.enabled ? "checked" : ""} /><label for="engagementToggle">Interactive slide</label></div>
-      <div class="field-row"><label for="engagementType">Mode</label><select id="engagementType">${engagementTypes.map((type) => `<option value="${type.value}" ${slide.engagement.type === type.value ? "selected" : ""}>${type.label}</option>`).join("")}</select></div>
-      <div class="field-row"><label for="engagementPrompt">Prompt</label><input id="engagementPrompt" value="${attr(slide.engagement.prompt)}" /></div>
-      ${engagementOptionEditor(slide.engagement, "slide")}
-      ${slide.engagement.type === "poll" ? `<div class="field-row"><label for="engagementResponseLimit">Selections allowed per participant</label><input id="engagementResponseLimit" type="number" min="1" max="${Math.max(1, slide.engagement.options.length)}" value="${Math.min(Math.max(1, Number(slide.engagement.responseLimit) || 1), Math.max(1, slide.engagement.options.length))}" /></div>` : ""}
+      <strong>Audience access</strong>
       <div class="check-row"><input id="audienceJoinElementsToggle" type="checkbox" ${audienceJoinVisible ? "checked" : ""} /><label for="audienceJoinElementsToggle">Show QR code and access code on this slide</label></div>
       <div class="field-row">
         <label>Audience join</label>
@@ -1639,30 +1634,11 @@ function renderSlideInspector(slide) {
   bindValue("#bodyFont", (value) => (deck.theme.fonts.body = value));
   bindToggle("#snapToggle", (value) => (deck.settings.snapToGrid = value));
   bindToggle("#guideToggle", (value) => (deck.settings.showGuides = value));
-  bindToggle("#engagementToggle", (value) => {
-    slide.engagement.enabled = value;
-    syncAudienceJoinElements();
-  });
   bindToggle("#audienceJoinElementsToggle", (value) => {
     const defaultVisible = activeSlideIndex === 0 || slide.engagement.enabled;
     slide.audienceJoinForced = value && !defaultVisible;
     slide.audienceJoinHidden = !value && defaultVisible;
     syncAudienceJoinElements();
-  });
-  bindEngagementType(slide);
-  bindValue("#engagementPrompt", (value) => {
-    slide.engagement.prompt = value;
-    syncEngagementElementsFromSlide(slide);
-  });
-  bindEngagementOptionEditor(slide.engagement, "slide", () => syncEngagementElementsFromSlide(slide));
-  document.querySelector("#engagementResponseLimit")?.addEventListener("change", (event) => {
-    slide.engagement.responseLimit = Math.min(
-      Math.max(1, slide.engagement.options.length),
-      Math.max(1, Number(event.target.value) || 1)
-    );
-    syncEngagementElementsFromSlide(slide);
-    markChanged("Poll response limit updated");
-    renderAll();
   });
 }
 
@@ -4377,17 +4353,6 @@ function bindValue(selector, setter) {
     if (audienceOpen) {
       renderAudience();
     }
-  });
-}
-
-function bindEngagementType(slide) {
-  const input = document.querySelector("#engagementType");
-  input?.addEventListener("change", () => {
-    slide.engagement.type = input.value;
-    pruneCorrectAnswers(slide.engagement);
-    syncEngagementElementsFromSlide(slide);
-    markChanged("Engagement mode updated");
-    renderAll();
   });
 }
 
