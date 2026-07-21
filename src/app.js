@@ -2993,6 +2993,7 @@ async function submitAudienceLiveResponse(slide, payload) {
         ? "That slide has moved on. Showing the current live slide."
         : "";
   } catch (error) {
+    delete audienceLive.responses[slide.id];
     audienceLive.backendAvailable = false;
     audienceLive.error = `Response was not sent: ${error.message}`;
   } finally {
