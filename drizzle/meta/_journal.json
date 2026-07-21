@@ -22,6 +22,13 @@
       "when": 1784599200000,
       "tag": "0002_session_history",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1784602800000,
+      "tag": "0003_live_security_presence",
+      "breakpoints": true
     }
   ]
 }
