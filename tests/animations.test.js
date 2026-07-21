@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createElement, normalizeElement } from "../src/schema.js";
+import { cloneSlide, createElement, createSlide, normalizeElement } from "../src/schema.js";
 
 test("new elements default to no animation", () => {
   const element = createElement("text");
@@ -29,4 +29,18 @@ test("saved animation settings survive element normalization", () => {
   assert.equal(element.animation.durationMs, 900);
   assert.equal(element.animation.easing, "easeOut");
   assert.equal(element.animation.delayMs, 0);
+});
+
+test("duplicated slides receive independent slide and element identities", () => {
+  const source = createSlide({
+    elements: [
+      createElement("text", { groupId: "group-original" }),
+      createElement("shape", { groupId: "group-original" }),
+    ],
+  });
+  const duplicate = cloneSlide(source);
+  assert.notEqual(duplicate.id, source.id);
+  assert.notEqual(duplicate.elements[0].id, source.elements[0].id);
+  assert.equal(duplicate.elements[0].groupId, duplicate.elements[1].groupId);
+  assert.notEqual(duplicate.elements[0].groupId, "group-original");
 });
