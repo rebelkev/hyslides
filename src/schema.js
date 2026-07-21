@@ -485,6 +485,56 @@ export function createSeedDeck() {
   return deck;
 }
 
+function createEngagementTemplateSlide({ type, title, prompt, options = [] }) {
+  return createSlide({
+    title,
+    layout: `engagement-${type}`,
+    background: "#f8fafc",
+    engagement: {
+      enabled: true,
+      type,
+      prompt,
+      options: [...options],
+      correctAnswers: [],
+      showCorrectAnswer: true,
+      correctAnswerRevealed: false,
+      responseLimit: 1,
+      results: {},
+      qna: [],
+      reactions: {
+        thumbsUp: 0,
+        heart: 0,
+        clap: 0,
+        wow: 0,
+        fire: 0,
+      },
+    },
+    elements: [
+      createElement("text", {
+        x: 88,
+        y: 68,
+        w: 880,
+        h: 76,
+        text: title,
+        fontSize: 50,
+        fontWeight: 800,
+        name: "Slide heading",
+      }),
+      createElement("engagement", {
+        x: 110,
+        y: 172,
+        w: 1060,
+        h: 390,
+        mode: type,
+        prompt,
+        options: [...options],
+        responseLimit: 1,
+        name: `${title} engagement`,
+      }),
+    ],
+  });
+}
+
 export const layoutTemplates = [
   {
     id: "title",
@@ -661,6 +711,63 @@ export const layoutTemplates = [
             name: "Poll results",
           }),
         ],
+      });
+    },
+  },
+  {
+    id: "multiple-choice",
+    name: "Multiple choice",
+    apply() {
+      return createEngagementTemplateSlide({
+        type: "multipleChoice",
+        title: "Multiple choice",
+        prompt: "Which answer best fits?",
+        options: ["Option A", "Option B", "Option C", "Option D"],
+      });
+    },
+  },
+  {
+    id: "quiz",
+    name: "Quiz",
+    apply() {
+      return createEngagementTemplateSlide({
+        type: "quiz",
+        title: "Audience quiz",
+        prompt: "What is the correct answer?",
+        options: ["Option A", "Option B", "Option C", "Option D"],
+      });
+    },
+  },
+  {
+    id: "word-cloud",
+    name: "Word cloud",
+    apply() {
+      return createEngagementTemplateSlide({
+        type: "wordCloud",
+        title: "Word cloud",
+        prompt: "What word comes to mind?",
+      });
+    },
+  },
+  {
+    id: "qna",
+    name: "Q&A",
+    apply() {
+      return createEngagementTemplateSlide({
+        type: "qna",
+        title: "Audience Q&A",
+        prompt: "What questions should we discuss?",
+      });
+    },
+  },
+  {
+    id: "reactions",
+    name: "Reactions",
+    apply() {
+      return createEngagementTemplateSlide({
+        type: "reactions",
+        title: "Live reactions",
+        prompt: "How is this landing?",
       });
     },
   },

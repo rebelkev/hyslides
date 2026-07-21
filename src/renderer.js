@@ -512,7 +512,14 @@ function drawWordCloudPreview(ctx, element, deck, options, padding, y) {
   const words = Object.entries(element.results || {})
     .sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0))
     .slice(0, 12);
-  const displayWords = words.length ? words : options.slice(0, 8).map((word) => [word, 0]);
+  if (!words.length) {
+    ctx.fillStyle = deck.theme.colors.muted;
+    ctx.font = `700 20px ${deck.theme.fonts.body}, Arial, sans-serif`;
+    ctx.textBaseline = "top";
+    ctx.fillText("Audience words will appear here", padding, y + 12, element.w - padding * 2);
+    return;
+  }
+  const displayWords = words;
   const maxCount = Math.max(1, ...displayWords.map(([, count]) => Number(count) || 0));
   let x = padding;
   ctx.textBaseline = "middle";
