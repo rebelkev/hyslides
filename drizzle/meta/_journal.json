@@ -15,6 +15,13 @@
       "when": 1784595600000,
       "tag": "0001_live_session_instances",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784599200000,
+      "tag": "0002_session_history",
+      "breakpoints": true
     }
   ]
 }
