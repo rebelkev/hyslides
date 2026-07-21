@@ -3,6 +3,8 @@ export const SLIDE_SIZE = {
   height: 720,
 };
 
+export const MAX_ENGAGEMENT_OPTIONS = 10;
+
 export const GRID_SIZE = 8;
 
 export const ELEMENT_TYPES = [
@@ -863,8 +865,11 @@ export function normalizeSlide(raw = {}) {
     engagement: {
       ...createSlide().engagement,
       ...(raw.engagement || {}),
+      options: Array.isArray(raw.engagement?.options)
+        ? raw.engagement.options.slice(0, MAX_ENGAGEMENT_OPTIONS)
+        : createSlide().engagement.options,
       correctAnswers: Array.isArray(raw.engagement?.correctAnswers)
-        ? raw.engagement.correctAnswers
+        ? raw.engagement.correctAnswers.slice(0, MAX_ENGAGEMENT_OPTIONS)
         : [],
       showCorrectAnswer: raw.engagement?.showCorrectAnswer ?? true,
       correctAnswerRevealed: raw.engagement?.correctAnswerRevealed ?? false,
@@ -885,7 +890,7 @@ export function normalizeSlide(raw = {}) {
 
 export function normalizeElement(raw) {
   const defaults = createElement(raw.type || "shape");
-  return {
+  const element = {
     ...defaults,
     ...raw,
     id: raw.id || uid(raw.type || "element"),
@@ -894,6 +899,13 @@ export function normalizeElement(raw) {
       ...(raw.animation || {}),
     },
   };
+  if (element.type === "engagement") {
+    element.options = (Array.isArray(element.options) ? element.options : [])
+      .slice(0, MAX_ENGAGEMENT_OPTIONS);
+    element.correctAnswers = (Array.isArray(element.correctAnswers) ? element.correctAnswers : [])
+      .filter((answer) => element.options.includes(answer));
+  }
+  return element;
 }
 
 export function syncEngagementResultCharts(slide) {

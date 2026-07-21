@@ -1,4 +1,4 @@
-import { SLIDE_SIZE } from "./schema.js";
+import { MAX_ENGAGEMENT_OPTIONS, SLIDE_SIZE } from "./schema.js";
 
 const imageCache = new Map();
 
@@ -22,6 +22,19 @@ export function measureTextElementHeight(ctx, element, deck) {
   const height = Math.ceil(lineCount * fontSize * (element.lineHeight || 1.18) + 4);
   ctx.restore();
   return Math.max(12, height);
+}
+
+export function measureEngagementElementHeight(element) {
+  if (element?.type !== "engagement" || !["poll", "multipleChoice", "quiz"].includes(element.mode)) {
+    return Number(element?.h || 0);
+  }
+  const optionCount = Math.min(MAX_ENGAGEMENT_OPTIONS, Math.max(1, element.options?.length || 0));
+  const padding = Math.max(18, Math.min(34, Number(element.w || 760) * 0.04));
+  const promptLineCount = String(element.prompt || "Audience question").length > 48 ? 2 : 1;
+  return Math.ceil(
+    padding * 2 + 34 + 22 + promptLineCount * 38 + 8 +
+    optionCount * 42 + Math.max(0, optionCount - 1) * 8
+  );
 }
 
 export function drawSlide(ctx, slide, deck, options = {}) {
@@ -429,7 +442,8 @@ function drawDivider(ctx, element) {
 function drawEngagement(ctx, element, deck, renderOptions = {}) {
   const mode = element.mode || "poll";
   const prompt = element.prompt || "Audience question";
-  const options = element.options?.length ? element.options : ["Option A", "Option B", "Option C"];
+  const options = (element.options?.length ? element.options : ["Option A", "Option B", "Option C"])
+    .slice(0, MAX_ENGAGEMENT_OPTIONS);
   const accent = element.accent || deck.theme.colors.primary;
   const padding = Math.max(18, Math.min(34, element.w * 0.04));
   const headerHeight = 34;
@@ -477,13 +491,12 @@ function drawChoicePreview(ctx, element, deck, options, padding, y, renderOption
     ? new Set(element.correctAnswers || [])
     : new Set();
   const availableHeight = Math.max(48, element.h - y - padding);
-  const rowGap = 10;
-  const rowHeight = Math.max(30, Math.min(46, (availableHeight - rowGap * 3) / Math.min(4, options.length)));
-  const maxRows = Math.max(1, Math.floor(availableHeight / (rowHeight + rowGap)));
+  const rowGap = options.length > 6 ? 5 : 10;
+  const rowHeight = Math.max(16, Math.min(46, (availableHeight - rowGap * Math.max(0, options.length - 1)) / options.length));
 
-  ctx.font = `700 ${Math.max(14, Math.min(20, rowHeight * 0.44))}px ${deck.theme.fonts.body}, Arial, sans-serif`;
+  ctx.font = `700 ${Math.max(11, Math.min(20, rowHeight * 0.44))}px ${deck.theme.fonts.body}, Arial, sans-serif`;
   ctx.textBaseline = "middle";
-  options.slice(0, maxRows).forEach((option, index) => {
+  options.forEach((option, index) => {
     const rowY = y + index * (rowHeight + rowGap);
     ctx.fillStyle = correct.has(option) ? "#eefbf8" : "#f8fafc";
     ctx.strokeStyle = correct.has(option) ? "#95d8cf" : "#d7dde6";

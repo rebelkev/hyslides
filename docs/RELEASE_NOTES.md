@@ -16,6 +16,7 @@
 - Reorganized the left rail into dedicated Slides and Templates tabs, with explicit “Add to deck” actions for every template.
 - Added ready-to-edit templates for Poll, Multiple Choice, Quiz, Word Cloud, Q&A, and Reactions engagement slides.
 - Streamlined Poll, Multiple Choice, and Quiz setup into one inline option list with editing, removal, adding, and correct-answer selection in the same rows.
+- Capped choice-based engagement slides at 10 options and made their on-slide question elements expand and compact their rows so every option remains visible.
 
 ### Design System
 

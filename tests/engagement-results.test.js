@@ -5,8 +5,11 @@ import {
   createSeedDeck,
   createSlide,
   layoutTemplates,
+  MAX_ENGAGEMENT_OPTIONS,
+  normalizeDeck,
   syncEngagementResultCharts,
 } from "../src/schema.js";
+import { measureEngagementElementHeight } from "../src/renderer.js";
 
 test("linked poll charts mirror live totals and clear stale bars", () => {
   const chart = createElement("chart", {
@@ -104,4 +107,26 @@ test("the template library includes every engagement type", () => {
     [...types].sort(),
     ["multipleChoice", "poll", "qna", "quiz", "reactions", "wordCloud"].sort()
   );
+});
+
+test("engagement choices are capped at ten options", () => {
+  const options = Array.from({ length: 14 }, (_, index) => `Option ${index + 1}`);
+  const deck = normalizeDeck({
+    ...createSeedDeck(),
+    slides: [createSlide({
+      engagement: { enabled: true, type: "quiz", options },
+      elements: [createElement("engagement", { mode: "quiz", options })],
+    })],
+  });
+  assert.equal(deck.slides[0].engagement.options.length, MAX_ENGAGEMENT_OPTIONS);
+  assert.equal(deck.slides[0].elements[0].options.length, MAX_ENGAGEMENT_OPTIONS);
+});
+
+test("engagement element height grows with its option list", () => {
+  const short = createElement("engagement", { mode: "poll", options: ["One", "Two"] });
+  const long = createElement("engagement", {
+    mode: "poll",
+    options: Array.from({ length: 10 }, (_, index) => `Option ${index + 1}`),
+  });
+  assert.ok(measureEngagementElementHeight(long) > measureEngagementElementHeight(short));
 });

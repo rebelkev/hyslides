@@ -1,3 +1,5 @@
+import { MAX_ENGAGEMENT_OPTIONS } from "./schema.js";
+
 export const engagementTypes = [
   { value: "poll", label: "Live poll" },
   { value: "multipleChoice", label: "Multiple choice" },
@@ -21,6 +23,7 @@ export function ensureEngagement(slide) {
   slide.engagement.type ||= "poll";
   slide.engagement.prompt ||= "What should we prioritize next?";
   slide.engagement.options ||= ["Option A", "Option B", "Option C"];
+  slide.engagement.options = slide.engagement.options.slice(0, MAX_ENGAGEMENT_OPTIONS);
   slide.engagement.correctAnswers ||= [];
   slide.engagement.showCorrectAnswer ??= true;
   slide.engagement.correctAnswerRevealed ??= false;

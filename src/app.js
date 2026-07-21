@@ -1,5 +1,6 @@
 import {
   GRID_SIZE,
+  MAX_ENGAGEMENT_OPTIONS,
   SLIDE_SIZE,
   cloneElement,
   cloneSlide,
@@ -17,6 +18,7 @@ import {
   drawSlideAsync,
   hitTest,
   hitTestHandle,
+  measureEngagementElementHeight,
   measureTextElementHeight,
   preloadSlideImages,
 } from "./renderer.js";
@@ -744,6 +746,11 @@ function autoSizeTextElements(slide) {
   for (const element of slide.elements || []) {
     if (element.type === "text" && element.autoHeight !== false) {
       element.h = measureTextElementHeight(ctx, element, deck);
+    }
+    if (element.type === "engagement" && ["poll", "multipleChoice", "quiz"].includes(element.mode)) {
+      const availableHeight = Math.max(160, SLIDE_SIZE.height - element.y - 20);
+      const fittedHeight = Math.min(measureEngagementElementHeight(element), availableHeight);
+      element.h = Math.max(element.h, fittedHeight);
     }
   }
 }
@@ -2142,6 +2149,7 @@ function engagementOptionEditor(engagement, scope) {
   }
 
   const options = engagement.options || [];
+  const atOptionLimit = options.length >= MAX_ENGAGEMENT_OPTIONS;
   const correctAnswers = new Set(engagement.correctAnswers || []);
   const supportsAnswers = ["multipleChoice", "quiz"].includes(engagement.type);
   const optionRows = options.length
@@ -2165,7 +2173,7 @@ function engagementOptionEditor(engagement, scope) {
       <label>Options</label>
       ${supportsAnswers ? `<span class="field-help">Check every correct answer.</span>` : ""}
       <div class="engagement-option-list">${optionRows}</div>
-      <button class="engagement-option-add" type="button" data-option-add>Add option</button>
+      <button class="engagement-option-add" type="button" data-option-add ${atOptionLimit ? "disabled" : ""}>Add option (${options.length}/${MAX_ENGAGEMENT_OPTIONS})</button>
     </div>
   `;
 }
@@ -4284,6 +4292,7 @@ function bindEngagementOptionEditor(engagement, scope, synchronize) {
   });
 
   editor.querySelector("[data-option-add]")?.addEventListener("click", () => {
+    if (engagement.options.length >= MAX_ENGAGEMENT_OPTIONS) return;
     let number = engagement.options.length + 1;
     let label = `Option ${number}`;
     while (engagement.options.includes(label)) {
