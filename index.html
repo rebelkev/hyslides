@@ -139,24 +139,58 @@
     </div>
 
     <div id="presenterOverlay" class="presenter hidden" aria-hidden="true">
-      <div class="presenter-main">
-        <canvas id="presenterCanvas" width="1280" height="720"></canvas>
-      </div>
-      <aside class="presenter-side">
-        <div class="presenter-head">
-          <strong id="presenterSlideTitle">Slide</strong>
-          <button id="closePresenterBtn" type="button" title="Close">Close</button>
+      <header class="presenter-topbar">
+        <div class="presenter-brand">
+          <span class="brand-mark" aria-hidden="true">H</span>
+          <div><strong>Presenter View</strong><span id="presenterDeckTitle">HySlides</span></div>
         </div>
-        <canvas id="nextCanvas" width="320" height="180"></canvas>
-        <label for="presenterNotes">Notes</label>
-        <textarea id="presenterNotes"></textarea>
-        <div id="liveControls" class="live-controls"></div>
-        <div class="presenter-actions">
-          <button id="prevSlideBtn" type="button">Previous</button>
-          <button id="nextSlideBtn" type="button">Next</button>
-          <button id="fullscreenPresenterBtn" type="button">Full screen</button>
+        <div class="presenter-health" aria-label="Live presentation status">
+          <span><small>Elapsed</small><strong id="presenterTimer">00:00</strong></span>
+          <span><small>Participants</small><strong id="presenterParticipantCount">0</strong></span>
+          <span><small>Responses</small><strong id="presenterResponseCount">0/0</strong></span>
         </div>
+        <div class="presenter-top-actions">
+          <button id="resetPresenterTimerBtn" type="button">Reset timer</button>
+          <button id="openPresentationViewBtn" class="primary" type="button">Open Presentation View</button>
+          <button id="closePresenterBtn" type="button" title="Close Presenter View">Close</button>
+        </div>
+      </header>
+
+      <aside class="presenter-filmstrip" aria-label="Presentation flow">
+        <div class="presenter-section-head">
+          <div><strong>Presentation flow</strong><span>Uncheck a slide to skip it</span></div>
+          <span id="presenterFlowCount"></span>
+        </div>
+        <div id="presenterSlideList" class="presenter-slide-list"></div>
       </aside>
+
+      <main class="presenter-workspace">
+        <section class="presenter-current-card">
+          <div class="presenter-card-head"><strong id="presenterSlideTitle">Current slide</strong><span>End-state preview</span></div>
+          <div class="presenter-main"><canvas id="presenterCanvas" width="1280" height="720"></canvas></div>
+        </section>
+        <section class="presenter-next-card">
+          <div class="presenter-card-head"><strong>Next in flow</strong><span id="nextSlideTitle"></span></div>
+          <canvas id="nextCanvas" width="320" height="180"></canvas>
+        </section>
+        <section class="presenter-notes-card">
+          <label for="presenterNotes">Speaker notes</label>
+          <textarea id="presenterNotes" placeholder="Add speaker notes for this slide..."></textarea>
+        </section>
+      </main>
+
+      <aside class="presenter-side">
+        <div class="presenter-card-head"><strong>Live session</strong><span id="presenterConnectionStatus">Connecting…</span></div>
+        <div id="liveControls" class="live-controls"></div>
+      </aside>
+
+      <footer class="presenter-actions">
+        <button id="prevSlideBtn" type="button">Previous</button>
+        <button id="blackoutPresentationBtn" type="button" aria-pressed="false">Black screen</button>
+        <button id="fullscreenPresenterBtn" type="button">Full screen</button>
+        <button id="nextSlideBtn" class="primary" type="button">Next</button>
+      </footer>
+      <div id="presentationBlackout" class="presentation-blackout hidden"><span>HySlides</span></div>
     </div>
 
     <div id="audienceOverlay" class="audience hidden" aria-hidden="true">
