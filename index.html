@@ -30,6 +30,7 @@
         <symbol id="icon-table" viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 10h16M4 15h16M10 5v14M16 5v14" /></symbol>
         <symbol id="icon-minus" viewBox="0 0 24 24"><path d="M5 12h14" /></symbol>
         <symbol id="icon-engagement" viewBox="0 0 24 24"><path d="M4 5h16v10H8l-4 4zM8 10h1M12 10h1M16 10h1" /></symbol>
+        <symbol id="icon-video" viewBox="0 0 24 24"><path d="M3 6h13v12H3zM16 10l5-3v10l-5-3zM8 9l5 3-5 3z" /></symbol>
         <symbol id="icon-copy" viewBox="0 0 24 24"><path d="M8 8h11v11H8zM5 16H4V4h12v1" /></symbol>
         <symbol id="icon-group" viewBox="0 0 24 24"><path d="M5 6h6v6H5zM13 6h6v6h-6zM8 14h8v5H8z" /></symbol>
         <symbol id="icon-ungroup" viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" /></symbol>
@@ -100,6 +101,7 @@
           <button data-add="divider" type="button" title="Divider" data-icon="minus">Divider</button>
           <button data-add="engagement" type="button" title="Engagement" data-icon="engagement">Engagement</button>
           <button data-add="countdown" type="button" title="Countdown timer" data-icon="timer">Countdown</button>
+          <button data-add="embed" type="button" title="YouTube video" data-icon="video">YouTube video</button>
           <span class="tool-separator"></span>
           <button id="duplicateBtn" type="button" title="Duplicate" data-icon="copy">Duplicate</button>
           <button id="groupBtn" type="button" title="Group" data-icon="group">Group</button>
@@ -171,7 +173,7 @@
       <main class="presenter-workspace">
         <section class="presenter-current-card">
           <div class="presenter-card-head"><strong id="presenterSlideTitle">Current slide</strong><span>End-state preview</span></div>
-          <div class="presenter-main"><canvas id="presenterCanvas" width="1280" height="720"></canvas></div>
+          <div class="presenter-main"><canvas id="presenterCanvas" width="1280" height="720"></canvas><div id="presentationEmbedLayer" class="presentation-embed-layer" aria-label="Embedded video layer"></div></div>
         </section>
       </main>
 

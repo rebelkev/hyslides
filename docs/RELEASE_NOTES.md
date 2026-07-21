@@ -4,6 +4,7 @@
 
 ### Editor
 
+- Added a safe YouTube Embed element with URL, volume, playback speed, start time, autoplay, loop, native-controls, positioning, resizing, and animation settings.
 - Added an Ungroup toolbar control directly beside Group.
 - Added toolbar Undo and Redo controls with standard keyboard shortcuts and a 100-state editing history.
 - Added slide duplication to the left-panel slide menu and moved Delete to the bottom.
@@ -48,6 +49,7 @@
 - Added responsive desktop/mobile layouts, speaker notes, current and next end-state previews, elapsed timer, live participant/response counts, and session controls.
 - Added a session-only presentation-flow filmstrip. Slides can be unchecked to skip them, visibly gray out, and be restored without changing the saved deck.
 - Added direct slide jumping, animation-aware next navigation, and a black-screen safety control.
+- Added real YouTube playback in Presentation View while keeping Editor and private Presenter previews silent and non-playing.
 
 ### Countdown Timers
 

@@ -52,11 +52,13 @@ import {
   submitLiveQuestion,
   voteLiveQuestion,
 } from "./live.js";
+import { youtubeEmbedUrl, youtubeVideoId } from "./embed.js";
 
 const dom = {
   app: document.querySelector("#app"),
   canvas: document.querySelector("#slideCanvas"),
   presenterCanvas: document.querySelector("#presenterCanvas"),
+  presentationEmbedLayer: document.querySelector("#presentationEmbedLayer"),
   audienceCanvas: document.querySelector("#audienceCanvas"),
   nextCanvas: document.querySelector("#nextCanvas"),
   viewport: document.querySelector("#canvasViewport"),
@@ -216,6 +218,9 @@ async function init() {
 }
 
 function bindEvents() {
+  window.addEventListener("resize", () => {
+    if (presentationWindowMode && presenterOpen) syncPresentationEmbeds(currentSlide());
+  });
   dom.deckTitle.addEventListener("input", () => {
     deck.title = dom.deckTitle.value;
     markChanged("Deck title updated");
@@ -441,7 +446,7 @@ function upgradeIconButtons() {
     "layer-up": "bring-to-front", "layer-down": "send-to-back", "to-front": "chevrons-up",
     "to-back": "chevrons-down", "align-horizontal": "align-horizontal-space-around",
     "align-vertical": "align-vertical-space-around", "zoom-out": "zoom-out", "zoom-in": "zoom-in",
-    undo: "undo-2", redo: "redo-2", timer: "timer",
+    undo: "undo-2", redo: "redo-2", timer: "timer", video: "video",
   };
   document.querySelectorAll("[data-icon]").forEach((control) => {
     const label = control.getAttribute("aria-label") || control.getAttribute("title") || control.textContent.trim();
@@ -1551,6 +1556,7 @@ function elementTreeIconForType(type) {
     divider: ["minus", "minus"],
     engagement: ["message-square", "engagement"],
     countdown: ["timer", "history"],
+    embed: ["video", "image"],
   };
   const [lucideName, fallbackName] = icons[type] || ["square", "shapes"];
   return elementTreeIcon(lucideName, fallbackName);
@@ -1822,6 +1828,24 @@ function elementInspectorFields(element) {
       </section>`;
   }
 
+  if (element.type === "embed") {
+    const validVideo = youtubeVideoId(element.url || element.videoId);
+    return `
+      <section class="inspector-section">
+        <strong>YouTube video</strong>
+        <div class="field-row"><label for="embedUrlInput">YouTube URL</label><input id="embedUrlInput" type="url" value="${attr(element.url || "")}" placeholder="https://www.youtube.com/watch?v=..." /></div>
+        <div class="field-grid">
+          <div class="field-row"><label for="embedVolumeInput">Volume (%)</label><input id="embedVolumeInput" type="number" min="0" max="100" value="${Math.max(0, Math.min(100, Number(element.volume) || 0))}" /></div>
+          <div class="field-row"><label for="embedSpeedInput">Playback speed</label><select id="embedSpeedInput">${animationOptionList([["0.25", "0.25×"], ["0.5", "0.5×"], ["0.75", "0.75×"], ["1", "Normal"], ["1.25", "1.25×"], ["1.5", "1.5×"], ["1.75", "1.75×"], ["2", "2×"]], String(element.playbackRate || 1))}</select></div>
+          <div class="field-row"><label for="embedStartInput">Start at (seconds)</label><input id="embedStartInput" type="number" min="0" value="${Math.max(0, Number(element.startSeconds) || 0)}" /></div>
+        </div>
+        <div class="check-row"><input id="embedControlsInput" type="checkbox" ${element.showControls !== false ? "checked" : ""} /><label for="embedControlsInput">Show player controls</label></div>
+        <div class="check-row"><input id="embedAutoplayInput" type="checkbox" ${element.autoplay ? "checked" : ""} /><label for="embedAutoplayInput">Autoplay when slide appears</label></div>
+        <div class="check-row"><input id="embedLoopInput" type="checkbox" ${element.loop ? "checked" : ""} /><label for="embedLoopInput">Loop video</label></div>
+        <p class="field-help">${validVideo ? "Video ready for Presentation View." : "Paste a valid YouTube, youtu.be, Shorts, or Live URL."} Autoplay with sound may be blocked by the browser.</p>
+      </section>`;
+  }
+
   return "";
 }
 
@@ -1909,6 +1933,19 @@ function bindTypeFields(element) {
     bindValue("#countdownMessageInput", (value) => (element.completionMessage = value));
     bindToggle("#countdownAutoStartInput", (value) => (element.autoStart = value));
     bindToggle("#countdownAutoAdvanceInput", (value) => (element.autoAdvance = value));
+  }
+
+  if (element.type === "embed") {
+    bindValue("#embedUrlInput", (value) => {
+      element.url = value.trim();
+      element.videoId = youtubeVideoId(element.url);
+    });
+    bindNumber("#embedVolumeInput", (value) => (element.volume = clamp(value, 0, 100)));
+    bindValue("#embedSpeedInput", (value) => (element.playbackRate = Number(value) || 1));
+    bindNumber("#embedStartInput", (value) => (element.startSeconds = Math.max(0, value)));
+    bindToggle("#embedControlsInput", (value) => (element.showControls = value));
+    bindToggle("#embedAutoplayInput", (value) => (element.autoplay = value));
+    bindToggle("#embedLoopInput", (value) => (element.loop = value));
   }
 }
 
@@ -3033,6 +3070,7 @@ async function renderPresenter() {
     elementStates: presentationWindowMode ? presenterElementStates(slide) : null,
     countdownStates: countdownStatesForRenderer(),
   });
+  syncPresentationEmbeds(slide);
   const nextIndex = nextIncludedSlideIndex(activeSlideIndex, 1);
   const nextSlide = nextIndex === activeSlideIndex ? slide : deck.slides[nextIndex];
   dom.nextSlideTitle.textContent = nextIndex === activeSlideIndex ? "End of presentation" : `${nextIndex + 1}. ${nextSlide.title}`;
@@ -3198,6 +3236,81 @@ function drawPresentationCountdownFrame() {
     elementStates: presentationWindowMode ? presenterElementStates(currentSlide()) : null,
     countdownStates: countdownStatesForRenderer(),
   });
+  syncPresentationEmbeds(currentSlide());
+}
+
+function syncPresentationEmbeds(slide = currentSlide()) {
+  const layer = dom.presentationEmbedLayer;
+  if (!layer) return;
+  if (!presentationWindowMode || !presenterOpen) {
+    layer.replaceChildren();
+    return;
+  }
+
+  const embeds = (slide?.elements || []).filter((element) =>
+    element.type === "embed" && youtubeVideoId(element.url || element.videoId)
+  );
+  const activeIds = new Set(embeds.map((element) => element.id));
+  layer.querySelectorAll("[data-embed-id]").forEach((node) => {
+    if (!activeIds.has(node.dataset.embedId)) node.remove();
+  });
+
+  const canvasRect = dom.presenterCanvas.getBoundingClientRect();
+  const parentRect = layer.parentElement.getBoundingClientRect();
+  const scaleX = canvasRect.width / SLIDE_SIZE.width;
+  const scaleY = canvasRect.height / SLIDE_SIZE.height;
+  const states = presenterElementStates(slide);
+
+  for (const element of embeds) {
+    let frame = layer.querySelector(`[data-embed-id="${CSS.escape(element.id)}"]`);
+    if (!frame) {
+      frame = document.createElement("div");
+      frame.className = "presentation-embed-frame";
+      frame.dataset.embedId = element.id;
+      layer.append(frame);
+    }
+    frame.style.left = `${canvasRect.left - parentRect.left + element.x * scaleX}px`;
+    frame.style.top = `${canvasRect.top - parentRect.top + element.y * scaleY}px`;
+    frame.style.width = `${element.w * scaleX}px`;
+    frame.style.height = `${element.h * scaleY}px`;
+    frame.style.transform = `rotate(${Number(element.rotation) || 0}deg)`;
+    const state = states[element.id];
+    frame.style.opacity = String((element.opacity ?? 1) * (state?.opacity ?? 1));
+    frame.style.visibility = state?.hidden ? "hidden" : "visible";
+
+    const source = youtubeEmbedUrl(element, location.origin);
+    const playerKey = JSON.stringify({
+      source,
+      volume: clamp(Number(element.volume) || 0, 0, 100),
+      playbackRate: Number(element.playbackRate) || 1,
+    });
+    if (frame.dataset.playerKey === playerKey) continue;
+    frame.dataset.playerKey = playerKey;
+    const iframe = document.createElement("iframe");
+    iframe.src = source;
+    iframe.title = element.name || "YouTube video";
+    iframe.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
+    iframe.allowFullscreen = true;
+    iframe.referrerPolicy = "strict-origin-when-cross-origin";
+    iframe.addEventListener("load", () => configureYouTubePlayer(iframe, element));
+    frame.replaceChildren(iframe);
+  }
+}
+
+function configureYouTubePlayer(iframe, element) {
+  const send = (func, args = []) => iframe.contentWindow?.postMessage(JSON.stringify({
+    event: "command",
+    func,
+    args,
+  }), "https://www.youtube.com");
+  iframe.contentWindow?.postMessage(JSON.stringify({ event: "listening", id: element.id }), "https://www.youtube.com");
+  const applySettings = () => {
+    send("setVolume", [clamp(Number(element.volume) || 0, 0, 100)]);
+    send("setPlaybackRate", [Number(element.playbackRate) || 1]);
+    if (element.autoplay) send("playVideo");
+  };
+  window.setTimeout(applySettings, 350);
+  window.setTimeout(applySettings, 1000);
 }
 
 function renderCountdownControls(slide) {
@@ -3987,6 +4100,7 @@ function drawPresenterAnimationFrame() {
       revealCorrectAnswers: shouldRevealCorrectAnswers(currentSlide()),
       elementStates: presenterElementStates(currentSlide(), now),
     });
+    syncPresentationEmbeds(currentSlide());
   }
   if (hasActiveAnimations || presenterAnimation.active.size) {
     presenterAnimation.frameId = requestAnimationFrame(drawPresenterAnimationFrame);

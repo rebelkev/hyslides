@@ -1,4 +1,5 @@
 import { MAX_ENGAGEMENT_OPTIONS, SLIDE_SIZE } from "./schema.js";
+import { youtubeVideoId } from "./embed.js";
 
 const imageCache = new Map();
 
@@ -125,11 +126,42 @@ export function drawElement(ctx, element, deck, options = {}) {
     case "countdown":
       drawCountdown(ctx, element, deck, options);
       break;
+    case "embed":
+      drawEmbed(ctx, element, deck);
+      break;
     default:
       drawUnsupported(ctx, element);
   }
 
   ctx.restore();
+}
+
+function drawEmbed(ctx, element, deck) {
+  const videoId = youtubeVideoId(element.url || element.videoId);
+  ctx.fillStyle = element.fill || "#111827";
+  roundedRect(ctx, 0, 0, element.w, element.h, 12);
+  ctx.fill();
+  ctx.strokeStyle = "#334155";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  const radius = Math.max(24, Math.min(54, Math.min(element.w, element.h) * 0.12));
+  ctx.fillStyle = "#ff0033";
+  roundedRect(ctx, element.w / 2 - radius * 1.35, element.h / 2 - radius * 0.78, radius * 2.7, radius * 1.56, radius * 0.35);
+  ctx.fill();
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath();
+  ctx.moveTo(element.w / 2 - radius * 0.22, element.h / 2 - radius * 0.42);
+  ctx.lineTo(element.w / 2 - radius * 0.22, element.h / 2 + radius * 0.42);
+  ctx.lineTo(element.w / 2 + radius * 0.5, element.h / 2);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `700 ${Math.max(14, Math.min(22, element.w / 34))}px ${deck.theme.fonts.body}, Arial, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "bottom";
+  ctx.fillText(videoId ? "YouTube video" : "Paste a YouTube link in Properties", element.w / 2, element.h - 24, element.w - 40);
 }
 
 function drawCountdown(ctx, element, deck, options = {}) {

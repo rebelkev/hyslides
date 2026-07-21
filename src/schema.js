@@ -16,6 +16,8 @@ export const ELEMENT_TYPES = [
   "table",
   "divider",
   "engagement",
+  "countdown",
+  "embed",
 ];
 
 export function uid(prefix = "id") {
@@ -170,6 +172,22 @@ export function createElement(type, overrides = {}) {
       stroke: "#cbd5e1",
       accent: "#2454d6",
       name: "Engagement",
+    },
+    embed: {
+      x: 240,
+      y: 150,
+      w: 800,
+      h: 450,
+      provider: "youtube",
+      url: "",
+      volume: 80,
+      playbackRate: 1,
+      startSeconds: 0,
+      autoplay: false,
+      loop: false,
+      showControls: true,
+      fill: "#111827",
+      name: "YouTube video",
     },
     countdown: {
       x: 390,
