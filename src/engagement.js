@@ -160,13 +160,13 @@ export function renderAudienceContent(container, deck, slide, onSubmit, latestRe
     container.append(options);
   }
 
-  if (engagement.type === "wordCloud" || engagement.type === "qna") {
+  if (engagement.type === "wordCloud") {
     const form = document.createElement("form");
     form.className = "audience-options";
     form.innerHTML = `
-      <label for="audienceInput">${engagement.type === "qna" ? "Question" : "Word or phrase"}</label>
+      <label for="audienceInput">Word or phrase</label>
       <input id="audienceInput" type="text" required />
-      <button type="submit">${engagement.type === "qna" ? "Send question" : "Send response"}</button>
+      <button type="submit">Send response</button>
     `;
     form.addEventListener("submit", (event) => {
       event.preventDefault();
@@ -175,13 +175,6 @@ export function renderAudienceContent(container, deck, slide, onSubmit, latestRe
       input.value = "";
     });
     container.append(form);
-    if (engagement.type === "qna") {
-      const questions = document.createElement("section");
-      questions.className = "audience-results";
-      questions.innerHTML = "<strong>Questions selected by the presenter</strong>";
-      renderAudienceQna(questions, engagement, onSubmit);
-      container.append(questions);
-    }
   }
 
   if (engagement.type === "reactions") {
