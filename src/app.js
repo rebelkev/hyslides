@@ -1385,7 +1385,7 @@ function renderElementTree() {
       rows.push(`
         <li class="element-tree-group">
           <button class="element-tree-row group-row ${groupSelected ? "selected" : ""}" type="button" data-group-id="${attr(element.groupId)}">
-            <span class="element-tree-chevron">⌄</span><strong>Group</strong><span class="element-tree-count">${members.length}</span>
+            ${elementTreeIcon("combine", "group")}<strong>Group</strong><span class="element-tree-count">${members.length}</span>
           </button>
           <ul>${members.map(elementTreeRow).join("")}</ul>
         </li>`);
@@ -1399,6 +1399,7 @@ function renderElementTree() {
       <p class="element-tree-help">Top items appear in front. Select an item to edit it.</p>
       <ul class="element-tree">${rows.join("") || '<li class="element-tree-empty">This slide has no elements.</li>'}</ul>
     </section>`;
+  window.lucide?.createIcons({ attrs: { "stroke-width": 1.8 } });
   dom.inspector.querySelectorAll("[data-element-id]").forEach((button) => {
     button.addEventListener("click", () => {
       selectedIds = [button.dataset.elementId];
@@ -1418,11 +1419,32 @@ function elementTreeRow(element) {
   const label = element.name || element.type[0].toUpperCase() + element.type.slice(1);
   return `<li>
     <button class="element-tree-row ${selected ? "selected" : ""}" type="button" data-element-id="${attr(element.id)}" title="Select ${attr(label)}">
-      <span class="element-type-badge">${escapeHtml(element.type.slice(0, 1).toUpperCase())}</span>
+      ${elementTreeIconForType(element.type)}
       <span class="element-tree-name">${escapeHtml(label)}</span>
       ${element.locked ? '<span class="element-tree-state" title="Locked">Locked</span>' : ""}
     </button>
   </li>`;
+}
+
+function elementTreeIconForType(type) {
+  const icons = {
+    text: ["type", "type"],
+    shape: ["shapes", "shapes"],
+    image: ["image", "image"],
+    icon: ["star", "star"],
+    chart: ["bar-chart-3", "chart"],
+    table: ["table-2", "table"],
+    divider: ["minus", "minus"],
+    engagement: ["message-square", "engagement"],
+  };
+  const [lucideName, fallbackName] = icons[type] || ["square", "shapes"];
+  return elementTreeIcon(lucideName, fallbackName);
+}
+
+function elementTreeIcon(lucideName, fallbackName) {
+  return `<span class="element-type-icon" data-lucide="${attr(lucideName)}" aria-hidden="true">
+    <svg aria-hidden="true" focusable="false"><use href="#icon-${attr(fallbackName)}"></use></svg>
+  </span>`;
 }
 
 function renderSlideInspector(slide) {
