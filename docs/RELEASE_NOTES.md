@@ -4,6 +4,7 @@
 
 ### Editor
 
+- Improved PowerPoint import fidelity by extracting theme fonts and colors, creating matching global styles, linking consistent placeholder text, preserving one-off formatting as custom, and reporting possible font substitutions plus unsupported features.
 - Moved Global Settings typography and default-background colors into a shared modal picker with a hex-first workflow, full visual color control, and named global swatches.
 - Added protected deck-logo branding with global upload, default corner, visibility, and size controls plus per-slide corner and visibility overrides.
 - Reorganized Global Deck Settings into collapsible Audience access, Color styles, Default background, and Typography sections; global color controls now use hex values and expose the deck’s named swatches.

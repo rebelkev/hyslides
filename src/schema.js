@@ -410,6 +410,7 @@ export function createDeck(overrides = {}) {
       audienceCode: createAudienceAccessCode(),
     },
     unsupportedFeatures: [],
+    importReport: [],
     sections: [],
     slides: [],
     ...overrides,
@@ -973,6 +974,7 @@ export function normalizeDeck(raw) {
     unsupportedFeatures: Array.isArray(raw.unsupportedFeatures)
       ? raw.unsupportedFeatures
       : [],
+    importReport: Array.isArray(raw.importReport) ? raw.importReport : [],
     sections,
     slides,
   });

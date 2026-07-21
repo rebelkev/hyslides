@@ -155,6 +155,9 @@ Participants can submit Q&A at any time during an active session; a dedicated Q&
 ## Import and Export
 
 - Import editable content from `.pptx` files where supported.
+- PowerPoint theme fonts and theme colors become HySlides global typography and named color styles.
+- Recognized title, subtitle, and body placeholders stay linked to those global styles. Unusual or conflicting one-off formatting remains custom so importing does not flatten intentional exceptions.
+- The slide inspector includes an import summary with theme mapping, linked/custom text counts, possible browser font substitutions, and unsupported features.
 - Export the finished deck as PDF.
 - PowerPoint export is intentionally not included.
 
@@ -162,4 +165,4 @@ Participants can submit Q&A at any time during an active session; a dedicated Q&
 
 - Presenter View v1 is complete. Its responsive mobile layout supports core controls and Q&A moderation, but touch-focused gestures and pace coaching are future enhancements.
 - User accounts, server-backed deck libraries, admin template management, and collaboration are planned rather than complete.
-- PowerPoint import does not reproduce every master, SmartArt, media, typography, transition, or animation feature.
+- PowerPoint import does not reproduce every master, SmartArt, media, transition, or animation feature. Fonts that are unavailable in the viewer's browser use a browser fallback and are called out in the import summary.

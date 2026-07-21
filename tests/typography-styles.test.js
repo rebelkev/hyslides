@@ -4,6 +4,15 @@ import assert from "node:assert/strict";
 import { createDeck, createElement, normalizeDeck, normalizeElement } from "../src/schema.js";
 import { resolveTextTypography } from "../src/renderer.js";
 
+test("PowerPoint import reports survive deck normalization", () => {
+  const deck = normalizeDeck({
+    ...createDeck(),
+    importReport: ["Theme fonts imported.", "3 elements linked to global typography."],
+  });
+
+  assert.deepEqual(deck.importReport, ["Theme fonts imported.", "3 elements linked to global typography."]);
+});
+
 test("new text links to the global body typography style", () => {
   const deck = createDeck();
   const element = createElement("text");

@@ -18,8 +18,13 @@ export async function importPptx(file) {
   const deck = createDeck({
     title: file.name.replace(/\.pptx$/i, "") || "Imported deck",
     unsupportedFeatures: [],
+    importReport: [],
     slides: [],
   });
+  const themeEntry = [...entries.keys()].find((name) => /^ppt\/theme\/theme\d+\.xml$/.test(name));
+  const powerPointTheme = themeEntry ? parsePowerPointTheme(decodeText(entries.get(themeEntry))) : emptyPowerPointTheme();
+  applyPowerPointTheme(deck, powerPointTheme);
+  const importContext = { theme: powerPointTheme, typographySamples: new Map(), linkedTextCount: 0, customTextCount: 0 };
   const layoutCache = new Map();
 
   for (const slideName of slideNames) {
@@ -27,12 +32,16 @@ export async function importPptx(file) {
     const relName = slideName.replace("ppt/slides/", "ppt/slides/_rels/") + ".rels";
     const rels = parseRelationships(decodeText(entries.get(relName) || new Uint8Array()));
     const inheritedPlaceholders = placeholderMapForSlide(entries, slideName, rels, slideSize, layoutCache);
-    deck.slides.push(parseSlide(slideXml, rels, entries, slideName, deck, slideSize, inheritedPlaceholders));
+    deck.slides.push(parseSlide(slideXml, rels, entries, slideName, deck, slideSize, inheritedPlaceholders, importContext));
   }
 
   if (!deck.slides.length) {
     deck.slides.push(createSlide({ title: "Imported blank slide" }));
   }
+
+  deck.importReport.push(
+    `${importContext.linkedTextCount} imported text element${importContext.linkedTextCount === 1 ? "" : "s"} linked to global typography; ${importContext.customTextCount} one-off element${importContext.customTextCount === 1 ? "" : "s"} kept custom.`
+  );
 
   deck.unsupportedFeatures = unique(deck.unsupportedFeatures);
   return deck;
@@ -40,19 +49,22 @@ export async function importPptx(file) {
 
 export function pptxCapabilities() {
   return [
-    "Imports basic text boxes, text formatting and spacing, layout placeholders, shapes, images, simple chart references, and slide order.",
+    "Imports basic text boxes, font families, text formatting and spacing, theme colors, layout placeholders, shapes, images, simple chart references, and slide order.",
+    "Matching title, subtitle, and body placeholders are linked to HySlides global typography; one-off formatting remains custom.",
     "Unsupported PowerPoint features are listed in the deck inspector after import.",
     "Animations, transitions, SmartArt, advanced charts, embedded media, comments, and complex masters are reserved for later phases.",
   ];
 }
 
-function parseSlide(slideXml, rels, entries, slideName, deck, slideSize, inheritedPlaceholders = new Map()) {
+function parseSlide(slideXml, rels, entries, slideName, deck, slideSize, inheritedPlaceholders = new Map(), importContext = { theme: emptyPowerPointTheme(), typographySamples: new Map() }) {
   const doc = parseXml(slideXml);
   const title = firstText(doc) || slideName.match(/slide(\d+)/)?.[0] || "Imported slide";
+  const backgroundInfo = parseColorInfo(firstByLocal(doc, "bgPr"), importContext.theme.colors);
   const slide = createSlide({
     title,
     elements: [],
-    background: parseBackground(doc) || "#ffffff",
+    background: backgroundInfo.color || "#ffffff",
+    backgroundStyleId: backgroundInfo.scheme ? `ppt-${backgroundInfo.scheme}` : null,
   });
 
   let fallbackTextIndex = 0;
@@ -65,22 +77,39 @@ function parseSlide(slideXml, rels, entries, slideName, deck, slideSize, inherit
       lookupPlaceholderTransform(placeholder, inheritedPlaceholders),
       text.trim() ? fallbackTextTransform(fallbackTextIndex) : null
     );
-    const fill = parseFill(shape);
+    const fillInfo = parseColorInfo(firstByLocal(shape, "spPr"), importContext.theme.colors);
+    const fill = fillInfo.color;
     const preset = attr(firstByLocal(shape, "prstGeom"), "prst") || "rect";
     if (text.trim()) {
+      const textColorInfo = parseColorInfo(firstByLocal(shape, "rPr"), importContext.theme.colors);
+      const fontSize = parseFontSize(shape) || 28;
+      const fontWeight = parseBold(shape) ? 800 : 500;
+      const lineHeight = parseLineHeight(shape) || 1.18;
+      const color = textColorInfo.color || deck.theme.colors.ink;
+      const typographyStyleId = typographyStyleForPlaceholder(placeholder);
+      const defaultFontRole = ["display", "title", "heading"].includes(typographyStyleId) ? "heading" : "body";
+      const fontFamily = parseFontFamily(shape, importContext.theme, defaultFontRole) || deck.theme.fonts[defaultFontRole];
+      const useGlobalTypography = typographyStyleId
+        ? registerImportedTypography(deck, importContext, typographyStyleId, { fontFamily, fontSize, fontWeight, lineHeight, color })
+        : false;
+      importContext[useGlobalTypography ? "linkedTextCount" : "customTextCount"] += 1;
       slide.elements.push(
         createElement("text", {
           ...transform,
           autoHeight: false,
           text,
-          fontSize: parseFontSize(shape) || 28,
-          fontWeight: parseBold(shape) ? 800 : 500,
+          fontFamily,
+          fontSize,
+          fontWeight,
           italic: parseItalic(shape),
           underline: parseUnderline(shape),
           bulletList: parseBulletList(shape),
-          lineHeight: parseLineHeight(shape) || 1.18,
-          color: parseTextColor(shape) || deck.theme.colors.ink,
+          lineHeight,
+          color,
           fill: fill || "transparent",
+          brandColorStyleId: textColorInfo.scheme ? `ppt-${textColorInfo.scheme}` : null,
+          typographyStyleId: typographyStyleId || "body",
+          useGlobalTypography,
           name: "Imported text",
         })
       );
@@ -91,7 +120,8 @@ function parseSlide(slideXml, rels, entries, slideName, deck, slideSize, inherit
           ...transform,
           shape: shapeFromPreset(preset),
           fill: fill || "#eef2f7",
-          stroke: parseStroke(shape) || "#94a3b8",
+          stroke: parseStroke(shape, importContext.theme.colors) || "#94a3b8",
+          brandColorStyleId: fillInfo.scheme ? `ppt-${fillInfo.scheme}` : null,
           name: "Imported shape",
         })
       );
@@ -805,28 +835,130 @@ function relsPathForPart(partName) {
   return `${parts.join("/")}/_rels/${fileName}.rels`;
 }
 
-function parseBackground(doc) {
-  const bg = firstByLocal(doc, "bgPr");
-  return parseColor(bg);
+function emptyPowerPointTheme() {
+  return { name: "PowerPoint", fonts: { heading: "", body: "" }, colors: {} };
 }
 
-function parseFill(node) {
-  return parseColor(firstByLocal(node, "spPr"));
+export function parsePowerPointTheme(xmlText) {
+  if (!String(xmlText || "").trim()) return emptyPowerPointTheme();
+  const doc = parseXml(xmlText);
+  const fontScheme = firstByLocal(doc, "fontScheme");
+  const majorFont = firstByLocal(firstByLocal(fontScheme, "majorFont"), "latin");
+  const minorFont = firstByLocal(firstByLocal(fontScheme, "minorFont"), "latin");
+  const colorScheme = firstByLocal(doc, "clrScheme");
+  const colors = {};
+  for (const key of ["dk1", "lt1", "dk2", "lt2", "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink"]) {
+    const color = parseColorInfo(firstByLocal(colorScheme, key), {}).color;
+    if (color) colors[key] = color;
+  }
+  return {
+    name: attr(firstByLocal(doc, "theme"), "name") || "PowerPoint",
+    fonts: {
+      heading: attr(majorFont, "typeface"),
+      body: attr(minorFont, "typeface"),
+    },
+    colors,
+  };
 }
 
-function parseStroke(node) {
-  return parseColor(firstByLocal(node, "ln"));
+function applyPowerPointTheme(deck, powerPointTheme) {
+  const heading = powerPointTheme.fonts.heading || deck.theme.fonts.heading;
+  const body = powerPointTheme.fonts.body || deck.theme.fonts.body;
+  deck.theme.name = powerPointTheme.name || deck.theme.name;
+  deck.theme.fonts = { heading, body };
+  for (const [id, style] of Object.entries(deck.theme.typographyStyles)) {
+    style.fontFamily = ["display", "title", "heading"].includes(id) ? heading : body;
+  }
+  const colors = powerPointTheme.colors;
+  if (colors.dk1) deck.theme.colors.ink = colors.dk1;
+  if (colors.lt1) deck.theme.colors.background = colors.lt1;
+  if (colors.accent1) deck.theme.colors.primary = colors.accent1;
+  if (colors.accent2) deck.theme.colors.accent = colors.accent2;
+  const labels = { dk1: "Dark 1", lt1: "Light 1", dk2: "Dark 2", lt2: "Light 2", accent1: "Accent 1", accent2: "Accent 2", accent3: "Accent 3", accent4: "Accent 4", accent5: "Accent 5", accent6: "Accent 6", hlink: "Hyperlink", folHlink: "Followed hyperlink" };
+  deck.theme.brandColorStyles = Object.entries(colors).map(([key, color]) => ({ id: `ppt-${key}`, name: labels[key] || key, color }));
+  deck.theme.brandPalette = deck.theme.brandColorStyles.map((style) => style.color);
+  if (powerPointTheme.fonts.heading || powerPointTheme.fonts.body) {
+    deck.importReport.push(`Theme fonts imported: ${heading} for headings and ${body} for body text.`);
+    const requestedFonts = unique([powerPointTheme.fonts.heading, powerPointTheme.fonts.body]);
+    const unavailableFonts = requestedFonts.filter(
+      (font) => typeof document !== "undefined" && document.fonts && !document.fonts.check(`12px "${font.replace(/"/g, "")}"`)
+    );
+    if (unavailableFonts.length) {
+      deck.importReport.push(`Font substitution may occur for ${unavailableFonts.join(", ")} because ${unavailableFonts.length === 1 ? "it is" : "they are"} not available in this browser.`);
+    }
+  } else {
+    deck.importReport.push("No PowerPoint theme fonts were found; HySlides defaults were retained.");
+  }
+  if (deck.theme.brandColorStyles.length) {
+    deck.importReport.push(`${deck.theme.brandColorStyles.length} PowerPoint theme colors were added as global color styles.`);
+  } else {
+    deck.importReport.push("No PowerPoint theme palette was found; direct object colors were preserved where available.");
+  }
 }
 
-function parseTextColor(node) {
-  const rPr = firstByLocal(node, "rPr");
-  return parseColor(rPr);
+function parseStroke(node, themeColors = {}) {
+  return parseColorInfo(firstByLocal(node, "ln"), themeColors).color;
 }
 
-function parseColor(node) {
+function parseColorInfo(node, themeColors = {}) {
   const srgb = firstByLocal(node, "srgbClr");
-  const val = attr(srgb, "val");
-  return val ? `#${val}` : null;
+  const srgbValue = attr(srgb, "val");
+  if (srgbValue) return { color: applyPowerPointColorTransforms(`#${srgbValue}`.toLowerCase(), srgb), scheme: "" };
+  const system = firstByLocal(node, "sysClr");
+  const systemValue = attr(system, "lastClr") || attr(system, "val");
+  if (systemValue && /^[0-9a-f]{6}$/i.test(systemValue)) return { color: `#${systemValue}`.toLowerCase(), scheme: "" };
+  const schemeNode = firstByLocal(node, "schemeClr");
+  const rawScheme = attr(schemeNode, "val");
+  const schemeAliases = { tx1: "dk1", bg1: "lt1", tx2: "dk2", bg2: "lt2" };
+  const scheme = schemeAliases[rawScheme] || rawScheme;
+  const baseColor = themeColors[scheme] || null;
+  const transformedColor = baseColor ? applyPowerPointColorTransforms(baseColor, schemeNode) : null;
+  const hasTransforms = Boolean(firstByLocal(schemeNode, "tint") || firstByLocal(schemeNode, "shade") || firstByLocal(schemeNode, "lumMod") || firstByLocal(schemeNode, "lumOff"));
+  return { color: transformedColor, scheme: baseColor && !hasTransforms ? scheme : "" };
+}
+
+function applyPowerPointColorTransforms(color, node) {
+  let rgb = [color.slice(1, 3), color.slice(3, 5), color.slice(5, 7)].map((part) => parseInt(part, 16));
+  const shade = Number(attr(firstByLocal(node, "shade"), "val"));
+  const tint = Number(attr(firstByLocal(node, "tint"), "val"));
+  if (Number.isFinite(shade) && shade > 0) rgb = rgb.map((channel) => channel * shade / 100000);
+  if (Number.isFinite(tint) && tint > 0) rgb = rgb.map((channel) => channel + (255 - channel) * tint / 100000);
+  const lumMod = Number(attr(firstByLocal(node, "lumMod"), "val"));
+  const lumOff = Number(attr(firstByLocal(node, "lumOff"), "val"));
+  if ((Number.isFinite(lumMod) && lumMod > 0) || (Number.isFinite(lumOff) && lumOff > 0)) {
+    const factor = Number.isFinite(lumMod) && lumMod > 0 ? lumMod / 100000 : 1;
+    const offset = Number.isFinite(lumOff) && lumOff > 0 ? 255 * lumOff / 100000 : 0;
+    rgb = rgb.map((channel) => channel * factor + offset);
+  }
+  return `#${rgb.map((channel) => Math.max(0, Math.min(255, Math.round(channel))).toString(16).padStart(2, "0")).join("")}`;
+}
+
+function parseFontFamily(node, powerPointTheme, defaultRole = "body") {
+  const properties = firstByLocal(node, "rPr") || firstByLocal(node, "defRPr") || firstByLocal(node, "endParaRPr");
+  const typeface = attr(firstByLocal(properties, "latin"), "typeface");
+  if (typeface === "+mj-lt") return powerPointTheme.fonts.heading || null;
+  if (typeface === "+mn-lt") return powerPointTheme.fonts.body || null;
+  return typeface || powerPointTheme.fonts[defaultRole] || null;
+}
+
+function typographyStyleForPlaceholder(placeholder) {
+  const type = placeholder?.type || "";
+  if (type === "ctrTitle" || type === "title") return "title";
+  if (type === "subTitle") return "subtitle";
+  if (type === "body" || type === "obj") return "body";
+  return null;
+}
+
+function registerImportedTypography(deck, importContext, styleId, formatting) {
+  const signature = [formatting.fontFamily, formatting.fontSize, formatting.fontWeight, formatting.lineHeight, formatting.color].join("|").toLowerCase();
+  const existing = importContext.typographySamples.get(styleId);
+  if (existing && existing !== signature) return false;
+  if (!existing) {
+    importContext.typographySamples.set(styleId, signature);
+    Object.assign(deck.theme.typographyStyles[styleId], formatting);
+    deck.importReport.push(`${deck.theme.typographyStyles[styleId].name} placeholders were linked to a global typography style.`);
+  }
+  return true;
 }
 
 function parseFontSize(node) {

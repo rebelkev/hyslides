@@ -316,7 +316,7 @@ function bindEvents() {
       openSectionMenuId = null;
       selectedIds = [];
       await saveDeck(deck);
-      setStatus("PowerPoint imported");
+      setStatus("PowerPoint imported — review the import summary in Slide Properties");
       renderAll();
       resetHistory();
     } catch (error) {
@@ -1994,8 +1994,9 @@ function renderSlideInspector(slide) {
       </div>
     </section>
     <section class="inspector-section">
-      <strong>PowerPoint support</strong>
+      <strong>PowerPoint import summary</strong>
       <ul class="unsupported-list">
+        ${(deck.importReport || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
         ${pptxCapabilities().map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
         ${(deck.unsupportedFeatures || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
       </ul>
