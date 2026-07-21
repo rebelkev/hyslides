@@ -55,9 +55,10 @@ export function isLocalJoinUrl(value) {
   }
 }
 
-export function liveSnapshotForDeck(deck, slide, activeSlideIndex, instanceId = "") {
+export function liveSnapshotForDeck(deck, slide, activeSlideIndex, instanceId = "", sessionName = "") {
   return {
     instanceId,
+    sessionName,
     deckId: deck.id,
     deckTitle: deck.title,
     audienceCode: normalizeLiveCode(deck.settings?.audienceCode),
@@ -92,6 +93,28 @@ export async function submitLiveResponse(code, payload) {
   return requestJson(`${LIVE_API_BASE}/${encodeURIComponent(normalizeLiveCode(code))}/responses`, {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+export function listLiveSessions(deckId = "") {
+  const query = deckId ? `?deckId=${encodeURIComponent(deckId)}` : "";
+  return requestJson(`/api/sessions${query}`);
+}
+
+export function getLiveSessionHistory(instanceId) {
+  return requestJson(`/api/sessions/${encodeURIComponent(instanceId)}`);
+}
+
+export function renameLiveSession(instanceId, sessionName) {
+  return requestJson(`/api/sessions/${encodeURIComponent(instanceId)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ sessionName }),
+  });
+}
+
+export function deleteLiveSession(instanceId) {
+  return requestJson(`/api/sessions/${encodeURIComponent(instanceId)}`, {
+    method: "DELETE",
   });
 }
 
