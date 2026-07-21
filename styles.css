@@ -902,6 +902,118 @@ label {
   padding: 12px 4px;
 }
 
+.animation-panel-heading {
+  gap: 9px;
+}
+
+.animation-preview-actions {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.animation-sequence-group {
+  display: grid;
+  gap: 7px;
+}
+
+.animation-group-heading {
+  align-items: center;
+  color: #475367;
+  display: flex;
+  font-size: 11px;
+  justify-content: space-between;
+}
+
+.animation-group-heading span {
+  color: #7a8495;
+}
+
+.animation-sequence-list {
+  display: grid;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.animation-sequence-row {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: 12px 24px minmax(0, 1fr);
+  padding: 8px;
+}
+
+.animation-sequence-row:hover {
+  background: #f4f7ff;
+  border-color: #b8c8f5;
+}
+
+.animation-sequence-row.selected {
+  background: #e7eeff;
+  border-color: #7f9ff0;
+}
+
+.animation-sequence-row.dragging {
+  opacity: 0.45;
+}
+
+.animation-drag-handle {
+  color: #8a94a5;
+  cursor: grab;
+  font-size: 13px;
+  letter-spacing: -3px;
+}
+
+.animation-sequence-number {
+  align-items: center;
+  background: #edf2ff;
+  border-radius: 999px;
+  color: #2454c5;
+  display: inline-flex;
+  font-size: 10px;
+  font-weight: 800;
+  height: 24px;
+  justify-content: center;
+  width: 24px;
+}
+
+.animation-sequence-copy {
+  display: grid;
+  min-width: 0;
+}
+
+.animation-sequence-copy strong,
+.animation-sequence-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.animation-sequence-copy small {
+  color: #6d788a;
+  font-size: 9px;
+  margin-top: 2px;
+}
+
+.animation-row-actions {
+  display: flex;
+  gap: 3px;
+  grid-column: 2 / -1;
+  justify-content: flex-end;
+}
+
+.animation-row-actions button {
+  font-size: 10px;
+  min-height: 26px;
+  padding: 3px 7px;
+}
+
 .inspector-section {
   border-bottom: 1px solid var(--line);
   display: grid;

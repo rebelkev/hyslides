@@ -381,6 +381,10 @@ function bindEvents() {
     inspectorTab = "elements";
     renderInspector();
   });
+  document.querySelector("#animationsTabBtn").addEventListener("click", () => {
+    inspectorTab = "animations";
+    renderInspector();
+  });
   document.querySelector("#duplicateBtn").addEventListener("click", duplicateSelection);
   document.querySelector("#groupBtn").addEventListener("click", groupSelection);
   document.querySelector("#ungroupBtn").addEventListener("click", ungroupSelection);
@@ -1791,12 +1795,19 @@ function updateLeftRailTabs() {
 function renderInspector() {
   const propertiesTab = document.querySelector("#propertiesTabBtn");
   const elementsTab = document.querySelector("#elementsTabBtn");
+  const animationsTab = document.querySelector("#animationsTabBtn");
   propertiesTab.classList.toggle("active", inspectorTab === "properties");
   elementsTab.classList.toggle("active", inspectorTab === "elements");
+  animationsTab.classList.toggle("active", inspectorTab === "animations");
   propertiesTab.setAttribute("aria-selected", String(inspectorTab === "properties"));
   elementsTab.setAttribute("aria-selected", String(inspectorTab === "elements"));
+  animationsTab.setAttribute("aria-selected", String(inspectorTab === "animations"));
   if (inspectorTab === "elements") {
     renderElementTree();
+    return;
+  }
+  if (inspectorTab === "animations") {
+    renderAnimationPanel();
     return;
   }
   const slide = currentSlide();
@@ -1876,6 +1887,120 @@ function refreshElementTreeSelection(activeButton, groupId = "") {
       row.classList.toggle("selected", groupElementIds.has(row.dataset.elementId));
     });
   }
+}
+
+function renderAnimationPanel() {
+  const items = animatedElements(currentSlide());
+  const groups = [
+    ["slideStart", "On slide start"],
+    ["afterPrevious", "After previous"],
+    ["onClick", "On click"],
+  ];
+  const sections = groups.map(([trigger, label]) => {
+    const groupItems = items.filter((element) => normalizedAnimation(element).trigger === trigger);
+    if (!groupItems.length) return "";
+    return `<section class="animation-sequence-group" data-animation-group="${trigger}">
+      <div class="animation-group-heading"><strong>${label}</strong><span>${groupItems.length}</span></div>
+      <ol class="animation-sequence-list">${groupItems.map(animationSequenceRow).join("")}</ol>
+    </section>`;
+  }).join("");
+  dom.inspector.innerHTML = `
+    <section class="inspector-section animation-panel-heading">
+      <div class="element-tree-heading"><strong>Slide animations</strong><span>${items.length}</span></div>
+      <p class="element-tree-help">Drag items within a trigger group to change playback order. Select an item to locate it on the slide.</p>
+      <div class="animation-preview-actions">
+        <button id="previewAllAnimationsBtn" class="primary" type="button">Preview entire slide</button>
+        <button id="restartAllAnimationsBtn" type="button">Restart preview</button>
+      </div>
+    </section>
+    ${sections || '<section class="inspector-section"><p class="element-tree-empty">No animations on this slide. Select an element and choose an effect in Properties.</p></section>'}`;
+  window.lucide?.createIcons({ attrs: { "stroke-width": 1.8 } });
+  dom.inspector.querySelector("#previewAllAnimationsBtn")?.addEventListener("click", previewSlideAnimations);
+  dom.inspector.querySelector("#restartAllAnimationsBtn")?.addEventListener("click", previewSlideAnimations);
+  let draggedId = "";
+  dom.inspector.querySelectorAll(".animation-sequence-row[data-animation-id]").forEach((row) => {
+    row.addEventListener("click", (event) => {
+      if (event.target.closest("button")) return;
+      selectedIds = [row.dataset.animationId];
+      dom.inspector.querySelectorAll(".animation-sequence-row").forEach((item) => item.classList.toggle("selected", item === row));
+      renderCanvas();
+      updateSelectionLabel();
+    });
+    row.addEventListener("dblclick", () => {
+      selectedIds = [row.dataset.animationId];
+      inspectorTab = "properties";
+      renderAll();
+    });
+    row.addEventListener("dragstart", () => {
+      draggedId = row.dataset.animationId;
+      row.classList.add("dragging");
+    });
+    row.addEventListener("dragend", () => row.classList.remove("dragging"));
+    row.addEventListener("dragover", (event) => event.preventDefault());
+    row.addEventListener("drop", (event) => {
+      event.preventDefault();
+      reorderAnimation(draggedId, row.dataset.animationId);
+    });
+  });
+  dom.inspector.querySelectorAll("[data-animation-move]").forEach((button) => {
+    button.addEventListener("click", () => moveAnimationByStep(button.dataset.animationId, Number(button.dataset.animationMove)));
+  });
+  dom.inspector.querySelectorAll("[data-animation-edit]").forEach((button) => {
+    button.addEventListener("click", () => {
+      selectedIds = [button.dataset.animationEdit];
+      inspectorTab = "properties";
+      renderAll();
+    });
+  });
+}
+
+function animationSequenceRow(element, index) {
+  const animation = normalizedAnimation(element);
+  const label = element.name || `${element.type[0].toUpperCase()}${element.type.slice(1)}`;
+  return `<li class="animation-sequence-row ${selectedIds.includes(element.id) ? "selected" : ""}" draggable="true" data-animation-id="${attr(element.id)}">
+    <span class="animation-drag-handle" title="Drag to reorder" aria-hidden="true">⋮⋮</span>
+    <span class="animation-sequence-number">${index + 1}</span>
+    <span class="animation-sequence-copy"><strong>${escapeHtml(label)}</strong><small>${animationEffectLabel(animation.effect)} · ${animation.delayMs}ms delay · ${animation.durationMs}ms</small></span>
+    <span class="animation-row-actions">
+      <button type="button" data-animation-move="-1" data-animation-id="${attr(element.id)}" title="Move earlier">↑</button>
+      <button type="button" data-animation-move="1" data-animation-id="${attr(element.id)}" title="Move later">↓</button>
+      <button type="button" data-animation-edit="${attr(element.id)}" title="Edit animation">Edit</button>
+    </span>
+  </li>`;
+}
+
+function animationEffectLabel(effect) {
+  return effect === "fadeIn" ? "Fade in" : effect === "appear" ? "Appear" : "None";
+}
+
+function reorderAnimation(movingId, targetId) {
+  if (!movingId || movingId === targetId) return;
+  const items = animatedElements(currentSlide());
+  const moving = items.find((element) => element.id === movingId);
+  const target = items.find((element) => element.id === targetId);
+  if (!moving || !target || normalizedAnimation(moving).trigger !== normalizedAnimation(target).trigger) return;
+  const reordered = items.filter((element) => element.id !== movingId);
+  reordered.splice(reordered.findIndex((element) => element.id === targetId), 0, moving);
+  applyAnimationOrder(reordered);
+}
+
+function moveAnimationByStep(elementId, direction) {
+  const items = animatedElements(currentSlide());
+  const index = items.findIndex((element) => element.id === elementId);
+  if (index < 0) return;
+  const trigger = normalizedAnimation(items[index]).trigger;
+  let targetIndex = index + Math.sign(direction);
+  while (items[targetIndex] && normalizedAnimation(items[targetIndex]).trigger !== trigger) targetIndex += Math.sign(direction);
+  if (!items[targetIndex]) return;
+  [items[index], items[targetIndex]] = [items[targetIndex], items[index]];
+  applyAnimationOrder(items);
+}
+
+function applyAnimationOrder(items) {
+  items.forEach((element, index) => setElementAnimation(element, "order", index));
+  markChanged("Animation order updated");
+  renderAnimationPanel();
+  renderCanvas();
 }
 
 function elementTreeRow(element) {
@@ -2116,7 +2241,6 @@ function renderElementInspector(element) {
       <div class="field-grid">
         <div class="field-row"><label for="animationDelayInput">Delay (ms)</label><input id="animationDelayInput" type="number" min="0" step="100" value="${animation.delayMs}" /></div>
         <div class="field-row"><label for="animationDurationInput">Duration (ms)</label><input id="animationDurationInput" type="number" min="100" step="100" value="${animation.durationMs}" /></div>
-        <div class="field-row"><label for="animationOrderInput">Order</label><input id="animationOrderInput" type="number" min="0" step="1" value="${animation.order}" /></div>
       </div>
       <div class="field-row"><label for="animationEasingInput">Easing</label><select id="animationEasingInput">${animationOptionList([["linear", "Linear"], ["ease", "Ease"], ["easeIn", "Ease in"], ["easeOut", "Ease out"], ["easeInOut", "Ease in/out"]], animation.easing)}</select></div>
       <button id="previewElementAnimationBtn" type="button">Preview animation</button>
@@ -2144,7 +2268,6 @@ function renderElementInspector(element) {
   bindValue("#animationTriggerInput", (value) => setElementAnimation(element, "trigger", value));
   bindNumber("#animationDelayInput", (value) => setElementAnimation(element, "delayMs", Math.max(0, value)));
   bindNumber("#animationDurationInput", (value) => setElementAnimation(element, "durationMs", Math.max(100, value)));
-  bindNumber("#animationOrderInput", (value) => setElementAnimation(element, "order", Math.max(0, Math.round(value))));
   bindValue("#animationEasingInput", (value) => setElementAnimation(element, "easing", value));
   document.querySelector("#previewElementAnimationBtn")?.addEventListener("click", () => previewElementAnimation(element));
   bindBrandColorApplication([element]);
@@ -5000,19 +5123,24 @@ function previewAnimations(elements) {
   const token = ++editorAnimationToken;
   editorAnimationStates = Object.fromEntries(items.map((element) => [element.id, { hidden: true }]));
   renderCanvas();
-  let cursor = 0;
+  let previousEnd = 0;
+  let previewEnd = 0;
   for (const element of items) {
     const animation = normalizedAnimation(element);
-    if (animation.trigger === "onClick") cursor += 350;
-    const startAt = cursor + Math.max(0, Number(animation.delayMs) || 0);
+    const delay = Math.max(0, Number(animation.delayMs) || 0);
+    const startAt = animation.trigger === "slideStart"
+      ? delay
+      : previousEnd + (animation.trigger === "onClick" ? 350 : 0) + delay;
+    const duration = animation.effect === "fadeIn" ? Math.max(100, Number(animation.durationMs) || 500) : 100;
     setTimeout(() => runEditorAnimation(element, token), startAt);
-    cursor = startAt + (animation.effect === "fadeIn" ? Math.max(100, Number(animation.durationMs) || 500) : 100);
+    previousEnd = startAt + duration;
+    previewEnd = Math.max(previewEnd, previousEnd);
   }
   setTimeout(() => {
     if (token !== editorAnimationToken) return;
     editorAnimationStates = null;
     renderCanvas();
-  }, cursor + 300);
+  }, previewEnd + 300);
 }
 
 function runEditorAnimation(element, token) {

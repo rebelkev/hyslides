@@ -8,7 +8,7 @@ HySlides is a browser-based presentation editor with optional live audience part
 
 ### Editor View
 
-The authoring workspace for creating and editing decks. It contains the slide navigator on the left, the slide canvas in the center, and Properties and Elements panels on the right.
+The authoring workspace for creating and editing decks. It contains the slide navigator on the left, the slide canvas in the center, and Properties, Elements, and Animations panels on the right. The Animations panel groups effects by trigger, supports drag-and-drop sequencing, links each row to its canvas element, and previews or restarts the complete slide sequence.
 
 ### Presentation View
 
