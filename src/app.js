@@ -1742,7 +1742,10 @@ function bindTypeFields(element) {
     bindNumber("#fontSizeInput", (value) => (element.fontSize = value));
     bindNumber("#fontWeightInput", (value) => (element.fontWeight = value));
     bindLineHeightInput("#lineHeightInput", element);
-    bindValue("#textColorInput", (value) => (element.color = value));
+    bindValue("#textColorInput", (value) => {
+      element.brandColorStyleId = null;
+      element.color = value;
+    });
     bindValue("#alignInput", (value) => (element.align = value));
     bindTextFormatButton("#boldToggle", () => {
       element.fontWeight = (element.fontWeight || 400) >= 700 ? 500 : 800;
@@ -1759,7 +1762,10 @@ function bindTypeFields(element) {
   }
 
   if (element.type === "shape" || element.type === "divider" || element.type === "icon") {
-    bindValue("#fillInput", (value) => (element.fill = value));
+    bindValue("#fillInput", (value) => {
+      element.brandColorStyleId = null;
+      element.fill = value;
+    });
     bindValue("#strokeInput", (value) => (element.stroke = value));
     bindNumber("#strokeWidthInput", (value) => (element.strokeWidth = value));
     bindValue("#shapeInput", (value) => (element.shape = value));
@@ -1778,7 +1784,10 @@ function bindTypeFields(element) {
     bindValue("#chartTitleInput", (value) => (element.title = value));
     bindValue("#chartLabelsInput", (value) => (element.labels = value.split(/\n/).filter(Boolean)));
     bindValue("#chartValuesInput", (value) => (element.values = value.split(/\n/).map(Number).filter((number) => !Number.isNaN(number))));
-    bindValue("#chartFillInput", (value) => (element.fill = value));
+    bindValue("#chartFillInput", (value) => {
+      element.brandColorStyleId = null;
+      element.fill = value;
+    });
   }
 
   if (element.type === "table") {
@@ -1829,24 +1838,14 @@ function renderMultiInspector(selected) {
   bindBrandColorApplication(selected);
 }
 
-function brandPalette() {
-  deck.theme.brandPalette = normalizePalette(deck.theme.brandPalette || []);
-  return deck.theme.brandPalette;
-}
-
-function normalizePalette(colors) {
-  const seen = new Set();
-  return colors
-    .map(normalizeHexColor)
-    .filter(Boolean)
-    .filter((color) => {
-      if (seen.has(color)) {
-        return false;
-      }
-      seen.add(color);
-      return true;
-    })
-    .slice(0, 24);
+function brandColorStyles() {
+  deck.theme.brandColorStyles ||= (deck.theme.brandPalette || []).map((color, index) => ({
+    id: `brand-${String(color).replace("#", "")}-${index + 1}`,
+    name: `Brand ${index + 1}`,
+    color: normalizeHexColor(color) || "#2454d6",
+  }));
+  deck.theme.brandPalette = deck.theme.brandColorStyles.map((style) => style.color);
+  return deck.theme.brandColorStyles;
 }
 
 function normalizeHexColor(value) {
@@ -1855,20 +1854,21 @@ function normalizeHexColor(value) {
 }
 
 function brandPaletteManagerMarkup() {
-  const colors = brandPalette();
-  const swatches = colors.length
-    ? colors
+  const styles = brandColorStyles();
+  const swatches = styles.length
+    ? styles
         .map(
-          (color) => `
-            <span class="palette-chip">
-              <button class="swatch" type="button" data-palette-pick="${color}" style="background: ${color}" title="Select ${color}" aria-label="Select ${color}"></button>
-              <button class="swatch-remove" type="button" data-palette-remove="${color}" title="Remove ${color}" aria-label="Remove ${color}">x</button>
-            </span>
+          (style) => `
+            <div class="brand-style-row" data-brand-style-row="${attr(style.id)}">
+              <input class="brand-style-color" type="color" value="${attr(style.color)}" data-brand-style-color="${attr(style.id)}" aria-label="${attr(style.name)} color" />
+              <input class="brand-style-name" type="text" value="${attr(style.name)}" data-brand-style-name="${attr(style.id)}" aria-label="Color style name" />
+              <button class="swatch-remove" type="button" data-palette-remove="${attr(style.id)}" title="Delete ${attr(style.name)}" aria-label="Delete ${attr(style.name)}">×</button>
+            </div>
           `
         )
         .join("")
-    : `<span class="brand-palette-empty">No saved colors yet.</span>`;
-  return `<div class="brand-palette-list">${swatches}</div>`;
+    : `<span class="brand-palette-empty">No saved color styles yet.</span>`;
+  return `<div class="brand-style-list">${swatches}</div>`;
 }
 
 function brandColorElementSection(elements) {
@@ -1877,25 +1877,26 @@ function brandColorElementSection(elements) {
     return "";
   }
 
-  const colors = brandPalette();
+  const styles = brandColorStyles();
   const currentColor = elementBrandColor(targets[0]) || deck.theme.colors.primary;
-  const swatches = colors.length
-    ? colors
+  const swatches = styles.length
+    ? styles
         .map(
-          (color) =>
-            `<button class="swatch" type="button" data-apply-brand-color="${color}" style="background: ${color}" title="Apply ${color}" aria-label="Apply ${color}"></button>`
+          (style) =>
+            `<button class="brand-style-chip ${targets.every((element) => element.brandColorStyleId === style.id) ? "active" : ""}" type="button" data-apply-brand-style="${attr(style.id)}" title="Apply ${attr(style.name)}" aria-label="Apply ${attr(style.name)}"><span class="swatch" style="background: ${attr(style.color)}"></span><span>${escapeHtml(style.name)}</span></button>`
         )
         .join("")
-    : `<span class="brand-palette-empty">Save approved colors under Theme.</span>`;
+    : `<span class="brand-palette-empty">Create color styles under Theme.</span>`;
 
   return `
     <section class="inspector-section">
-      <strong>Brand colors</strong>
+      <strong>Color styles</strong>
       <div class="brand-color-save">
         <input id="selectedBrandColorInput" type="color" value="${attr(currentColor)}" />
         <button id="saveSelectedBrandColorBtn" type="button">Save current</button>
       </div>
-      <div class="brand-palette-list">${swatches}</div>
+      <div class="brand-style-chips">${swatches}</div>
+      ${targets.some((element) => element.brandColorStyleId) ? '<button id="unlinkBrandColorBtn" type="button">Unlink color style</button>' : ""}
     </section>
   `;
 }
@@ -1906,17 +1907,17 @@ function bindBrandPaletteManager() {
     saveBrandColor(input?.value);
   });
 
-  document.querySelectorAll("[data-palette-pick]").forEach((button) => {
-    button.addEventListener("click", () => {
-      if (input) {
-        input.value = button.dataset.palettePick;
-      }
-    });
+  document.querySelectorAll("[data-brand-style-name]").forEach((nameInput) => {
+    nameInput.addEventListener("input", () => updateBrandColorStyle(nameInput.dataset.brandStyleName, { name: nameInput.value }, false));
+  });
+
+  document.querySelectorAll("[data-brand-style-color]").forEach((colorInput) => {
+    colorInput.addEventListener("input", () => updateBrandColorStyle(colorInput.dataset.brandStyleColor, { color: colorInput.value }, false));
   });
 
   document.querySelectorAll("[data-palette-remove]").forEach((button) => {
     button.addEventListener("click", () => {
-      removeBrandColor(button.dataset.paletteRemove);
+      removeBrandColorStyle(button.dataset.paletteRemove);
     });
   });
 }
@@ -1932,11 +1933,12 @@ function bindBrandColorApplication(elements) {
     saveBrandColor(color);
   });
 
-  document.querySelectorAll("[data-apply-brand-color]").forEach((button) => {
+  document.querySelectorAll("[data-apply-brand-style]").forEach((button) => {
     button.addEventListener("click", () => {
-      applyBrandColorToElements(targets, button.dataset.applyBrandColor);
+      applyBrandColorStyleToElements(targets, button.dataset.applyBrandStyle);
     });
   });
+  document.querySelector("#unlinkBrandColorBtn")?.addEventListener("click", () => unlinkBrandColorStyle(targets));
 }
 
 function saveBrandColor(value) {
@@ -1946,20 +1948,46 @@ function saveBrandColor(value) {
     return;
   }
 
-  const colors = brandPalette().filter((item) => item !== color);
-  deck.theme.brandPalette = [color, ...colors].slice(0, 24);
-  markChanged("Brand color saved");
+  const existing = brandColorStyles().find((style) => style.color === color);
+  if (!existing) {
+    deck.theme.brandColorStyles = [
+      ...brandColorStyles(),
+      { id: `brand-${Date.now().toString(36)}`, name: `Brand ${brandColorStyles().length + 1}`, color },
+    ].slice(0, 24);
+  }
+  deck.theme.brandPalette = brandColorStyles().map((style) => style.color);
+  markChanged(existing ? "Color style already saved" : "Color style saved");
   renderAll();
 }
 
-function removeBrandColor(value) {
-  const color = normalizeHexColor(value);
-  if (!color) {
-    return;
-  }
+function updateBrandColorStyle(styleId, updates, rerender = true) {
+  const style = brandColorStyles().find((item) => item.id === styleId);
+  if (!style) return;
+  if (typeof updates.name === "string") style.name = updates.name.trimStart() || "Untitled color";
+  if (updates.color) style.color = normalizeHexColor(updates.color) || style.color;
+  deck.theme.brandPalette = brandColorStyles().map((item) => item.color);
+  markChanged("Color style updated");
+  renderCanvas();
+  renderSlides();
+  if (presenterOpen) renderPresenter();
+  if (audienceOpen) renderAudience();
+  if (rerender) renderInspector();
+}
 
-  deck.theme.brandPalette = brandPalette().filter((item) => item !== color);
-  markChanged("Brand color removed");
+function removeBrandColorStyle(styleId) {
+  const style = brandColorStyles().find((item) => item.id === styleId);
+  if (!style) return;
+  for (const slide of deck.slides) {
+    for (const element of slide.elements) {
+      if (element.brandColorStyleId === styleId) {
+        setElementBrandColor(element, style.color);
+        element.brandColorStyleId = null;
+      }
+    }
+  }
+  deck.theme.brandColorStyles = brandColorStyles().filter((item) => item.id !== styleId);
+  deck.theme.brandPalette = deck.theme.brandColorStyles.map((item) => item.color);
+  markChanged("Color style deleted; linked elements kept their color");
   renderAll();
 }
 
@@ -1968,6 +1996,8 @@ function canApplyBrandColor(element) {
 }
 
 function elementBrandColor(element) {
+  const linkedStyle = brandColorStyles().find((style) => style.id === element.brandColorStyleId);
+  if (linkedStyle) return linkedStyle.color;
   if (element.type === "text") {
     return element.color;
   }
@@ -1980,25 +2010,32 @@ function elementBrandColor(element) {
   return element.fill;
 }
 
-function applyBrandColorToElements(elements, value) {
-  const color = normalizeHexColor(value);
-  if (!color) {
-    return;
-  }
-
+function applyBrandColorStyleToElements(elements, styleId) {
+  const style = brandColorStyles().find((item) => item.id === styleId);
+  if (!style) return;
   elements.forEach((element) => {
-    if (element.type === "text") {
-      element.color = color;
-    } else if (element.type === "table") {
-      element.headerFill = color;
-    } else if (element.type === "engagement") {
-      element.accent = color;
-    } else {
-      element.fill = color;
-    }
+    element.brandColorStyleId = styleId;
+    setElementBrandColor(element, style.color);
   });
-  markChanged("Brand color applied");
+  markChanged(`${style.name} color style linked`);
   renderAll();
+}
+
+function unlinkBrandColorStyle(elements) {
+  elements.forEach((element) => {
+    const style = brandColorStyles().find((item) => item.id === element.brandColorStyleId);
+    if (style) setElementBrandColor(element, style.color);
+    element.brandColorStyleId = null;
+  });
+  markChanged("Color style unlinked");
+  renderAll();
+}
+
+function setElementBrandColor(element, color) {
+  if (element.type === "text") element.color = color;
+  else if (element.type === "table") element.headerFill = color;
+  else if (element.type === "engagement") element.accent = color;
+  else element.fill = color;
 }
 
 function correctAnswerFields(engagement) {
