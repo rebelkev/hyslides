@@ -97,6 +97,13 @@ export async function submitLiveResponse(code, payload) {
   });
 }
 
+export async function submitLiveQuestion(code, text, participantId) {
+  return requestJson(`${LIVE_API_BASE}/${encodeURIComponent(normalizeLiveCode(code))}/questions`, {
+    method: "POST",
+    body: JSON.stringify({ text, participantId }),
+  });
+}
+
 export async function moderateLiveQuestion(code, questionId, action, presenterToken) {
   return requestJson(`${LIVE_API_BASE}/${encodeURIComponent(normalizeLiveCode(code))}/questions/${encodeURIComponent(questionId)}/moderate`, {
     method: "POST",
