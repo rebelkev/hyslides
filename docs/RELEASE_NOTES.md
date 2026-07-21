@@ -4,6 +4,7 @@
 
 ### Editor
 
+- Added an Ungroup toolbar control directly beside Group.
 - Added toolbar Undo and Redo controls with standard keyboard shortcuts and a 100-state editing history.
 - Added slide duplication to the left-panel slide menu and moved Delete to the bottom.
 - Added an Elements tree with type-specific icons and double-click access to element Properties.
