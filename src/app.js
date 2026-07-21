@@ -1624,7 +1624,7 @@ function renderSlideInspector(slide) {
           <div class="field-row"><label for="backgroundEffectColorBInput">Effect color 2</label><input id="backgroundEffectColorBInput" type="color" value="${slide.backgroundEffectColorB || deck.theme.colors.accent}" /></div>
         </div>
         <div class="field-grid">
-          <div class="field-row"><label for="backgroundShaderIntensityInput">Intensity</label><input id="backgroundShaderIntensityInput" type="range" min="0" max="100" step="1" value="${Math.round((Number(slide.backgroundShaderIntensity) || 0.5) * 100)}" /></div>
+          <div class="field-row"><label for="backgroundShaderIntensityInput">Intensity</label><input id="backgroundShaderIntensityInput" type="range" min="0" max="100" step="1" value="${Math.round((Number.isFinite(Number(slide.backgroundShaderIntensity)) ? Number(slide.backgroundShaderIntensity) : 0.5) * 100)}" /><small>Controls how strongly the animated colors appear.</small></div>
           <div class="field-row"><label for="backgroundShaderSpeedInput">Speed</label><input id="backgroundShaderSpeedInput" type="number" min="0.1" max="3" step="0.1" value="${Number(slide.backgroundShaderSpeed) || 1}" /></div>
         </div>
       ` : `<div class="field-row"><label for="slideBgInput">Color</label><input id="slideBgInput" type="color" value="${slide.background || "#ffffff"}" /></div>`}

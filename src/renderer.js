@@ -156,7 +156,8 @@ function drawShaderFallback(ctx, slide, deck) {
   gradient.addColorStop(0, slide.backgroundEffectColorA || slide.backgroundGradientStart || deck.theme.colors.primary);
   gradient.addColorStop(1, slide.backgroundEffectColorB || slide.backgroundGradientEnd || deck.theme.colors.accent);
   ctx.save();
-  ctx.globalAlpha = Math.max(0, Math.min(0.7, Number(slide.backgroundShaderIntensity) || 0.5));
+  const intensity = Number(slide.backgroundShaderIntensity);
+  ctx.globalAlpha = Math.max(0, Math.min(0.7, Number.isFinite(intensity) ? intensity : 0.5));
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, SLIDE_SIZE.width, SLIDE_SIZE.height);
   ctx.restore();

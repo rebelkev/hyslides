@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import { backgroundImageRect } from "../src/renderer.js";
 import { createSlide, normalizeDeck, createDeck } from "../src/schema.js";
+import { normalizeBackgroundIntensity } from "../src/backgrounds.js";
 
 test("background images retain proportions in cover mode", () => {
   assert.deepEqual(backgroundImageRect(800, 600, "cover"), { x: 0, y: -120, width: 1280, height: 960 });
@@ -30,4 +31,11 @@ test("existing shader backgrounds migrate to the animated background style", () 
   }));
   assert.equal(normalized.slides[0].backgroundType, "animated");
   assert.equal(normalized.slides[0].backgroundShader, "waves");
+});
+
+test("animated background intensity supports the full zero-to-one range", () => {
+  assert.equal(normalizeBackgroundIntensity(0), 0);
+  assert.equal(normalizeBackgroundIntensity(0.35), 0.35);
+  assert.equal(normalizeBackgroundIntensity(1), 1);
+  assert.equal(normalizeBackgroundIntensity(4), 1);
 });

@@ -20,16 +20,23 @@ export function renderShaderOverlay(effect, width, height, options = {}) {
     canvas.height = height;
   }
   gl.viewport(0, 0, width, height);
+  gl.clearColor(0, 0, 0, 0);
+  gl.clear(gl.COLOR_BUFFER_BIT);
   gl.useProgram(program);
   gl.uniform2f(uniforms.resolution, width, height);
   gl.uniform1f(uniforms.time, Math.max(0, Number(options.time) || 0) * Math.max(0, Number(options.speed) || 1));
-  gl.uniform1f(uniforms.intensity, Math.max(0, Math.min(1, Number(options.intensity) || 0.5)));
+  gl.uniform1f(uniforms.intensity, normalizeBackgroundIntensity(options.intensity));
   const effectIndex = { aurora: 0, waves: 1, plasma: 2, mesh: 3, ripples: 4, streaks: 5 }[effect] ?? 0;
   gl.uniform1i(uniforms.effect, effectIndex);
   gl.uniform3fv(uniforms.colorA, hexToRgb(options.colorA || "#2454d6"));
   gl.uniform3fv(uniforms.colorB, hexToRgb(options.colorB || "#0c8b7f"));
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   return canvas;
+}
+
+export function normalizeBackgroundIntensity(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? Math.max(0, Math.min(1, numeric)) : 0.5;
 }
 
 function createRuntime() {
