@@ -73,6 +73,7 @@ export async function drawSlideAsync(ctx, slide, deck, options = {}) {
 }
 
 export function drawElement(ctx, element, deck, options = {}) {
+  element = resolveElementBrandColor(element, deck);
   ctx.save();
   ctx.globalAlpha = (element.opacity ?? 1) * (options.opacityMultiplier ?? 1);
   ctx.translate(element.x + element.w / 2, element.y + element.h / 2);
@@ -109,6 +110,16 @@ export function drawElement(ctx, element, deck, options = {}) {
   }
 
   ctx.restore();
+}
+
+function resolveElementBrandColor(element, deck) {
+  if (!element.brandColorStyleId) return element;
+  const style = deck.theme?.brandColorStyles?.find((item) => item.id === element.brandColorStyleId);
+  if (!style?.color) return element;
+  if (element.type === "text") return { ...element, color: style.color };
+  if (element.type === "table") return { ...element, headerFill: style.color };
+  if (element.type === "engagement") return { ...element, accent: style.color };
+  return { ...element, fill: style.color };
 }
 
 export function boundsForElements(elements) {
