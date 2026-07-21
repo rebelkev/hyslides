@@ -40,11 +40,13 @@ import {
   liveSnapshotForDeck,
   liveStateDeck,
   listLiveSessions,
+  moderateLiveQuestion,
   normalizeLiveCode,
   publishLiveSession,
   registerLiveParticipant,
   renameLiveSession,
   submitLiveResponse,
+  voteLiveQuestion,
 } from "./live.js";
 
 const dom = {
@@ -3004,7 +3006,18 @@ async function renderPresenter() {
   nextCtx.restore();
   if (!presentationWindowMode) await renderPresenterFlow();
   if (!presentationWindowMode) {
-    renderLiveControls(dom.liveControls, deck, slide, () => {
+    renderLiveControls(dom.liveControls, deck, slide, async (question, action) => {
+      if (question?.id && action) {
+        try {
+          const state = await moderateLiveQuestion(liveSession.code, question.id, action, liveSession.presenterToken);
+          applyLiveStateToCurrentSlide(state);
+          renderPresenter();
+        } catch (error) {
+          liveSession.status = `Could not moderate question: ${error.message}`;
+          renderLiveJoinPanel(slide);
+        }
+        return;
+      }
       syncEngagementElementsFromSlide(slide);
       markChanged("Engagement updated");
       renderAll();
@@ -3403,7 +3416,7 @@ async function refreshLiveSession() {
   }
   liveSession.polling = true;
   try {
-    const state = await getLiveSession(liveSession.code);
+    const state = await getLiveSession(liveSession.code, liveSession.presenterToken);
     if (applyLiveStateToCurrentSlide(state)) {
       renderPresenter();
       renderCanvas();
@@ -3597,6 +3610,17 @@ async function refreshAudienceLiveState() {
 }
 
 async function submitAudienceLiveResponse(slide, payload) {
+  if (payload.action === "upvote" && payload.questionId) {
+    try {
+      audienceLive.state = await voteLiveQuestion(audienceLive.code, payload.questionId, participantId);
+      audienceLive.error = audienceLive.state.duplicate ? "You already upvoted that question." : "Question upvoted.";
+    } catch (error) {
+      audienceLive.error = `Vote was not sent: ${error.message}`;
+    } finally {
+      renderLiveAudience();
+    }
+    return;
+  }
   audienceLive.responses[slide.id] = payload.value;
   renderLiveAudience();
   try {
