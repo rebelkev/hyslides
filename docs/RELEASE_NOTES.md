@@ -4,7 +4,7 @@
 
 ### Editor
 
-- Added advanced slide backgrounds with solid colors, adjustable two-color gradients, proportionally fitted images (fill or fit), color overlays, and optional animated WebGL effects with static fallbacks.
+- Added advanced slide backgrounds with solid colors, adjustable two-color gradients, proportionally fitted images (fill or fit), color overlays, and optional animated WebGL effects with dedicated effect-color controls and static fallbacks.
 - Consolidated Quiz into Multiple Choice with an optional “This question has correct answers” setting, and automatically migrates existing Quiz slides without losing their answer keys.
 - Renamed the selected element's inner inspector heading to “Engagement type” to distinguish it from the element name.
 - Holding Shift while dragging any resize handle now preserves the selection's aspect ratio.

@@ -243,6 +243,8 @@ export function createSlide(overrides = {}) {
     backgroundOverlayColor: "#000000",
     backgroundOverlayOpacity: 0,
     backgroundShader: "none",
+    backgroundEffectColorA: "#2454d6",
+    backgroundEffectColorB: "#0c8b7f",
     backgroundShaderIntensity: 0.5,
     backgroundShaderSpeed: 1,
     notes: "",

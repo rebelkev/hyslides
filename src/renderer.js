@@ -127,8 +127,8 @@ function drawSlideBackground(ctx, slide, deck) {
       time: typeof performance !== "undefined" ? performance.now() / 1000 : 0,
       speed: slide.backgroundShaderSpeed,
       intensity: slide.backgroundShaderIntensity,
-      colorA: slide.backgroundGradientStart || deck.theme.colors.primary,
-      colorB: slide.backgroundGradientEnd || deck.theme.colors.accent,
+      colorA: slide.backgroundEffectColorA || slide.backgroundGradientStart || deck.theme.colors.primary,
+      colorB: slide.backgroundEffectColorB || slide.backgroundGradientEnd || deck.theme.colors.accent,
     });
     if (shader) ctx.drawImage(shader, 0, 0, SLIDE_SIZE.width, SLIDE_SIZE.height);
     else drawShaderFallback(ctx, slide, deck);
@@ -153,8 +153,8 @@ export function backgroundImageRect(imageWidth, imageHeight, fit = "cover") {
 
 function drawShaderFallback(ctx, slide, deck) {
   const gradient = ctx.createRadialGradient(340, 180, 20, 640, 360, 760);
-  gradient.addColorStop(0, slide.backgroundGradientStart || deck.theme.colors.primary);
-  gradient.addColorStop(1, slide.backgroundGradientEnd || deck.theme.colors.accent);
+  gradient.addColorStop(0, slide.backgroundEffectColorA || slide.backgroundGradientStart || deck.theme.colors.primary);
+  gradient.addColorStop(1, slide.backgroundEffectColorB || slide.backgroundGradientEnd || deck.theme.colors.accent);
   ctx.save();
   ctx.globalAlpha = Math.max(0, Math.min(0.7, Number(slide.backgroundShaderIntensity) || 0.5));
   ctx.fillStyle = gradient;

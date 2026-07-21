@@ -1625,6 +1625,10 @@ function renderSlideInspector(slide) {
       <div class="field-row"><label for="backgroundShaderInput">Animated effect</label><select id="backgroundShaderInput">${animationOptionList(backgroundShaderOptions.map((item) => [item.value, item.label]), slide.backgroundShader || "none")}</select></div>
       ${slide.backgroundShader && slide.backgroundShader !== "none" ? `
         <div class="field-grid">
+          <div class="field-row"><label for="backgroundEffectColorAInput">Effect color 1</label><input id="backgroundEffectColorAInput" type="color" value="${slide.backgroundEffectColorA || slide.backgroundGradientStart || deck.theme.colors.primary}" /></div>
+          <div class="field-row"><label for="backgroundEffectColorBInput">Effect color 2</label><input id="backgroundEffectColorBInput" type="color" value="${slide.backgroundEffectColorB || slide.backgroundGradientEnd || deck.theme.colors.accent}" /></div>
+        </div>
+        <div class="field-grid">
           <div class="field-row"><label for="backgroundShaderIntensityInput">Intensity</label><input id="backgroundShaderIntensityInput" type="range" min="0" max="100" step="1" value="${Math.round((Number(slide.backgroundShaderIntensity) || 0.5) * 100)}" /></div>
           <div class="field-row"><label for="backgroundShaderSpeedInput">Speed</label><input id="backgroundShaderSpeedInput" type="number" min="0.1" max="3" step="0.1" value="${Number(slide.backgroundShaderSpeed) || 1}" /></div>
         </div>
@@ -1694,6 +1698,8 @@ function renderSlideInspector(slide) {
   });
   bindNumber("#backgroundShaderIntensityInput", (value) => (slide.backgroundShaderIntensity = clamp(value / 100, 0, 1)));
   bindNumber("#backgroundShaderSpeedInput", (value) => (slide.backgroundShaderSpeed = clamp(value, 0.1, 3)));
+  bindValue("#backgroundEffectColorAInput", (value) => (slide.backgroundEffectColorA = value));
+  bindValue("#backgroundEffectColorBInput", (value) => (slide.backgroundEffectColorB = value));
   document.querySelector("#chooseBackgroundImageBtn")?.addEventListener("click", () => {
     dom.imageInput.dataset.replaceId = "";
     dom.imageInput.dataset.backgroundSlideId = slide.id;
