@@ -54,6 +54,7 @@ import {
 } from "./live.js";
 import { youtubeEmbedUrl, youtubeVideoId } from "./embed.js";
 import { resizeBounds } from "./resize.js";
+import { backgroundShaderOptions } from "./backgrounds.js";
 
 const dom = {
   app: document.querySelector("#app"),
@@ -208,6 +209,7 @@ async function init() {
   setupCanvasAutoFit();
   setStatus("Ready");
   bindPresenterChannel();
+  startBackgroundEffectLoop();
   if (presenterWindowMode || presentationWindowMode) {
     document.body.classList.add("presenter-window");
     if (presentationWindowMode) document.body.classList.add("presentation-window");
@@ -390,8 +392,11 @@ function bindEvents() {
   dom.imageInput.addEventListener("change", () => {
     const file = dom.imageInput.files?.[0];
     if (file) {
-      addImageFromFile(file);
+      const backgroundSlideId = dom.imageInput.dataset.backgroundSlideId;
+      if (backgroundSlideId) setSlideBackgroundFromFile(file, backgroundSlideId);
+      else addImageFromFile(file);
     }
+    dom.imageInput.dataset.backgroundSlideId = "";
     dom.imageInput.value = "";
   });
 
@@ -755,6 +760,20 @@ function renderCanvas() {
       elementStates: editorAnimationStates,
     });
   });
+}
+
+function startBackgroundEffectLoop() {
+  let lastPaint = 0;
+  const paint = (time) => {
+    const slide = currentSlide();
+    if (slide?.backgroundShader && slide.backgroundShader !== "none" && time - lastPaint >= 40) {
+      if (presenterOpen) drawPresentationCountdownFrame();
+      if (!presenterWindowMode && !presentationWindowMode && !audienceOpen) renderCanvas();
+      lastPaint = time;
+    }
+    window.requestAnimationFrame(paint);
+  };
+  window.requestAnimationFrame(paint);
 }
 
 function autoSizeTextElements(slide) {
@@ -1581,11 +1600,35 @@ function renderSlideInspector(slide) {
     <section class="inspector-section">
       <strong>Slide</strong>
       <div class="field-row"><label for="slideTitleInput">Title</label><input id="slideTitleInput" value="${attr(slide.title)}" /></div>
-      <div class="field-grid">
-        <div class="field-row"><label for="slideBgInput">Background</label><input id="slideBgInput" type="color" value="${slide.background || "#ffffff"}" /></div>
-        <div class="field-row"><label for="slideLayoutInput">Layout</label><input id="slideLayoutInput" value="${attr(slide.layout)}" /></div>
-      </div>
+      <div class="field-row"><label for="slideLayoutInput">Layout</label><input id="slideLayoutInput" value="${attr(slide.layout)}" /></div>
       <div class="field-row"><label for="notesInput">Presenter notes</label><textarea id="notesInput">${escapeHtml(slide.notes || "")}</textarea></div>
+    </section>
+    <section class="inspector-section">
+      <strong>Background</strong>
+      <div class="field-row"><label for="backgroundTypeInput">Style</label><select id="backgroundTypeInput">
+        ${animationOptionList([["color", "Solid color"], ["gradient", "Gradient"], ["image", "Image"]], slide.backgroundType || "color")}
+      </select></div>
+      ${slide.backgroundType === "gradient" ? `
+        <div class="field-grid">
+          <div class="field-row"><label for="gradientStartInput">Start</label><input id="gradientStartInput" type="color" value="${slide.backgroundGradientStart || deck.theme.colors.primary}" /></div>
+          <div class="field-row"><label for="gradientEndInput">End</label><input id="gradientEndInput" type="color" value="${slide.backgroundGradientEnd || deck.theme.colors.accent}" /></div>
+        </div>
+        <div class="field-row"><label for="gradientAngleInput">Angle</label><input id="gradientAngleInput" type="range" min="0" max="360" step="1" value="${Number(slide.backgroundGradientAngle) || 0}" /><span>${Math.round(Number(slide.backgroundGradientAngle) || 0)}°</span></div>
+      ` : slide.backgroundType === "image" ? `
+        <div class="field-row"><label>Image</label><button id="chooseBackgroundImageBtn" type="button">${slide.backgroundImage ? "Replace image" : "Choose image"}</button>${slide.backgroundImage ? `<button id="removeBackgroundImageBtn" type="button">Remove image</button>` : ""}</div>
+        <div class="field-row"><label for="backgroundImageFitInput">Fit</label><select id="backgroundImageFitInput">${animationOptionList([["cover", "Fill slide (crop)"], ["contain", "Fit entire image"]], slide.backgroundImageFit || "cover")}</select><small>Images always retain their proportions.</small></div>
+      ` : `<div class="field-row"><label for="slideBgInput">Color</label><input id="slideBgInput" type="color" value="${slide.background || "#ffffff"}" /></div>`}
+      <div class="field-grid">
+        <div class="field-row"><label for="backgroundOverlayColorInput">Overlay</label><input id="backgroundOverlayColorInput" type="color" value="${slide.backgroundOverlayColor || "#000000"}" /></div>
+        <div class="field-row"><label for="backgroundOverlayOpacityInput">Opacity</label><input id="backgroundOverlayOpacityInput" type="range" min="0" max="100" step="1" value="${Math.round((Number(slide.backgroundOverlayOpacity) || 0) * 100)}" /></div>
+      </div>
+      <div class="field-row"><label for="backgroundShaderInput">Animated effect</label><select id="backgroundShaderInput">${animationOptionList(backgroundShaderOptions.map((item) => [item.value, item.label]), slide.backgroundShader || "none")}</select></div>
+      ${slide.backgroundShader && slide.backgroundShader !== "none" ? `
+        <div class="field-grid">
+          <div class="field-row"><label for="backgroundShaderIntensityInput">Intensity</label><input id="backgroundShaderIntensityInput" type="range" min="0" max="100" step="1" value="${Math.round((Number(slide.backgroundShaderIntensity) || 0.5) * 100)}" /></div>
+          <div class="field-row"><label for="backgroundShaderSpeedInput">Speed</label><input id="backgroundShaderSpeedInput" type="number" min="0.1" max="3" step="0.1" value="${Number(slide.backgroundShaderSpeed) || 1}" /></div>
+        </div>
+      ` : ""}
     </section>
     <section class="inspector-section">
       <strong>Theme</strong>
@@ -1632,7 +1675,36 @@ function renderSlideInspector(slide) {
   bindValue("#slideTitleInput", (value) => (slide.title = value));
   bindValue("#slideLayoutInput", (value) => (slide.layout = value));
   bindValue("#notesInput", (value) => (slide.notes = value));
+  document.querySelector("#backgroundTypeInput")?.addEventListener("change", (event) => {
+    slide.backgroundType = event.target.value;
+    markChanged("Slide background style updated");
+    renderAll();
+  });
   bindValue("#slideBgInput", (value) => (slide.background = value));
+  bindValue("#gradientStartInput", (value) => (slide.backgroundGradientStart = value));
+  bindValue("#gradientEndInput", (value) => (slide.backgroundGradientEnd = value));
+  bindNumber("#gradientAngleInput", (value) => (slide.backgroundGradientAngle = value));
+  bindValue("#backgroundImageFitInput", (value) => (slide.backgroundImageFit = value));
+  bindValue("#backgroundOverlayColorInput", (value) => (slide.backgroundOverlayColor = value));
+  bindNumber("#backgroundOverlayOpacityInput", (value) => (slide.backgroundOverlayOpacity = clamp(value / 100, 0, 1)));
+  document.querySelector("#backgroundShaderInput")?.addEventListener("change", (event) => {
+    slide.backgroundShader = event.target.value;
+    markChanged("Background effect updated");
+    renderAll();
+  });
+  bindNumber("#backgroundShaderIntensityInput", (value) => (slide.backgroundShaderIntensity = clamp(value / 100, 0, 1)));
+  bindNumber("#backgroundShaderSpeedInput", (value) => (slide.backgroundShaderSpeed = clamp(value, 0.1, 3)));
+  document.querySelector("#chooseBackgroundImageBtn")?.addEventListener("click", () => {
+    dom.imageInput.dataset.replaceId = "";
+    dom.imageInput.dataset.backgroundSlideId = slide.id;
+    dom.imageInput.click();
+  });
+  document.querySelector("#removeBackgroundImageBtn")?.addEventListener("click", () => {
+    slide.backgroundImage = "";
+    slide.backgroundType = "color";
+    markChanged("Background image removed");
+    renderAll();
+  });
   bindValue("#primaryColor", (value) => (deck.theme.colors.primary = value));
   bindValue("#accentColor", (value) => (deck.theme.colors.accent = value));
   bindBrandPaletteManager();
@@ -2547,6 +2619,20 @@ function addImageFromFile(file, point = null) {
     }
     dom.imageInput.dataset.replaceId = "";
     markChanged("Image added");
+    renderAll();
+  };
+  reader.readAsDataURL(file);
+}
+
+function setSlideBackgroundFromFile(file, slideId) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const slide = deck.slides.find((item) => item.id === slideId);
+    if (!slide) return;
+    slide.backgroundImage = reader.result;
+    slide.backgroundType = "image";
+    slide.backgroundImageFit ||= "cover";
+    markChanged("Background image added");
     renderAll();
   };
   reader.readAsDataURL(file);

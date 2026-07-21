@@ -1,6 +1,7 @@
 import { MAX_ENGAGEMENT_OPTIONS, SLIDE_SIZE } from "./schema.js";
 import { youtubeVideoId } from "./embed.js";
 import { createWordCloudLayout } from "./word-cloud.js";
+import { renderShaderOverlay } from "./backgrounds.js";
 
 const imageCache = new Map();
 
@@ -8,6 +9,7 @@ export async function preloadSlideImages(slide) {
   const images = slide.elements
     .filter((element) => element.type === "image" && element.src)
     .map((element) => loadImage(element.src).catch(() => null));
+  if (slide.backgroundImage) images.push(loadImage(slide.backgroundImage).catch(() => null));
   await Promise.all(images);
 }
 
@@ -54,8 +56,7 @@ export function drawSlide(ctx, slide, deck, options = {}) {
 
   ctx.save();
   ctx.clearRect(0, 0, SLIDE_SIZE.width, SLIDE_SIZE.height);
-  ctx.fillStyle = slide.background || deck.theme.colors.background;
-  ctx.fillRect(0, 0, SLIDE_SIZE.width, SLIDE_SIZE.height);
+  drawSlideBackground(ctx, slide, deck);
 
   for (const element of slide.elements) {
     const state = elementStates?.[element.id];
@@ -83,6 +84,81 @@ export function drawSlide(ctx, slide, deck, options = {}) {
     drawSelection(ctx, selected, scale);
   }
 
+  ctx.restore();
+}
+
+function drawSlideBackground(ctx, slide, deck) {
+  const type = slide.backgroundType || (slide.backgroundImage ? "image" : "color");
+  ctx.fillStyle = slide.background || deck.theme.colors.background;
+  ctx.fillRect(0, 0, SLIDE_SIZE.width, SLIDE_SIZE.height);
+
+  if (type === "gradient") {
+    const angle = ((Number(slide.backgroundGradientAngle) || 0) - 90) * Math.PI / 180;
+    const radius = Math.abs(SLIDE_SIZE.width * Math.cos(angle)) + Math.abs(SLIDE_SIZE.height * Math.sin(angle));
+    const cx = SLIDE_SIZE.width / 2;
+    const cy = SLIDE_SIZE.height / 2;
+    const gradient = ctx.createLinearGradient(
+      cx - Math.cos(angle) * radius / 2,
+      cy - Math.sin(angle) * radius / 2,
+      cx + Math.cos(angle) * radius / 2,
+      cy + Math.sin(angle) * radius / 2
+    );
+    gradient.addColorStop(0, slide.backgroundGradientStart || deck.theme.colors.primary);
+    gradient.addColorStop(1, slide.backgroundGradientEnd || deck.theme.colors.accent);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, SLIDE_SIZE.width, SLIDE_SIZE.height);
+  } else if (type === "image" && slide.backgroundImage) {
+    const image = imageCache.get(slide.backgroundImage)?.image;
+    if (image) drawFittedBackgroundImage(ctx, image, slide.backgroundImageFit || "cover");
+    else loadImage(slide.backgroundImage).catch(() => {});
+  }
+
+  const overlayOpacity = Math.max(0, Math.min(1, Number(slide.backgroundOverlayOpacity) || 0));
+  if (overlayOpacity > 0) {
+    ctx.save();
+    ctx.globalAlpha = overlayOpacity;
+    ctx.fillStyle = slide.backgroundOverlayColor || "#000000";
+    ctx.fillRect(0, 0, SLIDE_SIZE.width, SLIDE_SIZE.height);
+    ctx.restore();
+  }
+
+  if (slide.backgroundShader && slide.backgroundShader !== "none") {
+    const shader = renderShaderOverlay(slide.backgroundShader, SLIDE_SIZE.width, SLIDE_SIZE.height, {
+      time: typeof performance !== "undefined" ? performance.now() / 1000 : 0,
+      speed: slide.backgroundShaderSpeed,
+      intensity: slide.backgroundShaderIntensity,
+      colorA: slide.backgroundGradientStart || deck.theme.colors.primary,
+      colorB: slide.backgroundGradientEnd || deck.theme.colors.accent,
+    });
+    if (shader) ctx.drawImage(shader, 0, 0, SLIDE_SIZE.width, SLIDE_SIZE.height);
+    else drawShaderFallback(ctx, slide, deck);
+  }
+}
+
+function drawFittedBackgroundImage(ctx, image, fit) {
+  const rect = backgroundImageRect(image.width, image.height, fit);
+  ctx.drawImage(image, rect.x, rect.y, rect.width, rect.height);
+}
+
+export function backgroundImageRect(imageWidth, imageHeight, fit = "cover") {
+  const safeWidth = Math.max(1, Number(imageWidth) || 1);
+  const safeHeight = Math.max(1, Number(imageHeight) || 1);
+  const ratio = fit === "contain"
+    ? Math.min(SLIDE_SIZE.width / safeWidth, SLIDE_SIZE.height / safeHeight)
+    : Math.max(SLIDE_SIZE.width / safeWidth, SLIDE_SIZE.height / safeHeight);
+  const width = safeWidth * ratio;
+  const height = safeHeight * ratio;
+  return { x: (SLIDE_SIZE.width - width) / 2, y: (SLIDE_SIZE.height - height) / 2, width, height };
+}
+
+function drawShaderFallback(ctx, slide, deck) {
+  const gradient = ctx.createRadialGradient(340, 180, 20, 640, 360, 760);
+  gradient.addColorStop(0, slide.backgroundGradientStart || deck.theme.colors.primary);
+  gradient.addColorStop(1, slide.backgroundGradientEnd || deck.theme.colors.accent);
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(0.7, Number(slide.backgroundShaderIntensity) || 0.5));
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, SLIDE_SIZE.width, SLIDE_SIZE.height);
   ctx.restore();
 }
 
