@@ -13,13 +13,19 @@
 - Live slide following, engagement responses, aggregated results, word clouds, and basic language filtering
 - Session instances, history, presence, response ratios, presenter authorization, and 14-day retention
 
-## Next: Presenter View
+## Completed: Presenter View v1
 
-1. Standardize view naming and routing.
-2. Build Presenter View — Desktop.
-3. Build Presenter View — Mobile.
-4. Synchronize Presenter View controls with Presentation View and Participant View.
-5. Add presentation timer, black-screen control, current/next slides, notes, counts, results, and session lifecycle controls.
+- Standardized view naming and routing.
+- Built responsive Desktop and Mobile Presenter View layouts.
+- Synchronized Presenter View controls with Presentation View and Participant View.
+- Added end-state previews, session-only slide skipping, timer, black-screen control, notes, counts, results, and session lifecycle controls.
+
+## Next Presenter Enhancements
+
+- Pace coaching against a target end time
+- Touch gestures and larger mobile control targets
+- Presenter annotations and a temporary spotlight/pointer
+- Live Q&A moderation queue
 
 ## Following Milestones
 
