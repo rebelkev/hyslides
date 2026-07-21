@@ -1,5 +1,4 @@
 import { createDeck, createElement, createSlide, SLIDE_SIZE } from "./schema.js";
-import { slug } from "./storage.js";
 
 const EMU_WIDTH = 9144000;
 const EMU_HEIGHT = 5143500;
@@ -37,46 +36,6 @@ export async function importPptx(file) {
 
   deck.unsupportedFeatures = unique(deck.unsupportedFeatures);
   return deck;
-}
-
-export async function exportDeckToPptx(deck) {
-  const files = new Map();
-  const mediaFiles = [];
-  const unsupported = new Set(deck.unsupportedFeatures || []);
-
-  files.set("[Content_Types].xml", contentTypesXml(deck));
-  files.set("_rels/.rels", rootRelsXml());
-  files.set("docProps/core.xml", corePropsXml(deck));
-  files.set("docProps/app.xml", appPropsXml(deck));
-  files.set("ppt/presentation.xml", presentationXml(deck));
-  files.set("ppt/_rels/presentation.xml.rels", presentationRelsXml(deck));
-  files.set("ppt/theme/theme1.xml", themeXml(deck));
-  files.set("ppt/slideMasters/slideMaster1.xml", slideMasterXml());
-  files.set("ppt/slideMasters/_rels/slideMaster1.xml.rels", slideMasterRelsXml());
-  files.set("ppt/slideLayouts/slideLayout1.xml", slideLayoutXml());
-  files.set("ppt/slideLayouts/_rels/slideLayout1.xml.rels", slideLayoutRelsXml());
-
-  for (let index = 0; index < deck.slides.length; index += 1) {
-    const slide = deck.slides[index];
-    const media = [];
-    const slideXml = await slideXmlForDeck(slide, deck, index + 1, media, unsupported);
-    files.set(`ppt/slides/slide${index + 1}.xml`, slideXml);
-    files.set(`ppt/slides/_rels/slide${index + 1}.xml.rels`, slideRelsXml(media));
-    for (const item of media) {
-      mediaFiles.push(item);
-    }
-  }
-
-  for (const media of mediaFiles) {
-    files.set(media.path, media.bytes);
-  }
-
-  const blob = zip(files);
-  return {
-    blob,
-    filename: `${slug(deck.title)}.pptx`,
-    unsupported: [...unsupported],
-  };
 }
 
 export function pptxCapabilities() {
