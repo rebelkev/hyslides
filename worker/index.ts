@@ -105,11 +105,20 @@ async function handleLiveApi(request: Request, env: Env, url: URL): Promise<Resp
 async function ensureLiveSchema(db: D1Database): Promise<void> {
   await db.batch([
     db.prepare(
-      `CREATE TABLE IF NOT EXISTS hyslides_live_sessions (
-        code TEXT PRIMARY KEY,
+      `CREATE TABLE IF NOT EXISTS hyslides_live_instances (
+        instance_id TEXT PRIMARY KEY,
+        access_code TEXT NOT NULL,
         deck_id TEXT NOT NULL,
         deck_title TEXT NOT NULL,
-        audience_code TEXT NOT NULL,
+        started_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        last_active_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        status TEXT NOT NULL DEFAULT 'active'
+      )`
+    ),
+    db.prepare(
+      `CREATE TABLE IF NOT EXISTS hyslides_live_instance_state (
+        access_code TEXT PRIMARY KEY,
+        instance_id TEXT NOT NULL,
         active_slide_id TEXT NOT NULL,
         active_slide_index INTEGER NOT NULL DEFAULT 0,
         slide_json TEXT NOT NULL,
@@ -117,19 +126,19 @@ async function ensureLiveSchema(db: D1Database): Promise<void> {
       )`
     ),
     db.prepare(
-      `CREATE TABLE IF NOT EXISTS hyslides_live_counts (
-        session_code TEXT NOT NULL,
+      `CREATE TABLE IF NOT EXISTS hyslides_live_instance_counts (
+        instance_id TEXT NOT NULL,
         slide_id TEXT NOT NULL,
         kind TEXT NOT NULL,
         response_key TEXT NOT NULL,
         count INTEGER NOT NULL DEFAULT 0,
-        PRIMARY KEY (session_code, slide_id, kind, response_key)
+        PRIMARY KEY (instance_id, slide_id, kind, response_key)
       )`
     ),
     db.prepare(
-      `CREATE TABLE IF NOT EXISTS hyslides_live_questions (
+      `CREATE TABLE IF NOT EXISTS hyslides_live_instance_questions (
         id TEXT PRIMARY KEY,
-        session_code TEXT NOT NULL,
+        instance_id TEXT NOT NULL,
         slide_id TEXT NOT NULL,
         text TEXT NOT NULL,
         upvotes INTEGER NOT NULL DEFAULT 0,
@@ -138,8 +147,12 @@ async function ensureLiveSchema(db: D1Database): Promise<void> {
       )`
     ),
     db.prepare(
-      `CREATE INDEX IF NOT EXISTS hyslides_live_questions_session_slide_idx
-        ON hyslides_live_questions (session_code, slide_id, created_at)`
+      `CREATE INDEX IF NOT EXISTS hyslides_live_instances_access_code_idx
+        ON hyslides_live_instances (access_code, started_at)`
+    ),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS hyslides_live_instance_questions_instance_slide_idx
+        ON hyslides_live_instance_questions (instance_id, slide_id, created_at)`
     ),
   ]);
 }
@@ -153,33 +166,54 @@ async function publishLiveSession(db: D1Database, code: string, payload: Record<
 
   const deckId = stringValue(payload.deckId) || "deck";
   const deckTitle = stringValue(payload.deckTitle) || "HySlides deck";
-  const audienceCode = normalizeCode(payload.audienceCode) || code;
+  const instanceId = stringValue(payload.instanceId) || crypto.randomUUID();
   const activeSlideIndex = numberValue(payload.activeSlideIndex);
   const slideJson = JSON.stringify(slide);
 
-  await db
-    .prepare(
-      `INSERT INTO hyslides_live_sessions (
-        code,
+  const previous = await db
+    .prepare(`SELECT instance_id FROM hyslides_live_instance_state WHERE access_code = ?`)
+    .bind(code)
+    .first<{ instance_id: string }>();
+
+  const statements = [
+    db.prepare(
+      `INSERT INTO hyslides_live_instances (
+        instance_id,
+        access_code,
         deck_id,
         deck_title,
-        audience_code,
+        started_at,
+        last_active_at,
+        status
+      ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'active')
+      ON CONFLICT(instance_id) DO UPDATE SET
+        last_active_at = CURRENT_TIMESTAMP,
+        status = 'active'`
+    ).bind(instanceId, code, deckId, deckTitle),
+    db.prepare(
+      `INSERT INTO hyslides_live_instance_state (
+        access_code,
+        instance_id,
         active_slide_id,
         active_slide_index,
         slide_json,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-      ON CONFLICT(code) DO UPDATE SET
-        deck_id = excluded.deck_id,
-        deck_title = excluded.deck_title,
-        audience_code = excluded.audience_code,
+      ) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(access_code) DO UPDATE SET
+        instance_id = excluded.instance_id,
         active_slide_id = excluded.active_slide_id,
         active_slide_index = excluded.active_slide_index,
         slide_json = excluded.slide_json,
         updated_at = CURRENT_TIMESTAMP`
-    )
-    .bind(code, deckId, deckTitle, audienceCode, slideId, activeSlideIndex, slideJson)
-    .run();
+    ).bind(code, instanceId, slideId, activeSlideIndex, slideJson),
+  ];
+  if (previous?.instance_id && previous.instance_id !== instanceId) {
+    statements.push(
+      db.prepare(`UPDATE hyslides_live_instances SET status = 'ended', last_active_at = CURRENT_TIMESTAMP WHERE instance_id = ?`)
+        .bind(previous.instance_id)
+    );
+  }
+  await db.batch(statements);
 
   return liveState(db, code);
 }
@@ -207,27 +241,27 @@ async function recordLiveResponse(db: D1Database, code: string, payload: Record<
 
   const type = stringValue(engagement.type) || "poll";
   if (["poll", "multipleChoice", "quiz"].includes(type)) {
-    await incrementLiveCount(db, code, session.active_slide_id, "response", value);
+    await incrementLiveCount(db, session.instance_id, session.active_slide_id, "response", value);
   } else if (type === "wordCloud") {
     const words = value.split(/\s+/).map((word) => word.trim().toLowerCase()).filter(Boolean);
     for (const word of words.slice(0, 20)) {
-      await incrementLiveCount(db, code, session.active_slide_id, "response", word);
+      await incrementLiveCount(db, session.instance_id, session.active_slide_id, "response", word);
     }
   } else if (type === "qna") {
     await db
       .prepare(
-        `INSERT INTO hyslides_live_questions (
+        `INSERT INTO hyslides_live_instance_questions (
           id,
-          session_code,
+          instance_id,
           slide_id,
           text,
           created_at
         ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`
       )
-      .bind(crypto.randomUUID(), code, session.active_slide_id, value.slice(0, 500))
+      .bind(crypto.randomUUID(), session.instance_id, session.active_slide_id, value.slice(0, 500))
       .run();
   } else if (type === "reactions") {
-    await incrementLiveCount(db, code, session.active_slide_id, "reaction", value);
+    await incrementLiveCount(db, session.instance_id, session.active_slide_id, "reaction", value);
   }
 
   return {
@@ -238,36 +272,38 @@ async function recordLiveResponse(db: D1Database, code: string, payload: Record<
 
 async function incrementLiveCount(
   db: D1Database,
-  code: string,
+  instanceId: string,
   slideId: string,
   kind: string,
   responseKey: string
 ) {
   await db
     .prepare(
-      `INSERT INTO hyslides_live_counts (
-        session_code,
+      `INSERT INTO hyslides_live_instance_counts (
+        instance_id,
         slide_id,
         kind,
         response_key,
         count
       ) VALUES (?, ?, ?, ?, 1)
-      ON CONFLICT(session_code, slide_id, kind, response_key) DO UPDATE SET
+      ON CONFLICT(instance_id, slide_id, kind, response_key) DO UPDATE SET
         count = count + 1`
     )
-    .bind(code, slideId, kind, responseKey)
+    .bind(instanceId, slideId, kind, responseKey)
     .run();
 }
 
 async function liveState(db: D1Database, code: string) {
   const session = await getLiveSessionRow(db, code);
   const slide = parseSlide(session.slide_json);
-  await applyLiveAggregates(db, code, session.active_slide_id, slide);
+  await applyLiveAggregates(db, session.instance_id, session.active_slide_id, slide);
   return {
     code,
+    instanceId: session.instance_id,
+    startedAt: session.started_at,
     deckId: session.deck_id,
     deckTitle: session.deck_title,
-    audienceCode: session.audience_code,
+    audienceCode: session.access_code,
     activeSlideId: session.active_slide_id,
     activeSlideIndex: session.active_slide_index,
     slide,
@@ -277,7 +313,7 @@ async function liveState(db: D1Database, code: string) {
 
 async function applyLiveAggregates(
   db: D1Database,
-  code: string,
+  instanceId: string,
   slideId: string,
   slide: Record<string, unknown>
 ) {
@@ -285,10 +321,10 @@ async function applyLiveAggregates(
   const counts = await db
     .prepare(
       `SELECT kind, response_key, count
-        FROM hyslides_live_counts
-        WHERE session_code = ? AND slide_id = ?`
+        FROM hyslides_live_instance_counts
+        WHERE instance_id = ? AND slide_id = ?`
     )
-    .bind(code, slideId)
+    .bind(instanceId, slideId)
     .all<LiveCountRow>();
 
   const results: Record<string, number> = {};
@@ -317,11 +353,11 @@ async function applyLiveAggregates(
   const questions = await db
     .prepare(
       `SELECT id, text, upvotes, answered
-        FROM hyslides_live_questions
-        WHERE session_code = ? AND slide_id = ?
+        FROM hyslides_live_instance_questions
+        WHERE instance_id = ? AND slide_id = ?
         ORDER BY created_at ASC`
     )
-    .bind(code, slideId)
+    .bind(instanceId, slideId)
     .all<LiveQuestionRow>();
 
   engagement.qna = (questions.results || []).map((question) => ({
@@ -336,16 +372,18 @@ async function getLiveSessionRow(db: D1Database, code: string): Promise<LiveSess
   const session = await db
     .prepare(
       `SELECT
-        code,
-        deck_id,
-        deck_title,
-        audience_code,
-        active_slide_id,
-        active_slide_index,
-        slide_json,
-        updated_at
-      FROM hyslides_live_sessions
-      WHERE code = ?`
+        state.access_code,
+        state.instance_id,
+        instance.deck_id,
+        instance.deck_title,
+        instance.started_at,
+        state.active_slide_id,
+        state.active_slide_index,
+        state.slide_json,
+        state.updated_at
+      FROM hyslides_live_instance_state AS state
+      JOIN hyslides_live_instances AS instance ON instance.instance_id = state.instance_id
+      WHERE state.access_code = ?`
     )
     .bind(code)
     .first<LiveSessionRow>();
@@ -411,10 +449,11 @@ function numberValue(value: unknown): number {
 }
 
 interface LiveSessionRow {
-  code: string;
+  access_code: string;
+  instance_id: string;
   deck_id: string;
   deck_title: string;
-  audience_code: string;
+  started_at: string;
   active_slide_id: string;
   active_slide_index: number;
   slide_json: string;
