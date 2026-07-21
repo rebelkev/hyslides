@@ -1422,6 +1422,45 @@ label {
   padding: 14px;
 }
 
+.qna-moderation-row {
+  align-items: start;
+  gap: 10px;
+}
+
+.qna-moderation-row.pending {
+  background: #fff8e8;
+  border-color: #efd08a;
+}
+
+.qna-moderation-row.visible {
+  background: #eefbf8;
+  border-color: #9edbd0;
+}
+
+.qna-moderation-row > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.qna-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.qna-actions .danger {
+  color: #a61b1b;
+}
+
+.audience-question {
+  align-items: center;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.audience-question.answered {
+  opacity: .62;
+}
+
 .audience-join-form {
   display: grid;
   gap: 12px;
