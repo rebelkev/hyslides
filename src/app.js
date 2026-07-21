@@ -1590,9 +1590,9 @@ function renderSlideInspector(slide) {
       <div class="check-row"><input id="engagementToggle" type="checkbox" ${slide.engagement.enabled ? "checked" : ""} /><label for="engagementToggle">Interactive slide</label></div>
       <div class="field-row"><label for="engagementType">Mode</label><select id="engagementType">${engagementTypes.map((type) => `<option value="${type.value}" ${slide.engagement.type === type.value ? "selected" : ""}>${type.label}</option>`).join("")}</select></div>
       <div class="field-row"><label for="engagementPrompt">Prompt</label><input id="engagementPrompt" value="${attr(slide.engagement.prompt)}" /></div>
-      <div class="field-row"><label for="engagementOptions">Options</label><textarea id="engagementOptions">${escapeHtml(slide.engagement.options.join("\n"))}</textarea></div>
+      ${engagementOptionEditor(slide.engagement, "slide")}
       ${slide.engagement.type === "poll" ? `<div class="field-row"><label for="engagementResponseLimit">Selections allowed per participant</label><input id="engagementResponseLimit" type="number" min="1" max="${Math.max(1, slide.engagement.options.length)}" value="${Math.min(Math.max(1, Number(slide.engagement.responseLimit) || 1), Math.max(1, slide.engagement.options.length))}" /></div>` : ""}
-      ${correctAnswerFields(slide.engagement)}
+      ${answerRevealField(slide.engagement, "slide")}
       <div class="check-row"><input id="audienceJoinElementsToggle" type="checkbox" ${audienceJoinVisible ? "checked" : ""} /><label for="audienceJoinElementsToggle">Show QR code and access code on this slide</label></div>
       <div class="field-row">
         <label>Audience join</label>
@@ -1638,7 +1638,7 @@ function renderSlideInspector(slide) {
     slide.engagement.prompt = value;
     syncEngagementElementsFromSlide(slide);
   });
-  bindEngagementOptions(slide);
+  bindEngagementOptionEditor(slide.engagement, "slide", () => syncEngagementElementsFromSlide(slide));
   document.querySelector("#engagementResponseLimit")?.addEventListener("change", (event) => {
     slide.engagement.responseLimit = Math.min(
       Math.max(1, slide.engagement.options.length),
@@ -1648,7 +1648,7 @@ function renderSlideInspector(slide) {
     markChanged("Poll response limit updated");
     renderAll();
   });
-  bindCorrectAnswerFields(slide);
+  bindAnswerRevealField(slide.engagement, "slide", () => syncEngagementElementsFromSlide(slide));
 }
 
 function renderElementInspector(element) {
@@ -1789,8 +1789,8 @@ function elementInspectorFields(element) {
         <strong>Engagement</strong>
         <div class="field-row"><label for="engagementElementMode">Mode</label><select id="engagementElementMode">${engagementTypes.map((type) => `<option value="${type.value}" ${element.mode === type.value ? "selected" : ""}>${type.label}</option>`).join("")}</select></div>
         <div class="field-row"><label for="engagementElementPrompt">Prompt</label><input id="engagementElementPrompt" value="${attr(element.prompt)}" /></div>
-        <div class="field-row"><label for="engagementElementOptions">Options</label><textarea id="engagementElementOptions">${escapeHtml((element.options || []).join("\n"))}</textarea></div>
-        ${correctAnswerFieldsForElement(element)}
+        ${engagementOptionEditor({ ...element, type: element.mode }, "element")}
+        ${answerRevealField({ ...element, type: element.mode }, "element")}
       </section>`;
   }
 
@@ -2139,66 +2139,49 @@ function setElementBrandColor(element, color) {
   else element.fill = color;
 }
 
-function correctAnswerFields(engagement) {
-  if (!["multipleChoice", "quiz"].includes(engagement.type)) {
+function engagementOptionEditor(engagement, scope) {
+  if (!["poll", "multipleChoice", "quiz"].includes(engagement.type)) {
     return "";
   }
 
   const options = engagement.options || [];
   const correctAnswers = new Set(engagement.correctAnswers || []);
-  const optionFields = options.length
+  const supportsAnswers = ["multipleChoice", "quiz"].includes(engagement.type);
+  const optionRows = options.length
     ? options
         .map(
-          (option) => `
-            <label class="answer-key-option">
-              <input type="checkbox" data-correct-answer="${attr(option)}" ${correctAnswers.has(option) ? "checked" : ""} />
-              <span>${escapeHtml(option)}</span>
-            </label>
+          (option, index) => `
+            <div class="engagement-option-row">
+              ${supportsAnswers
+                ? `<input class="engagement-option-correct" type="checkbox" data-option-correct="${index}" ${correctAnswers.has(option) ? "checked" : ""} aria-label="Mark option ${index + 1} correct" title="Correct answer" />`
+                : `<span class="engagement-option-number" aria-hidden="true">${index + 1}</span>`}
+              <input type="text" data-option-text="${index}" value="${attr(option)}" aria-label="Option ${index + 1}" />
+              <button class="engagement-option-remove" type="button" data-option-remove="${index}" aria-label="Remove option ${index + 1}" title="Remove option">&times;</button>
+            </div>
           `
         )
         .join("")
-    : `<span class="answer-key-empty">Add options above, then mark the correct answer.</span>`;
+    : `<span class="answer-key-empty">No options yet.</span>`;
 
   return `
-    <div class="field-row">
-      <label>Correct answers</label>
-      <div class="answer-key-list">${optionFields}</div>
-    </div>
-    <div class="check-row">
-      <input id="showCorrectAnswerToggle" type="checkbox" ${engagement.showCorrectAnswer ? "checked" : ""} />
-      <label for="showCorrectAnswerToggle">Show correct answer after response</label>
+    <div class="field-row engagement-option-editor" data-option-editor="${scope}">
+      <label>Options</label>
+      ${supportsAnswers ? `<span class="field-help">Check every correct answer.</span>` : ""}
+      <div class="engagement-option-list">${optionRows}</div>
+      <button class="engagement-option-add" type="button" data-option-add>Add option</button>
     </div>
   `;
 }
 
-function correctAnswerFieldsForElement(element) {
-  if (!["multipleChoice", "quiz"].includes(element.mode)) {
+function answerRevealField(engagement, scope) {
+  if (!["multipleChoice", "quiz"].includes(engagement.type)) {
     return "";
   }
-
-  const options = element.options || [];
-  const correctAnswers = new Set(element.correctAnswers || []);
-  const optionFields = options.length
-    ? options
-        .map(
-          (option) => `
-            <label class="answer-key-option">
-              <input type="checkbox" data-element-correct-answer="${attr(option)}" ${correctAnswers.has(option) ? "checked" : ""} />
-              <span>${escapeHtml(option)}</span>
-            </label>
-          `
-        )
-        .join("")
-    : `<span class="answer-key-empty">Add options above, then mark the correct answer.</span>`;
-
+  const id = scope === "slide" ? "showCorrectAnswerToggle" : "engagementElementReveal";
   return `
-    <div class="field-row">
-      <label>Correct answers</label>
-      <div class="answer-key-list">${optionFields}</div>
-    </div>
     <div class="check-row">
-      <input id="engagementElementReveal" type="checkbox" ${element.showCorrectAnswer ? "checked" : ""} />
-      <label for="engagementElementReveal">Show correct answer after response</label>
+      <input id="${id}" type="checkbox" ${engagement.showCorrectAnswer ? "checked" : ""} />
+      <label for="${id}">Show correct answer after response</label>
     </div>
   `;
 }
@@ -4255,66 +4238,88 @@ function bindEngagementType(slide) {
   });
 }
 
-function bindEngagementOptions(slide) {
-  const input = document.querySelector("#engagementOptions");
-  input?.addEventListener("input", () => {
-    slide.engagement.options = splitLines(input.value);
-    slide.engagement.responseLimit = Math.min(
-      Math.max(1, slide.engagement.options.length),
-      Math.max(1, Number(slide.engagement.responseLimit) || 1)
+function bindEngagementOptionEditor(engagement, scope, synchronize) {
+  const editor = document.querySelector(`[data-option-editor="${scope}"]`);
+  if (!editor) return;
+
+  const updateViews = (message, rebuild = false) => {
+    engagement.responseLimit = Math.min(
+      Math.max(1, engagement.options.length),
+      Math.max(1, Number(engagement.responseLimit) || 1)
     );
-    pruneCorrectAnswers(slide.engagement);
-    syncEngagementElementsFromSlide(slide);
-    markChanged("Engagement options updated");
+    pruneCorrectAnswers(engagement);
+    synchronize();
+    markChanged(message);
+    if (rebuild) {
+      renderAll();
+      return;
+    }
     renderCanvas();
     renderSlides();
-    if (presenterOpen) {
-      renderPresenter();
-    }
-    if (audienceOpen) {
-      renderAudience();
-    }
-  });
-  input?.addEventListener("change", () => {
-    renderInspector();
-  });
-}
+    if (presenterOpen) renderPresenter();
+    if (audienceOpen) renderAudience();
+  };
 
-function bindCorrectAnswerFields(slide) {
-  document.querySelectorAll("[data-correct-answer]").forEach((input) => {
+  editor.querySelectorAll("[data-option-text]").forEach((input) => {
+    input.addEventListener("input", () => {
+      const index = Number(input.dataset.optionText);
+      const previous = engagement.options[index];
+      engagement.options[index] = input.value;
+      engagement.correctAnswers = (engagement.correctAnswers || []).map((answer) =>
+        answer === previous ? input.value : answer
+      );
+      updateViews("Engagement option updated");
+    });
     input.addEventListener("change", () => {
-      const value = input.dataset.correctAnswer;
-      const answers = new Set(slide.engagement.correctAnswers || []);
-      if (input.checked) {
-        answers.add(value);
-      } else {
-        answers.delete(value);
-      }
-      slide.engagement.correctAnswers = [...answers];
-      pruneCorrectAnswers(slide.engagement);
-      syncEngagementElementsFromSlide(slide);
-      markChanged("Correct answer updated");
-      renderCanvas();
-      if (presenterOpen) {
-        renderPresenter();
-      }
-      if (audienceOpen) {
-        renderAudience();
+      if (!input.value.trim()) {
+        const index = Number(input.dataset.optionText);
+        engagement.options[index] = `Option ${index + 1}`;
+        updateViews("Empty option restored", true);
       }
     });
   });
 
-  const toggle = document.querySelector("#showCorrectAnswerToggle");
+  editor.querySelectorAll("[data-option-correct]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const option = engagement.options[Number(input.dataset.optionCorrect)];
+      const answers = new Set(engagement.correctAnswers || []);
+      if (input.checked) answers.add(option);
+      else answers.delete(option);
+      engagement.correctAnswers = [...answers];
+      updateViews("Correct answer updated");
+    });
+  });
+
+  editor.querySelectorAll("[data-option-remove]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const index = Number(button.dataset.optionRemove);
+      const [removed] = engagement.options.splice(index, 1);
+      engagement.correctAnswers = (engagement.correctAnswers || []).filter((answer) => answer !== removed);
+      updateViews("Engagement option removed", true);
+    });
+  });
+
+  editor.querySelector("[data-option-add]")?.addEventListener("click", () => {
+    let number = engagement.options.length + 1;
+    let label = `Option ${number}`;
+    while (engagement.options.includes(label)) {
+      number += 1;
+      label = `Option ${number}`;
+    }
+    engagement.options.push(label);
+    updateViews("Engagement option added", true);
+  });
+}
+
+function bindAnswerRevealField(engagement, scope, synchronize) {
+  const selector = scope === "slide" ? "#showCorrectAnswerToggle" : "#engagementElementReveal";
+  const toggle = document.querySelector(selector);
   toggle?.addEventListener("change", () => {
-    slide.engagement.showCorrectAnswer = toggle.checked;
-    syncEngagementElementsFromSlide(slide);
+    engagement.showCorrectAnswer = toggle.checked;
+    synchronize();
     markChanged("Answer reveal updated");
-    if (presenterOpen) {
-      renderPresenter();
-    }
-    if (audienceOpen) {
-      renderAudience();
-    }
+    if (presenterOpen) renderPresenter();
+    if (audienceOpen) renderAudience();
   });
 }
 
@@ -4342,59 +4347,8 @@ function bindEngagementElementFields(element) {
     }
   });
 
-  const options = document.querySelector("#engagementElementOptions");
-  options?.addEventListener("input", () => {
-    element.options = splitLines(options.value);
-    pruneElementCorrectAnswers(element);
-    syncSlideEngagementFromElement(element);
-    markChanged("Engagement options updated");
-    renderCanvas();
-    if (presenterOpen) {
-      renderPresenter();
-    }
-    if (audienceOpen) {
-      renderAudience();
-    }
-  });
-  options?.addEventListener("change", () => {
-    renderInspector();
-  });
-
-  document.querySelectorAll("[data-element-correct-answer]").forEach((input) => {
-    input.addEventListener("change", () => {
-      const answers = new Set(element.correctAnswers || []);
-      const value = input.dataset.elementCorrectAnswer;
-      if (input.checked) {
-        answers.add(value);
-      } else {
-        answers.delete(value);
-      }
-      element.correctAnswers = [...answers];
-      pruneElementCorrectAnswers(element);
-      syncSlideEngagementFromElement(element);
-      markChanged("Correct answer updated");
-      renderCanvas();
-      if (presenterOpen) {
-        renderPresenter();
-      }
-      if (audienceOpen) {
-        renderAudience();
-      }
-    });
-  });
-
-  const reveal = document.querySelector("#engagementElementReveal");
-  reveal?.addEventListener("change", () => {
-    element.showCorrectAnswer = reveal.checked;
-    syncSlideEngagementFromElement(element);
-    markChanged("Answer reveal updated");
-    if (presenterOpen) {
-      renderPresenter();
-    }
-    if (audienceOpen) {
-      renderAudience();
-    }
-  });
+  bindEngagementOptionEditor(element, "element", () => syncSlideEngagementFromElement(element));
+  bindAnswerRevealField(element, "element", () => syncSlideEngagementFromElement(element));
 }
 
 function bindNumber(selector, setter) {

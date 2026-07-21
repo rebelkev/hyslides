@@ -1012,6 +1012,56 @@ label {
   font-size: 12px;
 }
 
+.engagement-option-editor {
+  gap: 7px;
+}
+
+.engagement-option-list {
+  display: grid;
+  gap: 7px;
+}
+
+.engagement-option-row {
+  align-items: center;
+  display: grid;
+  gap: 7px;
+  grid-template-columns: 24px minmax(0, 1fr) 34px;
+}
+
+.engagement-option-row input[type="text"] {
+  min-width: 0;
+}
+
+.engagement-option-correct {
+  justify-self: center;
+  min-height: auto;
+  width: auto;
+}
+
+.engagement-option-number {
+  align-items: center;
+  background: var(--surface-strong, #eef2f7);
+  border-radius: 999px;
+  color: var(--muted);
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 700;
+  height: 22px;
+  justify-content: center;
+  width: 22px;
+}
+
+.engagement-option-remove {
+  font-size: 20px;
+  line-height: 1;
+  min-height: 34px;
+  padding: 0;
+}
+
+.engagement-option-add {
+  width: 100%;
+}
+
 .brand-color-save {
   display: grid;
   gap: 7px;
