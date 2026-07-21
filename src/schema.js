@@ -741,6 +741,38 @@ export function cloneElement(element) {
   });
 }
 
+export function cloneSlide(slide) {
+  const duplicate = normalizeSlide(JSON.parse(JSON.stringify(slide)));
+  const groupIds = new Map();
+  duplicate.id = uid("slide");
+  duplicate.elements = duplicate.elements.map((element) => {
+    const groupId = element.groupId
+      ? groupIds.get(element.groupId) || uid("group")
+      : null;
+    if (element.groupId && !groupIds.has(element.groupId)) {
+      groupIds.set(element.groupId, groupId);
+    }
+    return {
+      ...element,
+      id: uid(element.type || "element"),
+      groupId,
+    };
+  });
+  duplicate.engagement = {
+    ...duplicate.engagement,
+    results: {},
+    qna: [],
+    reactions: {
+      thumbsUp: 0,
+      heart: 0,
+      clap: 0,
+      wow: 0,
+      fire: 0,
+    },
+  };
+  return duplicate;
+}
+
 export function titleCase(value) {
   return String(value)
     .replace(/[-_]/g, " ")
