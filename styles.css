@@ -973,6 +973,54 @@ label {
   min-height: 26px;
 }
 
+.brand-style-list,
+.brand-style-chips {
+  display: grid;
+  gap: 6px;
+}
+
+.brand-style-row {
+  align-items: center;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: 34px minmax(0, 1fr) 28px;
+}
+
+.brand-style-row input[type="color"] {
+  height: 32px;
+  padding: 3px;
+  width: 34px;
+}
+
+.brand-style-row .swatch-remove {
+  border-radius: 6px;
+  height: 32px;
+  margin: 0;
+  min-width: 28px;
+  width: 28px;
+}
+
+.brand-style-chip {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 26px minmax(0, 1fr);
+  justify-content: start;
+  text-align: left;
+  width: 100%;
+}
+
+.brand-style-chip .swatch {
+  display: block;
+  height: 22px;
+  width: 22px;
+}
+
+.brand-style-chip.active {
+  background: #e7eeff;
+  border-color: #9eb4ed;
+  color: #173c9d;
+}
+
 .live-link-card {
   align-items: center;
   background: #f8fafc;
