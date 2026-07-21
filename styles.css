@@ -1406,6 +1406,45 @@ label {
   width: 100%;
 }
 
+.presentation-embed-frame.monitor {
+  pointer-events: none;
+}
+
+.presentation-embed-frame.monitor::after {
+  border: 1px solid rgba(255, 255, 255, .18);
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+}
+
+.presenter-video-controls {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.presenter-video-row {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.presenter-video-row > span {
+  font-size: 12px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.presenter-video-row > div { display: flex; gap: 6px; }
+.presenter-video-row button { min-height: 34px; padding: 6px 10px; }
+
 #presenterCanvas {
   background: #ffffff;
   box-shadow: 0 22px 70px rgba(0, 0, 0, 0.4);

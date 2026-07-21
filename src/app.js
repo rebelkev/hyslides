@@ -151,6 +151,8 @@ let presenterStartedAt = 0;
 let presenterTimerInterval = 0;
 let countdownRuntime = new Map();
 let countdownTickInterval = 0;
+const presenterVideoStates = new Map();
+let lastVideoTelemetryAt = 0;
 let presenterQnaTab = "unanswered";
 let audienceOpen = false;
 let participantQnaOpen = false;
@@ -3163,6 +3165,14 @@ function bindPresenterChannel() {
       applyCountdownState(message.states || {});
       if (presentationWindowMode) drawPresentationCountdownFrame();
     }
+    if (message.type === "video-command" && (presenterWindowMode || presentationWindowMode)) {
+      applyVideoCommand(message.elementId, message.action, message.time);
+    }
+    if (message.type === "video-telemetry" && presenterWindowMode) {
+      presenterVideoStates.set(message.elementId, message.playerState);
+      applyVideoTelemetry(message);
+      renderVideoControls(currentSlide());
+    }
   });
 }
 
@@ -3237,6 +3247,7 @@ async function renderPresenter() {
     });
     renderLiveJoinPanel(slide);
     renderCountdownControls(slide);
+    renderVideoControls(slide);
     renderPresenterQna();
     queueLivePublish();
   }
@@ -3376,7 +3387,7 @@ function drawPresentationCountdownFrame() {
 function syncPresentationEmbeds(slide = currentSlide()) {
   const layer = dom.presentationEmbedLayer;
   if (!layer) return;
-  if (!presentationWindowMode || !presenterOpen) {
+  if ((!presentationWindowMode && !presenterWindowMode) || !presenterOpen) {
     layer.replaceChildren();
     return;
   }
@@ -3394,6 +3405,7 @@ function syncPresentationEmbeds(slide = currentSlide()) {
   const scaleX = canvasRect.width / SLIDE_SIZE.width;
   const scaleY = canvasRect.height / SLIDE_SIZE.height;
   const states = presenterElementStates(slide);
+  const monitorMode = presenterWindowMode && !presentationWindowMode;
 
   for (const element of embeds) {
     let frame = layer.querySelector(`[data-embed-id="${CSS.escape(element.id)}"]`);
@@ -3403,7 +3415,8 @@ function syncPresentationEmbeds(slide = currentSlide()) {
       frame.dataset.embedId = element.id;
       layer.append(frame);
     }
-    const expanded = element.fullscreenOnPlay !== false && frame.dataset.playerState === "playing";
+    frame.classList.toggle("monitor", monitorMode);
+    const expanded = !monitorMode && element.fullscreenOnPlay !== false && frame.dataset.playerState === "playing";
     frame.classList.toggle("expanded", expanded);
     frame.style.left = `${canvasRect.left - parentRect.left + (expanded ? 0 : element.x * scaleX)}px`;
     frame.style.top = `${canvasRect.top - parentRect.top + (expanded ? 0 : element.y * scaleY)}px`;
@@ -3414,10 +3427,13 @@ function syncPresentationEmbeds(slide = currentSlide()) {
     frame.style.opacity = String((element.opacity ?? 1) * (state?.opacity ?? 1));
     frame.style.visibility = state?.hidden ? "hidden" : "visible";
 
-    const source = youtubeEmbedUrl(element, location.origin);
+    const playerElement = monitorMode
+      ? { ...element, volume: 0, autoplay: false, showControls: false, fullscreenOnPlay: false }
+      : element;
+    const source = youtubeEmbedUrl(playerElement, location.origin);
     const playerKey = JSON.stringify({
       source,
-      volume: clamp(Number(element.volume) || 0, 0, 100),
+      volume: clamp(Number(playerElement.volume) || 0, 0, 100),
       playbackRate: Number(element.playbackRate) || 1,
     });
     if (frame.dataset.playerKey === playerKey) continue;
@@ -3428,7 +3444,7 @@ function syncPresentationEmbeds(slide = currentSlide()) {
     iframe.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
     iframe.allowFullscreen = true;
     iframe.referrerPolicy = "strict-origin-when-cross-origin";
-    iframe.addEventListener("load", () => configureYouTubePlayer(iframe, element));
+    iframe.addEventListener("load", () => configureYouTubePlayer(iframe, playerElement));
     frame.dataset.playerState = "idle";
     frame.replaceChildren(iframe);
   }
@@ -3453,18 +3469,78 @@ function configureYouTubePlayer(iframe, element) {
 }
 
 function handleYouTubePlayerMessage(event) {
-  if (!presentationWindowMode || !/^(https:\/\/)?([\w-]+\.)?youtube(-nocookie)?\.com$/.test(event.origin)) return;
+  if ((!presentationWindowMode && !presenterWindowMode) || !/^(https:\/\/)?([\w-]+\.)?youtube(-nocookie)?\.com$/.test(event.origin)) return;
   let payload = event.data;
   if (typeof payload === "string") {
     try { payload = JSON.parse(payload); } catch { return; }
   }
-  if (payload?.event !== "onStateChange") return;
   const iframe = [...(dom.presentationEmbedLayer?.querySelectorAll("iframe") || [])]
     .find((candidate) => candidate.contentWindow === event.source);
   const frame = iframe?.closest(".presentation-embed-frame");
   if (!frame) return;
-  frame.dataset.playerState = Number(payload.info) === 1 ? "playing" : "idle";
-  syncPresentationEmbeds(currentSlide());
+  if (payload?.event === "onStateChange") {
+    const playerState = Number(payload.info);
+    frame.dataset.playerState = playerState === 1 ? "playing" : "idle";
+    presenterVideoStates.set(frame.dataset.embedId, playerState);
+    if (presentationWindowMode) presenterChannel?.postMessage({ type: "video-telemetry", elementId: frame.dataset.embedId, playerState });
+    syncPresentationEmbeds(currentSlide());
+    if (presenterWindowMode) renderVideoControls(currentSlide());
+    return;
+  }
+  if (payload?.event === "infoDelivery" && presentationWindowMode && Number.isFinite(Number(payload.info?.currentTime))) {
+    const now = Date.now();
+    if (now - lastVideoTelemetryAt < 1800) return;
+    lastVideoTelemetryAt = now;
+    presenterChannel?.postMessage({ type: "video-telemetry", elementId: frame.dataset.embedId, playerState: Number(payload.info?.playerState), time: Number(payload.info.currentTime) });
+  }
+}
+
+function videoIframe(elementId) {
+  return dom.presentationEmbedLayer?.querySelector(`[data-embed-id="${CSS.escape(elementId)}"] iframe`) || null;
+}
+
+function sendYouTubeCommand(iframe, func, args = []) {
+  iframe?.contentWindow?.postMessage(JSON.stringify({ event: "command", func, args }), "https://www.youtube.com");
+}
+
+function applyVideoCommand(elementId, action, time = 0) {
+  const iframe = videoIframe(elementId);
+  if (!iframe) return;
+  if (action === "play") sendYouTubeCommand(iframe, "playVideo");
+  if (action === "pause") sendYouTubeCommand(iframe, "pauseVideo");
+  if (action === "restart") {
+    sendYouTubeCommand(iframe, "seekTo", [0, true]);
+    sendYouTubeCommand(iframe, "playVideo");
+  }
+  if (action === "seek") sendYouTubeCommand(iframe, "seekTo", [Math.max(0, Number(time) || 0), true]);
+}
+
+function applyVideoTelemetry(message) {
+  if (Number.isFinite(Number(message.time))) applyVideoCommand(message.elementId, "seek", message.time);
+  if (Number(message.playerState) === 1) applyVideoCommand(message.elementId, "play");
+  if ([0, 2].includes(Number(message.playerState))) applyVideoCommand(message.elementId, "pause");
+}
+
+function runPresenterVideoCommand(elementId, action) {
+  applyVideoCommand(elementId, action);
+  presenterChannel?.postMessage({ type: "video-command", elementId, action });
+}
+
+function renderVideoControls(slide) {
+  if (!dom.liveControls || presentationWindowMode) return;
+  dom.liveControls.querySelector(".presenter-video-controls")?.remove();
+  const videos = (slide?.elements || []).filter((element) => element.type === "embed" && youtubeVideoId(element.url || element.videoId));
+  if (!videos.length) return;
+  const panel = document.createElement("div");
+  panel.className = "presenter-video-controls";
+  panel.innerHTML = `<div class="countdown-control-head"><strong>Current video</strong><span>Muted presenter monitor</span></div>${videos.map((element) => {
+    const playing = presenterVideoStates.get(element.id) === 1;
+    return `<div class="presenter-video-row" data-video-id="${attr(element.id)}"><span>${escapeHtml(element.name || "YouTube video")}</span><div><button data-video-action="${playing ? "pause" : "play"}" type="button">${playing ? "Pause" : "Play"}</button><button data-video-action="restart" type="button">Restart</button></div></div>`;
+  }).join("")}`;
+  panel.querySelectorAll("[data-video-action]").forEach((button) => button.addEventListener("click", () => {
+    runPresenterVideoCommand(button.closest("[data-video-id]").dataset.videoId, button.dataset.videoAction);
+  }));
+  dom.liveControls.append(panel);
 }
 
 function renderCountdownControls(slide) {
