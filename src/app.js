@@ -29,6 +29,7 @@ import {
 import {
   audienceCodeFromHash,
   audienceJoinUrl,
+  controlLiveSession,
   deleteLiveSession,
   getLiveSessionHistory,
   getLiveSession,
@@ -39,6 +40,7 @@ import {
   listLiveSessions,
   normalizeLiveCode,
   publishLiveSession,
+  registerLiveParticipant,
   renameLiveSession,
   submitLiveResponse,
 } from "./live.js";
@@ -81,6 +83,8 @@ const dom = {
 };
 
 const TEMPLATES_EXPANDED_KEY = "hyslides.templatesExpanded";
+const PARTICIPANT_ID_KEY = "hyslides.participantId";
+const ACTIVE_SESSION_KEY = "hyslides.activeSession";
 
 let deck = createSeedDeck();
 let activeSlideIndex = 0;
@@ -105,6 +109,10 @@ let liveSession = {
   code: "",
   instanceId: "",
   sessionName: "",
+  presenterToken: "",
+  lifecycleStatus: "active",
+  participantCount: 0,
+  responseCount: 0,
   joinUrl: "",
   qrSrc: "",
   backendAvailable: false,
@@ -124,6 +132,7 @@ let audienceLive = {
   error: "",
   pollTimer: null,
 };
+const participantId = readOrCreateParticipantId();
 
 const BULLET_EDITOR_PREFIX = "\u2022 ";
 
@@ -400,7 +409,7 @@ function closeSessionHistory() {
 async function renderSessionHistoryList() {
   dom.sessionHistoryContent.innerHTML = `<div class="session-history-empty">Loading sessions…</div>`;
   try {
-    const payload = await listLiveSessions(deck.id);
+    const payload = await listLiveSessions(deck.id, presenterTokenForDeck());
     const sessions = payload.sessions || [];
     if (!sessions.length) {
       dom.sessionHistoryContent.innerHTML = `
@@ -433,7 +442,7 @@ async function renderSessionHistoryList() {
         if (!session || !confirm(`Delete session "${session.session_name || defaultSessionName(session)}" and all its responses?`)) {
           return;
         }
-        await deleteLiveSession(session.instance_id);
+        await deleteLiveSession(session.instance_id, presenterTokenForDeck());
         setStatus("Session deleted");
         renderSessionHistoryList();
       });
@@ -446,7 +455,7 @@ async function renderSessionHistoryList() {
 async function renderSessionHistoryDetail(instanceId) {
   dom.sessionHistoryContent.innerHTML = `<div class="session-history-empty">Loading results…</div>`;
   try {
-    const detail = await getLiveSessionHistory(instanceId);
+    const detail = await getLiveSessionHistory(instanceId, presenterTokenForDeck());
     const session = detail.session;
     const name = session.session_name || defaultSessionName(session);
     dom.sessionHistoryContent.innerHTML = `
@@ -474,7 +483,7 @@ async function renderSessionHistoryDetail(instanceId) {
       if (!nextName) {
         return;
       }
-      await renameLiveSession(instanceId, nextName);
+      await renameLiveSession(instanceId, nextName, presenterTokenForDeck());
       setStatus("Session renamed");
       renderSessionHistoryDetail(instanceId);
     });
@@ -2655,6 +2664,7 @@ function renderAudience() {
       <label for="audienceAccessCodeInput">Enter the 6-digit presentation access code</label>
       <input id="audienceAccessCodeInput" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="123456" required />
       <button type="submit">Join presentation</button>
+      <small>HySlides uses an anonymous device identifier to prevent duplicate responses. Session responses are retained for 90 days.</small>
     </form>
   `;
   dom.audienceContent.querySelector("#audienceJoinForm")?.addEventListener("submit", (event) => {
@@ -2675,8 +2685,16 @@ function renderAudience() {
 function startLiveSession() {
   const code = ensureAudienceCode();
   liveSession.code = code;
-  liveSession.instanceId = crypto.randomUUID?.() || `session-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  liveSession.sessionName = `${deck.title || "Untitled deck"} — ${new Date().toLocaleString()}`;
+  liveSession.presenterToken = presenterTokenForDeck();
+  const resumable = readActiveSession();
+  if (resumable?.deckId === deck.id && resumable?.code === code && resumable?.instanceId) {
+    liveSession.instanceId = resumable.instanceId;
+    liveSession.sessionName = resumable.sessionName;
+  } else {
+    beginNewLiveSession();
+  }
+  liveSession.lifecycleStatus = "active";
+  writeActiveSession();
   liveSession.lastPublishedSignature = "";
   liveSession.joinUrl = audienceLink();
   liveSession.qrSrc = liveQrImageSrc(liveSession.joinUrl);
@@ -2698,7 +2716,7 @@ function stopLiveSession() {
 
 function startLivePolling() {
   clearInterval(liveSession.pollTimer);
-  liveSession.pollTimer = setInterval(refreshLiveSession, 1800);
+  liveSession.pollTimer = setInterval(refreshLiveSession, 1200);
 }
 
 function queueLivePublish(force = false) {
@@ -2727,12 +2745,26 @@ async function publishCurrentLiveSession(force = false) {
 
   liveSession.publishing = true;
   try {
-    const state = await publishLiveSession(liveSession.code, snapshot);
+    const state = await publishLiveSession(liveSession.code, snapshot, liveSession.presenterToken);
     liveSession.backendAvailable = true;
+    liveSession.lifecycleStatus = state.status || "active";
+    writeActiveSession();
     liveSession.status = "Live session running. Responses sync automatically.";
     liveSession.lastPublishedSignature = signature;
     applyLiveStateToCurrentSlide(state);
   } catch (error) {
+    if (error.message.includes("Access code is already assigned")) {
+      deck.settings.audienceCode = String(100000 + Math.floor(Math.random() * 900000));
+      liveSession.code = deck.settings.audienceCode;
+      liveSession.joinUrl = audienceLink();
+      liveSession.qrSrc = liveQrImageSrc(liveSession.joinUrl);
+      liveSession.lastPublishedSignature = "";
+      syncAudienceJoinElements();
+      writeActiveSession();
+      liveSession.status = "A unique access code was assigned automatically.";
+      setTimeout(() => queueLivePublish(true), 0);
+      return;
+    }
     liveSession.backendAvailable = false;
     liveSession.status = isLocalJoinUrl(liveSession.joinUrl)
       ? "Local QR only. Host HySlides or use a network URL for phones."
@@ -2768,8 +2800,15 @@ async function refreshLiveSession() {
 }
 
 function applyLiveStateToCurrentSlide(state) {
-  if (!state?.slide || state.slide.id !== currentSlide().id) {
+  if (!state?.slide) {
     return false;
+  }
+  const priorLive = `${liveSession.participantCount}:${liveSession.responseCount}:${liveSession.lifecycleStatus}`;
+  liveSession.participantCount = Number(state.participantCount || 0);
+  liveSession.responseCount = Number(state.responseCount || 0);
+  liveSession.lifecycleStatus = state.status || liveSession.lifecycleStatus;
+  if (state.slide.id !== currentSlide().id) {
+    return priorLive !== `${liveSession.participantCount}:${liveSession.responseCount}:${liveSession.lifecycleStatus}`;
   }
   const slide = currentSlide();
   ensureEngagement(slide);
@@ -2790,7 +2829,7 @@ function applyLiveStateToCurrentSlide(state) {
     qna: slide.engagement.qna,
     reactions: slide.engagement.reactions,
   });
-  return before !== after;
+  return before !== after || priorLive !== `${liveSession.participantCount}:${liveSession.responseCount}:${liveSession.lifecycleStatus}`;
 }
 
 function renderLiveJoinPanel(slide) {
@@ -2801,8 +2840,9 @@ function renderLiveJoinPanel(slide) {
   const panel = document.createElement("div");
   panel.className = "live-join-panel";
   const participantText = slide.engagement?.enabled
-    ? "Participants can respond to this slide."
-    : "Participants can join now and wait for the next interactive slide.";
+    ? `${liveSession.responseCount}/${liveSession.participantCount} connected participants responded.`
+    : `${liveSession.participantCount} participant${liveSession.participantCount === 1 ? "" : "s"} connected.`;
+  const paused = liveSession.lifecycleStatus === "paused";
   panel.innerHTML = `
     <img src="${attr(liveSession.qrSrc || liveQrImageSrc(audienceLink()))}" alt="Audience QR code" />
     <div class="live-join-copy">
@@ -2812,6 +2852,10 @@ function renderLiveJoinPanel(slide) {
       <div class="live-join-actions">
         <button id="copyLiveLinkBtn" type="button">Copy link</button>
         <button id="openLiveAudienceBtn" type="button">Open audience</button>
+        <button id="toggleLiveSessionBtn" type="button">${paused ? "Resume" : "Pause"}</button>
+        <button id="clearLiveSlideBtn" type="button">Clear responses</button>
+        <button id="endLiveSessionBtn" type="button">End session</button>
+        <button id="newLiveSessionBtn" type="button">New session</button>
       </div>
       <small>${escapeHtml(liveSession.status)}</small>
     </div>
@@ -2825,6 +2869,35 @@ function renderLiveJoinPanel(slide) {
     location.hash = `audience-${ensureAudienceCode()}`;
     openAudience();
   });
+  panel.querySelector("#toggleLiveSessionBtn")?.addEventListener("click", () => runLiveControl(paused ? "resume" : "pause"));
+  panel.querySelector("#clearLiveSlideBtn")?.addEventListener("click", () => {
+    if (confirm("Clear every response to the current slide? This cannot be undone.")) runLiveControl("clearSlide");
+  });
+  panel.querySelector("#endLiveSessionBtn")?.addEventListener("click", () => {
+    if (confirm("End this live session? Its results will remain in Session History for 90 days.")) runLiveControl("end");
+  });
+  panel.querySelector("#newLiveSessionBtn")?.addEventListener("click", () => {
+    if (confirm("Start a new session instance for this deck?")) {
+      beginNewLiveSession();
+      liveSession.lifecycleStatus = "active";
+      liveSession.participantCount = 0;
+      liveSession.responseCount = 0;
+      queueLivePublish(true);
+    }
+  });
+}
+
+async function runLiveControl(action) {
+  try {
+    const state = await controlLiveSession(liveSession.code, action, liveSession.presenterToken);
+    applyLiveStateToCurrentSlide(state);
+    if (action === "end") clearActiveSession();
+    else writeActiveSession();
+    renderPresenter();
+  } catch (error) {
+    liveSession.status = `Could not update session: ${error.message}`;
+    renderLiveJoinPanel(currentSlide());
+  }
 }
 
 async function renderLiveAudience() {
@@ -2859,20 +2932,24 @@ async function renderLiveAudience() {
     (payload) => submitAudienceLiveResponse(liveSlide, payload),
     latestResponse
   );
+  if (audienceLive.state.status !== "active") {
+    dom.audienceContent.querySelectorAll("button, input, textarea, select").forEach((control) => { control.disabled = true; });
+  }
   renderAudienceLiveStatus();
 }
 
 function renderAudienceLiveStatus() {
   const status = document.createElement("div");
   status.className = "audience-live-status";
-  status.textContent = audienceLive.error || "Connected to HySlides Live";
+  const stateLabel = audienceLive.state?.status === "paused" ? "Presentation paused" : audienceLive.state?.status === "ended" ? "Presentation ended" : "Connected to HySlides Live";
+  status.textContent = audienceLive.error || stateLabel;
   dom.audienceContent.prepend(status);
 }
 
 function startAudienceLivePolling() {
   clearInterval(audienceLive.pollTimer);
   refreshAudienceLiveState();
-  audienceLive.pollTimer = setInterval(refreshAudienceLiveState, 1800);
+  audienceLive.pollTimer = setInterval(refreshAudienceLiveState, 1200);
 }
 
 function stopAudienceLivePolling() {
@@ -2887,7 +2964,7 @@ async function refreshAudienceLiveState() {
   }
   audienceLive.loading = true;
   try {
-    audienceLive.state = await getLiveSession(audienceLive.code);
+    audienceLive.state = await registerLiveParticipant(audienceLive.code, participantId);
     audienceLive.backendAvailable = true;
     audienceLive.error = "";
   } catch (error) {
@@ -2908,11 +2985,14 @@ async function submitAudienceLiveResponse(slide, payload) {
     audienceLive.state = await submitLiveResponse(audienceLive.code, {
       slideId: slide.id,
       value: payload.value,
+      participantId,
     });
     audienceLive.backendAvailable = true;
-    audienceLive.error = audienceLive.state.accepted === false
-      ? "That slide has moved on. Showing the current live slide."
-      : "";
+    audienceLive.error = audienceLive.state.duplicate
+      ? "Your response was already recorded."
+      : audienceLive.state.accepted === false
+        ? "That slide has moved on. Showing the current live slide."
+        : "";
   } catch (error) {
     audienceLive.backendAvailable = false;
     audienceLive.error = `Response was not sent: ${error.message}`;
@@ -3491,6 +3571,54 @@ function accessCodeForDeck(deckId) {
     hash = Math.imul(hash, 16777619);
   }
   return String(100000 + (hash >>> 0) % 900000);
+}
+
+function readOrCreateParticipantId() {
+  let value = localStorage.getItem(PARTICIPANT_ID_KEY);
+  if (!value) {
+    value = crypto.randomUUID();
+    localStorage.setItem(PARTICIPANT_ID_KEY, value);
+  }
+  return value;
+}
+
+function presenterTokenForDeck() {
+  const key = `hyslides.presenterToken.${deck.id}`;
+  let value = localStorage.getItem(key);
+  if (!value) {
+    value = `${crypto.randomUUID()}${crypto.randomUUID()}`;
+    localStorage.setItem(key, value);
+  }
+  return value;
+}
+
+function readActiveSession() {
+  try {
+    return JSON.parse(localStorage.getItem(ACTIVE_SESSION_KEY) || "null");
+  } catch {
+    return null;
+  }
+}
+
+function writeActiveSession() {
+  localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify({
+    deckId: deck.id,
+    code: liveSession.code,
+    instanceId: liveSession.instanceId,
+    sessionName: liveSession.sessionName,
+    status: liveSession.lifecycleStatus,
+  }));
+}
+
+function clearActiveSession() {
+  localStorage.removeItem(ACTIVE_SESSION_KEY);
+}
+
+function beginNewLiveSession() {
+  liveSession.instanceId = crypto.randomUUID();
+  liveSession.sessionName = `${deck.title || "Untitled presentation"} — ${new Date().toLocaleString()}`;
+  liveSession.lastPublishedSignature = "";
+  writeActiveSession();
 }
 
 function isTyping(target) {
