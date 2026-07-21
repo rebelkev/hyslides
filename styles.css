@@ -106,8 +106,14 @@ button[aria-pressed="true"] {
 }
 
 .toolbar .button-icon {
+  display: block;
+  flex: 0 0 auto;
   height: 18px;
   width: 18px;
+}
+
+.toolbar label.button {
+  margin-bottom: 0;
 }
 
 button:focus-visible,
