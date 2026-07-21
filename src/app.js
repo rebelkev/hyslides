@@ -98,12 +98,15 @@ let selectedIds = [];
 let zoom = 0.82;
 let autoFitZoom = true;
 let canvasResizeObserver = null;
+let editorAnimationStates = null;
+let editorAnimationToken = 0;
 let guides = [];
 let dragState = null;
 let clipboard = [];
 let saveTimer = null;
 let presenterOpen = false;
 let presenterWindow = null;
+let presenterAnimation = createAnimationPlaybackState();
 const presenterWindowMode = location.hash === "#presenter";
 const presenterChannel = "BroadcastChannel" in window ? new BroadcastChannel("hyslides-presenter") : null;
 let audienceOpen = false;
@@ -268,7 +271,7 @@ function bindEvents() {
     }
   });
   document.querySelector("#prevSlideBtn").addEventListener("click", () => stepSlide(-1));
-  document.querySelector("#nextSlideBtn").addEventListener("click", () => stepSlide(1));
+  document.querySelector("#nextSlideBtn").addEventListener("click", advancePresenter);
   document.querySelector("#fullscreenPresenterBtn").addEventListener("click", () => {
     document.documentElement.requestFullscreen?.().catch(() => {});
   });
@@ -297,6 +300,7 @@ function bindEvents() {
   document.querySelector("#zoomOutBtn").addEventListener("click", () => setZoom(zoom - 0.08, { manual: true }));
   document.querySelector("#zoomInBtn").addEventListener("click", () => setZoom(zoom + 0.08, { manual: true }));
   dom.zoomRange.addEventListener("input", () => setZoom(Number(dom.zoomRange.value) / 100, { manual: true }));
+  document.querySelector("#previewAnimationsBtn").addEventListener("click", previewSlideAnimations);
 
   document.querySelectorAll("[data-add]").forEach((button) => {
     button.addEventListener("click", () => addElement(button.dataset.add));
@@ -655,6 +659,7 @@ function renderCanvas() {
     guides,
     includeSelection: true,
     scale: zoom,
+    elementStates: editorAnimationStates,
   });
   preloadSlideImages(currentSlide()).then(() => {
     drawSlide(ctx, currentSlide(), deck, {
@@ -662,6 +667,7 @@ function renderCanvas() {
       guides,
       includeSelection: true,
       scale: zoom,
+      elementStates: editorAnimationStates,
     });
   });
 }
@@ -1447,7 +1453,7 @@ function elementTreeRow(element) {
     <button class="element-tree-row ${selected ? "selected" : ""}" type="button" data-element-id="${attr(element.id)}" title="Select ${attr(label)}">
       ${elementTreeIconForType(element.type)}
       <span class="element-tree-name">${escapeHtml(label)}</span>
-      ${element.locked ? '<span class="element-tree-state" title="Locked">Locked</span>' : ""}
+      ${element.animation?.effect && element.animation.effect !== "none" ? `<span class="element-tree-state" title="Animation order">${animationOrderLabel(element)}</span>` : element.locked ? '<span class="element-tree-state" title="Locked">Locked</span>' : ""}
     </button>
   </li>`;
 }
@@ -1564,6 +1570,7 @@ function renderSlideInspector(slide) {
 }
 
 function renderElementInspector(element) {
+  const animation = normalizedAnimation(element);
   dom.inspector.innerHTML = `
     <section class="inspector-section">
       <strong>${escapeHtml(element.name || element.type)}</strong>
@@ -1588,6 +1595,18 @@ function renderElementInspector(element) {
       <div class="check-row"><input id="lockedInput" type="checkbox" ${element.locked ? "checked" : ""} /><label for="lockedInput">Locked</label></div>
       ${element.type === "text" ? `<div class="check-row"><input id="autoHeightInput" type="checkbox" ${element.autoHeight !== false ? "checked" : ""} /><label for="autoHeightInput">Automatically fit height to text</label></div>` : ""}
     </section>
+    <section class="inspector-section">
+      <strong>Animation</strong>
+      <div class="field-row"><label for="animationEffectInput">Effect</label><select id="animationEffectInput">${animationOptionList([["none", "None"], ["appear", "Appear"], ["fadeIn", "Fade in"]], animation.effect)}</select></div>
+      <div class="field-row"><label for="animationTriggerInput">Trigger</label><select id="animationTriggerInput">${animationOptionList([["slideStart", "On slide start"], ["onClick", "On click"], ["afterPrevious", "After previous"]], animation.trigger)}</select></div>
+      <div class="field-grid">
+        <div class="field-row"><label for="animationDelayInput">Delay (ms)</label><input id="animationDelayInput" type="number" min="0" step="100" value="${animation.delayMs}" /></div>
+        <div class="field-row"><label for="animationDurationInput">Duration (ms)</label><input id="animationDurationInput" type="number" min="100" step="100" value="${animation.durationMs}" /></div>
+        <div class="field-row"><label for="animationOrderInput">Order</label><input id="animationOrderInput" type="number" min="0" step="1" value="${animation.order}" /></div>
+      </div>
+      <div class="field-row"><label for="animationEasingInput">Easing</label><select id="animationEasingInput">${animationOptionList([["linear", "Linear"], ["ease", "Ease"], ["easeIn", "Ease in"], ["easeOut", "Ease out"], ["easeInOut", "Ease in/out"]], animation.easing)}</select></div>
+      <button id="previewElementAnimationBtn" type="button">Preview animation</button>
+    </section>
     ${brandColorElementSection([element])}
     ${elementInspectorFields(element)}
   `;
@@ -1607,6 +1626,13 @@ function renderElementInspector(element) {
     element.autoHeight = value;
     if (value) element.h = measureTextElementHeight(ctx, element, deck);
   });
+  bindValue("#animationEffectInput", (value) => setElementAnimation(element, "effect", value));
+  bindValue("#animationTriggerInput", (value) => setElementAnimation(element, "trigger", value));
+  bindNumber("#animationDelayInput", (value) => setElementAnimation(element, "delayMs", Math.max(0, value)));
+  bindNumber("#animationDurationInput", (value) => setElementAnimation(element, "durationMs", Math.max(100, value)));
+  bindNumber("#animationOrderInput", (value) => setElementAnimation(element, "order", Math.max(0, Math.round(value))));
+  bindValue("#animationEasingInput", (value) => setElementAnimation(element, "easing", value));
+  document.querySelector("#previewElementAnimationBtn")?.addEventListener("click", () => previewElementAnimation(element));
   bindBrandColorApplication([element]);
   bindTypeFields(element);
 }
@@ -2591,7 +2617,7 @@ function onKeyDown(event) {
   const shortcut = event.metaKey || event.ctrlKey;
   if (presenterOpen && ["ArrowRight", "ArrowDown", "PageDown", " ", "Enter"].includes(event.key)) {
     event.preventDefault();
-    stepSlide(1);
+    advancePresenter();
     return;
   }
   if (presenterOpen && ["ArrowLeft", "ArrowUp", "PageUp"].includes(event.key)) {
@@ -2737,11 +2763,13 @@ function sendPresenterSnapshot() {
 
 async function renderPresenter() {
   const slide = currentSlide();
+  ensurePresenterAnimationPlayback(slide);
   dom.presenterSlideTitle.textContent = `${activeSlideIndex + 1}. ${slide.title}`;
   dom.presenterNotes.value = slide.notes || "";
   await drawSlideAsync(presenterCtx, slide, deck, {
     footer: true,
     revealCorrectAnswers: shouldRevealCorrectAnswers(slide),
+    elementStates: presenterElementStates(slide),
   });
   const nextSlide = deck.slides[Math.min(deck.slides.length - 1, activeSlideIndex + 1)];
   nextCtx.save();
@@ -3153,6 +3181,221 @@ function stepSlide(delta) {
   } else if (presenterWindow && !presenterWindow.closed) {
     sendPresenterSnapshot();
   }
+}
+
+function advancePresenter() {
+  if (!revealNextClickAnimation()) {
+    stepSlide(1);
+  }
+}
+
+function normalizedAnimation(element) {
+  return {
+    effect: "none",
+    trigger: "slideStart",
+    durationMs: 500,
+    delayMs: 0,
+    easing: "ease",
+    order: 0,
+    ...(element?.animation || {}),
+  };
+}
+
+function animationOptionList(options, selected) {
+  return options.map(([value, label]) => `<option value="${value}" ${value === selected ? "selected" : ""}>${label}</option>`).join("");
+}
+
+function setElementAnimation(element, key, value) {
+  element.animation = { ...normalizedAnimation(element), [key]: value };
+}
+
+function animatedElements(slide) {
+  return slide.elements
+    .filter((element) => normalizedAnimation(element).effect !== "none")
+    .sort((a, b) => {
+      const orderDifference = normalizedAnimation(a).order - normalizedAnimation(b).order;
+      return orderDifference || slide.elements.indexOf(a) - slide.elements.indexOf(b);
+    });
+}
+
+function animationOrderLabel(element) {
+  const index = animatedElements(currentSlide()).findIndex((item) => item.id === element.id);
+  return index >= 0 ? `#${index + 1}` : "";
+}
+
+function createAnimationPlaybackState() {
+  return {
+    slideId: "",
+    revealed: new Set(),
+    scheduled: new Set(),
+    active: new Map(),
+    timers: [],
+    frameId: 0,
+  };
+}
+
+function resetPresenterAnimationPlayback(slide) {
+  presenterAnimation.timers.forEach(clearTimeout);
+  cancelAnimationFrame(presenterAnimation.frameId);
+  presenterAnimation = createAnimationPlaybackState();
+  presenterAnimation.slideId = slide.id;
+}
+
+function ensurePresenterAnimationPlayback(slide) {
+  if (presenterAnimation.slideId === slide.id) return;
+  resetPresenterAnimationPlayback(slide);
+  const items = animatedElements(slide);
+  items.forEach((element, index) => {
+    const animation = normalizedAnimation(element);
+    if (animation.trigger === "slideStart" || (animation.trigger === "afterPrevious" && index === 0)) {
+      schedulePresenterAnimation(element);
+    }
+  });
+}
+
+function schedulePresenterAnimation(element) {
+  if (presenterAnimation.scheduled.has(element.id) || presenterAnimation.revealed.has(element.id)) return;
+  presenterAnimation.scheduled.add(element.id);
+  const delay = Math.max(0, Number(normalizedAnimation(element).delayMs) || 0);
+  const timer = setTimeout(() => startPresenterElementAnimation(element), delay);
+  presenterAnimation.timers.push(timer);
+}
+
+function startPresenterElementAnimation(element) {
+  const animation = normalizedAnimation(element);
+  if (animation.effect === "appear") {
+    presenterAnimation.revealed.add(element.id);
+    drawPresenterAnimationFrame();
+    scheduleAfterPreviousAnimations(element);
+    return;
+  }
+  presenterAnimation.active.set(element.id, {
+    startedAt: performance.now(),
+    durationMs: Math.max(100, Number(animation.durationMs) || 500),
+    easing: animation.easing,
+  });
+  drawPresenterAnimationFrame();
+}
+
+function presenterElementStates(slide, now = performance.now()) {
+  const states = {};
+  for (const element of animatedElements(slide)) {
+    if (presenterAnimation.revealed.has(element.id)) continue;
+    const active = presenterAnimation.active.get(element.id);
+    if (!active) {
+      states[element.id] = { hidden: true };
+      continue;
+    }
+    const progress = Math.min(1, Math.max(0, (now - active.startedAt) / active.durationMs));
+    states[element.id] = { opacity: easedAnimationProgress(progress, active.easing) };
+  }
+  return states;
+}
+
+function drawPresenterAnimationFrame() {
+  if (!presenterOpen || presenterAnimation.slideId !== currentSlide().id) return;
+  const now = performance.now();
+  let hasActiveAnimations = false;
+  for (const [elementId, active] of presenterAnimation.active) {
+    if (now - active.startedAt >= active.durationMs) {
+      presenterAnimation.active.delete(elementId);
+      presenterAnimation.revealed.add(elementId);
+      const element = currentSlide().elements.find((item) => item.id === elementId);
+      if (element) scheduleAfterPreviousAnimations(element);
+    } else {
+      hasActiveAnimations = true;
+    }
+  }
+  drawSlide(presenterCtx, currentSlide(), deck, {
+    footer: true,
+    revealCorrectAnswers: shouldRevealCorrectAnswers(currentSlide()),
+    elementStates: presenterElementStates(currentSlide(), now),
+  });
+  if (hasActiveAnimations || presenterAnimation.active.size) {
+    presenterAnimation.frameId = requestAnimationFrame(drawPresenterAnimationFrame);
+  }
+}
+
+function scheduleAfterPreviousAnimations(previousElement) {
+  const items = animatedElements(currentSlide());
+  const previousIndex = items.findIndex((item) => item.id === previousElement.id);
+  const next = items[previousIndex + 1];
+  if (next && normalizedAnimation(next).trigger === "afterPrevious") {
+    schedulePresenterAnimation(next);
+  }
+}
+
+function revealNextClickAnimation() {
+  const next = animatedElements(currentSlide()).find((element) => {
+    const animation = normalizedAnimation(element);
+    return animation.trigger === "onClick" &&
+      !presenterAnimation.revealed.has(element.id) &&
+      !presenterAnimation.scheduled.has(element.id);
+  });
+  if (!next) return false;
+  schedulePresenterAnimation(next);
+  return true;
+}
+
+function easedAnimationProgress(value, easing) {
+  if (easing === "linear") return value;
+  if (easing === "easeIn") return value * value;
+  if (easing === "easeOut") return 1 - (1 - value) * (1 - value);
+  if (easing === "easeInOut") return value < 0.5 ? 2 * value * value : 1 - Math.pow(-2 * value + 2, 2) / 2;
+  return 1 - Math.pow(1 - value, 3);
+}
+
+function previewElementAnimation(element) {
+  previewAnimations([element]);
+}
+
+function previewSlideAnimations() {
+  previewAnimations(animatedElements(currentSlide()));
+}
+
+function previewAnimations(elements) {
+  const items = elements.filter((element) => normalizedAnimation(element).effect !== "none");
+  if (!items.length) {
+    setStatus("Add an animation to an element first");
+    return;
+  }
+  const token = ++editorAnimationToken;
+  editorAnimationStates = Object.fromEntries(items.map((element) => [element.id, { hidden: true }]));
+  renderCanvas();
+  let cursor = 0;
+  for (const element of items) {
+    const animation = normalizedAnimation(element);
+    if (animation.trigger === "onClick") cursor += 350;
+    const startAt = cursor + Math.max(0, Number(animation.delayMs) || 0);
+    setTimeout(() => runEditorAnimation(element, token), startAt);
+    cursor = startAt + (animation.effect === "fadeIn" ? Math.max(100, Number(animation.durationMs) || 500) : 100);
+  }
+  setTimeout(() => {
+    if (token !== editorAnimationToken) return;
+    editorAnimationStates = null;
+    renderCanvas();
+  }, cursor + 300);
+}
+
+function runEditorAnimation(element, token) {
+  if (token !== editorAnimationToken || !editorAnimationStates) return;
+  const animation = normalizedAnimation(element);
+  if (animation.effect === "appear") {
+    delete editorAnimationStates[element.id];
+    renderCanvas();
+    return;
+  }
+  const startedAt = performance.now();
+  const durationMs = Math.max(100, Number(animation.durationMs) || 500);
+  const frame = (now) => {
+    if (token !== editorAnimationToken || !editorAnimationStates) return;
+    const progress = Math.min(1, (now - startedAt) / durationMs);
+    editorAnimationStates[element.id] = { opacity: easedAnimationProgress(progress, animation.easing) };
+    renderCanvas();
+    if (progress < 1) requestAnimationFrame(frame);
+    else delete editorAnimationStates[element.id];
+  };
+  requestAnimationFrame(frame);
 }
 
 function drawThumb(canvas, slide) {
