@@ -90,6 +90,7 @@ async function handleLiveApi(request: Request, env: Env, url: URL): Promise<Resp
 
     if (parts.length === 3 && request.method === "PUT") {
       const payload = await readJson(request);
+      await authorizePresenter(env.DB, request, stringValue(payload.deckId), true);
       return json(await publishLiveSession(env.DB, code, payload));
     }
 
@@ -97,9 +98,21 @@ async function handleLiveApi(request: Request, env: Env, url: URL): Promise<Resp
       const payload = await readJson(request);
       return json(await recordLiveResponse(env.DB, code, payload));
     }
+
+    if (parts.length === 4 && parts[3] === "presence" && request.method === "POST") {
+      const payload = await readJson(request);
+      return json(await recordParticipantPresence(env.DB, code, stringValue(payload.participantId)));
+    }
+
+    if (parts.length === 4 && parts[3] === "control" && request.method === "POST") {
+      const payload = await readJson(request);
+      const session = await getLiveSessionRow(env.DB, code);
+      await authorizePresenter(env.DB, request, session.deck_id);
+      return json(await controlLiveSession(env.DB, code, session, stringValue(payload.action)));
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Live session failed.";
-    const status = message.includes("not found") ? 404 : 500;
+    const status = message.includes("Unauthorized") ? 403 : message.includes("not found") ? 404 : 500;
     return json({ error: message }, status);
   }
 
@@ -115,22 +128,27 @@ async function handleSessionApi(request: Request, env: Env, url: URL): Promise<R
   const instanceId = parts[2] || "";
   try {
     if (parts.length === 2 && request.method === "GET") {
-      return json(await listSessionInstances(env.DB, url.searchParams.get("deckId") || ""));
+      const deckId = url.searchParams.get("deckId") || "";
+      await authorizePresenter(env.DB, request, deckId, true);
+      return json(await listSessionInstances(env.DB, deckId));
     }
     if (parts.length === 3 && request.method === "GET") {
+      await authorizeSessionInstance(env.DB, request, instanceId);
       return json(await sessionInstanceDetail(env.DB, instanceId));
     }
     if (parts.length === 3 && request.method === "PATCH") {
+      await authorizeSessionInstance(env.DB, request, instanceId);
       const payload = await readJson(request);
       return json(await renameSessionInstance(env.DB, instanceId, stringValue(payload.sessionName)));
     }
     if (parts.length === 3 && request.method === "DELETE") {
+      await authorizeSessionInstance(env.DB, request, instanceId);
       await deleteSessionInstance(env.DB, instanceId);
       return json({ deleted: true });
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Session history failed.";
-    return json({ error: message }, message.includes("not found") ? 404 : 500);
+    return json({ error: message }, message.includes("Unauthorized") ? 403 : message.includes("not found") ? 404 : 500);
   }
   return json({ error: "Session history route not found." }, 404);
 }
@@ -203,6 +221,34 @@ async function ensureLiveSchema(db: D1Database): Promise<void> {
         PRIMARY KEY (instance_id, slide_id)
       )`
     ),
+    db.prepare(
+      `CREATE TABLE IF NOT EXISTS hyslides_presenter_tokens (
+        deck_id TEXT PRIMARY KEY,
+        token_hash TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`
+    ),
+    db.prepare(
+      `CREATE TABLE IF NOT EXISTS hyslides_live_instance_participants (
+        instance_id TEXT NOT NULL,
+        participant_id TEXT NOT NULL,
+        joined_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        last_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (instance_id, participant_id)
+      )`
+    ),
+    db.prepare(
+      `CREATE TABLE IF NOT EXISTS hyslides_live_instance_submissions (
+        instance_id TEXT NOT NULL,
+        slide_id TEXT NOT NULL,
+        participant_id TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        value TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (instance_id, slide_id, participant_id, kind)
+      )`
+    ),
   ]);
 }
 
@@ -219,6 +265,16 @@ async function publishLiveSession(db: D1Database, code: string, payload: Record<
   const sessionName = stringValue(payload.sessionName).trim() || `${deckTitle} — ${new Date().toISOString()}`;
   const activeSlideIndex = numberValue(payload.activeSlideIndex);
   const slideJson = JSON.stringify(slide);
+
+  const collision = await db.prepare(
+    `SELECT instance.deck_id
+      FROM hyslides_live_instance_state AS state
+      JOIN hyslides_live_instances AS instance ON instance.instance_id = state.instance_id
+      WHERE state.access_code = ?`
+  ).bind(code).first<{ deck_id: string }>();
+  if (collision?.deck_id && collision.deck_id !== deckId) {
+    throw new Error("Access code is already assigned to another deck.");
+  }
 
   const previous = await db
     .prepare(`SELECT instance_id FROM hyslides_live_instance_state WHERE access_code = ?`)
@@ -237,8 +293,7 @@ async function publishLiveSession(db: D1Database, code: string, payload: Record<
         status
       ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'active')
       ON CONFLICT(instance_id) DO UPDATE SET
-        last_active_at = CURRENT_TIMESTAMP,
-        status = 'active'`
+        last_active_at = CURRENT_TIMESTAMP`
     ).bind(instanceId, code, deckId, deckTitle),
     db.prepare(
       `INSERT INTO hyslides_live_instance_state (
@@ -283,6 +338,7 @@ async function publishLiveSession(db: D1Database, code: string, payload: Record<
 }
 
 async function listSessionInstances(db: D1Database, deckId: string) {
+  await cleanupExpiredSessions(db);
   const where = deckId ? "WHERE instance.deck_id = ?" : "";
   const statement = db.prepare(
     `SELECT
@@ -294,7 +350,8 @@ async function listSessionInstances(db: D1Database, deckId: string) {
       instance.last_active_at,
       instance.status,
       metadata.session_name,
-      COALESCE((SELECT SUM(count) FROM hyslides_live_instance_counts WHERE instance_id = instance.instance_id), 0) AS response_count,
+      COALESCE((SELECT COUNT(DISTINCT participant_id) FROM hyslides_live_instance_submissions WHERE instance_id = instance.instance_id), 0)
+        + COALESCE((SELECT SUM(count) FROM hyslides_live_instance_counts WHERE instance_id = instance.instance_id), 0) AS response_count,
       COALESCE((SELECT COUNT(*) FROM hyslides_live_instance_questions WHERE instance_id = instance.instance_id), 0) AS question_count
     FROM hyslides_live_instances AS instance
     LEFT JOIN hyslides_live_instance_metadata AS metadata ON metadata.instance_id = instance.instance_id
@@ -303,6 +360,21 @@ async function listSessionInstances(db: D1Database, deckId: string) {
   );
   const rows = deckId ? await statement.bind(deckId).all() : await statement.all();
   return { sessions: rows.results || [] };
+}
+
+async function cleanupExpiredSessions(db: D1Database) {
+  await db.prepare(
+    `UPDATE hyslides_live_instances
+      SET status = 'ended'
+      WHERE status IN ('active', 'paused') AND last_active_at < datetime('now', '-12 hours')`
+  ).run();
+  const expired = await db.prepare(
+    `SELECT instance_id FROM hyslides_live_instances
+      WHERE status = 'ended' AND last_active_at < datetime('now', '-90 days')`
+  ).all<{ instance_id: string }>();
+  for (const row of expired.results || []) {
+    await deleteSessionInstance(db, row.instance_id);
+  }
 }
 
 async function sessionInstanceDetail(db: D1Database, instanceId: string) {
@@ -347,6 +419,8 @@ async function deleteSessionInstance(db: D1Database, instanceId: string) {
   await db.batch([
     db.prepare(`DELETE FROM hyslides_live_instance_counts WHERE instance_id = ?`).bind(instanceId),
     db.prepare(`DELETE FROM hyslides_live_instance_questions WHERE instance_id = ?`).bind(instanceId),
+    db.prepare(`DELETE FROM hyslides_live_instance_submissions WHERE instance_id = ?`).bind(instanceId),
+    db.prepare(`DELETE FROM hyslides_live_instance_participants WHERE instance_id = ?`).bind(instanceId),
     db.prepare(`DELETE FROM hyslides_live_instance_slides WHERE instance_id = ?`).bind(instanceId),
     db.prepare(`DELETE FROM hyslides_live_instance_metadata WHERE instance_id = ?`).bind(instanceId),
     db.prepare(`DELETE FROM hyslides_live_instance_state WHERE instance_id = ?`).bind(instanceId),
@@ -354,11 +428,106 @@ async function deleteSessionInstance(db: D1Database, instanceId: string) {
   ]);
 }
 
+async function authorizePresenter(db: D1Database, request: Request, deckId: string, allowRegistration = false) {
+  const token = request.headers.get("x-hyslides-presenter-token") || "";
+  if (!deckId || token.length < 24) {
+    throw new Error("Unauthorized presenter request.");
+  }
+  const tokenHash = await sha256(token);
+  const existing = await db.prepare(
+    `SELECT token_hash FROM hyslides_presenter_tokens WHERE deck_id = ?`
+  ).bind(deckId).first<{ token_hash: string }>();
+  if (!existing && allowRegistration) {
+    await db.prepare(
+      `INSERT INTO hyslides_presenter_tokens (deck_id, token_hash, created_at)
+        VALUES (?, ?, CURRENT_TIMESTAMP)`
+    ).bind(deckId, tokenHash).run();
+    return;
+  }
+  if (!existing || !timingSafeEqual(existing.token_hash, tokenHash)) {
+    throw new Error("Unauthorized presenter request.");
+  }
+}
+
+async function authorizeSessionInstance(db: D1Database, request: Request, instanceId: string) {
+  const instance = await db.prepare(
+    `SELECT deck_id FROM hyslides_live_instances WHERE instance_id = ?`
+  ).bind(instanceId).first<{ deck_id: string }>();
+  if (!instance) {
+    throw new Error("Session not found.");
+  }
+  await authorizePresenter(db, request, instance.deck_id);
+}
+
+async function sha256(value: string) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function timingSafeEqual(left: string, right: string) {
+  if (left.length !== right.length) {
+    return false;
+  }
+  let mismatch = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    mismatch |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  }
+  return mismatch === 0;
+}
+
+async function recordParticipantPresence(db: D1Database, code: string, participantIdValue: string) {
+  const participantId = normalizeParticipantId(participantIdValue);
+  const session = await getLiveSessionRow(db, code);
+  if (!participantId || session.status === "ended") {
+    return liveState(db, code);
+  }
+  await db.prepare(
+    `INSERT INTO hyslides_live_instance_participants (
+      instance_id, participant_id, joined_at, last_seen_at
+    ) VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    ON CONFLICT(instance_id, participant_id) DO UPDATE SET last_seen_at = CURRENT_TIMESTAMP`
+  ).bind(session.instance_id, participantId).run();
+  return liveState(db, code);
+}
+
+async function activeParticipantCount(db: D1Database, instanceId: string) {
+  const result = await db.prepare(
+    `SELECT COUNT(*) AS count FROM hyslides_live_instance_participants
+      WHERE instance_id = ? AND last_seen_at >= datetime('now', '-20 seconds')`
+  ).bind(instanceId).first<{ count: number }>();
+  return Number(result?.count || 0);
+}
+
+async function controlLiveSession(db: D1Database, code: string, session: LiveSessionRow, action: string) {
+  if (action === "pause" || action === "resume" || action === "end") {
+    const status = action === "pause" ? "paused" : action === "resume" ? "active" : "ended";
+    await db.prepare(
+      `UPDATE hyslides_live_instances SET status = ?, last_active_at = CURRENT_TIMESTAMP WHERE instance_id = ?`
+    ).bind(status, session.instance_id).run();
+  } else if (action === "clearSlide") {
+    await db.batch([
+      db.prepare(`DELETE FROM hyslides_live_instance_submissions WHERE instance_id = ? AND slide_id = ?`).bind(session.instance_id, session.active_slide_id),
+      db.prepare(`DELETE FROM hyslides_live_instance_counts WHERE instance_id = ? AND slide_id = ?`).bind(session.instance_id, session.active_slide_id),
+      db.prepare(`DELETE FROM hyslides_live_instance_questions WHERE instance_id = ? AND slide_id = ?`).bind(session.instance_id, session.active_slide_id),
+    ]);
+  } else if (action === "resetSession") {
+    await db.batch([
+      db.prepare(`DELETE FROM hyslides_live_instance_submissions WHERE instance_id = ?`).bind(session.instance_id),
+      db.prepare(`DELETE FROM hyslides_live_instance_counts WHERE instance_id = ?`).bind(session.instance_id),
+      db.prepare(`DELETE FROM hyslides_live_instance_questions WHERE instance_id = ?`).bind(session.instance_id),
+    ]);
+  } else {
+    throw new Error("Unknown live session action.");
+  }
+  return liveState(db, code);
+}
+
 async function recordLiveResponse(db: D1Database, code: string, payload: Record<string, unknown>) {
   const session = await getLiveSessionRow(db, code);
   const slide = parseSlide(session.slide_json);
   const engagement = ensureEngagementShape(slide);
   const value = stringValue(payload.value).trim();
+  const participantId = normalizeParticipantId(payload.participantId);
   const submittedSlideId = stringValue(payload.slideId);
 
   if (submittedSlideId && submittedSlideId !== session.active_slide_id) {
@@ -368,7 +537,7 @@ async function recordLiveResponse(db: D1Database, code: string, payload: Record<
     };
   }
 
-  if (!engagement.enabled || !value) {
+  if (session.status !== "active" || !engagement.enabled || !value || !participantId) {
     return {
       accepted: false,
       ...(await liveState(db, code)),
@@ -376,32 +545,29 @@ async function recordLiveResponse(db: D1Database, code: string, payload: Record<
   }
 
   const type = stringValue(engagement.type) || "poll";
-  if (["poll", "multipleChoice", "quiz"].includes(type)) {
-    await incrementLiveCount(db, session.instance_id, session.active_slide_id, "response", value);
-  } else if (type === "wordCloud") {
-    const words = value.split(/\s+/).map((word) => word.trim().toLowerCase()).filter(Boolean);
-    for (const word of words.slice(0, 20)) {
-      await incrementLiveCount(db, session.instance_id, session.active_slide_id, "response", word);
-    }
-  } else if (type === "qna") {
-    await db
-      .prepare(
-        `INSERT INTO hyslides_live_instance_questions (
-          id,
-          instance_id,
-          slide_id,
-          text,
-          created_at
-        ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`
-      )
-      .bind(crypto.randomUUID(), session.instance_id, session.active_slide_id, value.slice(0, 500))
-      .run();
-  } else if (type === "reactions") {
-    await incrementLiveCount(db, session.instance_id, session.active_slide_id, "reaction", value);
+  const kind = type === "qna" ? "qna" : type === "reactions" ? "reaction" : "response";
+  const safeValue = value.slice(0, type === "qna" ? 500 : 200);
+  const existing = await db.prepare(
+    `SELECT value FROM hyslides_live_instance_submissions
+      WHERE instance_id = ? AND slide_id = ? AND participant_id = ? AND kind = ?`
+  ).bind(session.instance_id, session.active_slide_id, participantId, kind).first<{ value: string }>();
+  if (!existing) {
+    await db.prepare(
+      `INSERT INTO hyslides_live_instance_submissions (
+        instance_id, slide_id, participant_id, kind, value, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+    ).bind(session.instance_id, session.active_slide_id, participantId, kind, safeValue).run();
+  } else if (kind === "reaction") {
+    await db.prepare(
+      `UPDATE hyslides_live_instance_submissions SET value = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE instance_id = ? AND slide_id = ? AND participant_id = ? AND kind = ?`
+    ).bind(safeValue, session.instance_id, session.active_slide_id, participantId, kind).run();
   }
+  await recordParticipantPresence(db, code, participantId);
 
   return {
-    accepted: true,
+    accepted: !existing || kind === "reaction",
+    duplicate: Boolean(existing && kind !== "reaction"),
     ...(await liveState(db, code)),
   };
 }
@@ -433,10 +599,19 @@ async function liveState(db: D1Database, code: string) {
   const session = await getLiveSessionRow(db, code);
   const slide = parseSlide(session.slide_json);
   await applyLiveAggregates(db, session.instance_id, session.active_slide_id, slide);
+  const participantCount = await activeParticipantCount(db, session.instance_id);
+  const responseCount = await db.prepare(
+    `SELECT COUNT(DISTINCT participant_id) AS count
+      FROM hyslides_live_instance_submissions
+      WHERE instance_id = ? AND slide_id = ?`
+  ).bind(session.instance_id, session.active_slide_id).first<{ count: number }>();
   return {
     code,
     instanceId: session.instance_id,
     startedAt: session.started_at,
+    status: session.status,
+    participantCount,
+    responseCount: Number(responseCount?.count || 0),
     deckId: session.deck_id,
     deckTitle: session.deck_title,
     audienceCode: session.access_code,
@@ -462,6 +637,10 @@ async function applyLiveAggregates(
     )
     .bind(instanceId, slideId)
     .all<LiveCountRow>();
+  const submissions = await db.prepare(
+    `SELECT kind, value FROM hyslides_live_instance_submissions
+      WHERE instance_id = ? AND slide_id = ?`
+  ).bind(instanceId, slideId).all<{ kind: string; value: string }>();
 
   const results: Record<string, number> = {};
   const reactions: Record<string, number> = {
@@ -476,6 +655,20 @@ async function applyLiveAggregates(
       reactions[row.response_key] = row.count;
     } else {
       results[row.response_key] = row.count;
+    }
+  }
+  const submittedQuestions: Array<{ id: string; text: string; upvotes: number; answered: boolean }> = [];
+  for (const row of submissions.results || []) {
+    if (row.kind === "reaction") {
+      reactions[row.value] = (reactions[row.value] || 0) + 1;
+    } else if (row.kind === "qna") {
+      submittedQuestions.push({ id: crypto.randomUUID(), text: row.value, upvotes: 0, answered: false });
+    } else if (stringValue(engagement.type) === "wordCloud") {
+      for (const word of row.value.split(/\s+/).map((item) => item.trim().toLowerCase()).filter(Boolean).slice(0, 20)) {
+        results[word] = (results[word] || 0) + 1;
+      }
+    } else {
+      results[row.value] = (results[row.value] || 0) + 1;
     }
   }
   engagement.results = results;
@@ -496,12 +689,12 @@ async function applyLiveAggregates(
     .bind(instanceId, slideId)
     .all<LiveQuestionRow>();
 
-  engagement.qna = (questions.results || []).map((question) => ({
+  engagement.qna = [...(questions.results || []).map((question) => ({
     id: question.id,
     text: question.text,
     upvotes: question.upvotes,
     answered: Boolean(question.answered),
-  }));
+  })), ...submittedQuestions];
 }
 
 async function getLiveSessionRow(db: D1Database, code: string): Promise<LiveSessionRow> {
@@ -513,6 +706,7 @@ async function getLiveSessionRow(db: D1Database, code: string): Promise<LiveSess
         instance.deck_id,
         instance.deck_title,
         instance.started_at,
+        instance.status,
         state.active_slide_id,
         state.active_slide_index,
         state.slide_json,
@@ -575,6 +769,10 @@ function normalizeCode(value: unknown): string {
     .slice(0, 18);
 }
 
+function normalizeParticipantId(value: unknown) {
+  return String(value || "").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80);
+}
+
 function stringValue(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
@@ -590,6 +788,7 @@ interface LiveSessionRow {
   deck_id: string;
   deck_title: string;
   started_at: string;
+  status: string;
   active_slide_id: string;
   active_slide_index: number;
   slide_json: string;
