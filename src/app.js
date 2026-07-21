@@ -668,6 +668,7 @@ async function renderDeckLibrary() {
       if (!nextDeck) {
         return;
       }
+      clearDeckEngagementResults(nextDeck);
       deck = await saveDeck(nextDeck);
       activeSlideIndex = 0;
       selectedSlideIndexes = new Set([0]);
@@ -4727,8 +4728,8 @@ function beginNewLiveSession() {
   writeActiveSession();
 }
 
-function clearDeckEngagementResults() {
-  for (const slide of deck.slides || []) {
+function clearDeckEngagementResults(targetDeck = deck) {
+  for (const slide of targetDeck.slides || []) {
     if (!slide.engagement?.enabled) continue;
     slide.engagement.results = {};
     slide.engagement.qna = [];
