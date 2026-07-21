@@ -610,11 +610,15 @@ function drawImagePlaceholder(ctx, element) {
 }
 
 function drawFooter(ctx, slide, deck) {
+  const slideIndex = Array.isArray(deck.slides)
+    ? deck.slides.findIndex((item) => item.id === slide.id)
+    : -1;
+  if (slideIndex < 0) return;
   ctx.fillStyle = deck.theme.master.footer.color || deck.theme.colors.muted;
   ctx.font = `600 14px ${deck.theme.fonts.body}, Arial, sans-serif`;
-  ctx.textAlign = "left";
+  ctx.textAlign = "right";
   ctx.textBaseline = "bottom";
-  ctx.fillText(slide.title || "", 54, SLIDE_SIZE.height - 30, 480);
+  ctx.fillText(String(slideIndex + 1), SLIDE_SIZE.width - 54, SLIDE_SIZE.height - 30);
 }
 
 function drawSelection(ctx, selected, scale) {

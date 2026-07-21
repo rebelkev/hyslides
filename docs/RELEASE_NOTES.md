@@ -12,6 +12,7 @@
 - Added dynamic fit-to-width editor zoom.
 - Standardized toolbar icons and eased blue hover states.
 - Removed PowerPoint export.
+- Kept organizational slide titles out of the rendered slide footer; optional footers now show only the slide number.
 
 ### Design System
 
