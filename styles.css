@@ -1101,6 +1101,30 @@ label {
   padding: 14px;
 }
 
+.audience-join-form {
+  display: grid;
+  gap: 12px;
+  padding: 18px 4px 6px;
+}
+
+.audience-join-form label {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.audience-join-form input {
+  font-size: 30px;
+  font-variant-numeric: tabular-nums;
+  height: 56px;
+  letter-spacing: 0.25em;
+  text-align: center;
+}
+
+.audience-join-form button {
+  height: 48px;
+  justify-content: center;
+}
+
 .word-cloud {
   align-items: center;
   display: flex;
