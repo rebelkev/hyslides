@@ -71,7 +71,8 @@ HySlides supports text, shapes, images, icons, charts, tables, dividers, and eng
 
 Color styles are saved per deck.
 
-- Create, rename, recolor, or delete styles under **Properties → Theme**.
+- Create, rename, recolor, or delete styles under **Global Deck Settings → Color styles**.
+- Color controls use six-digit hex values and include every named global color style in their picker.
 - Applying a style links the element to that style.
 - Recoloring the style updates all linked elements throughout the deck.
 - Use **Unlink color style** when an element needs a one-off color.
@@ -80,7 +81,9 @@ Color styles are saved per deck.
 
 ## Typography Styles
 
-Open **Global Deck Settings** from the Editor toolbar to manage Display, Slide title, Subtitle, Heading, Body, and Caption/label styles. Each style controls font family, size, weight, line height, and color across the deck.
+Open **Global Deck Settings** from the Editor toolbar to manage Display, Slide title, Subtitle, Heading, Body, and Caption/label styles. Each style controls font family, size, weight, line height, and color across the deck. The Audience access, Color styles, Default background, and Typography sections can be expanded independently.
+
+The Default background section defines the solid color or gradient used when a new blank slide is created. It does not overwrite existing or template slide backgrounds.
 
 When a text element is selected, choose its **Typography style** in Properties. Keep **Use global style** enabled so future global changes update that element automatically. Disable it to reveal custom font formatting for that one element. Existing decks retain their current custom typography, while newly added text uses the global Body style by default.
 

@@ -139,6 +139,13 @@ export function createTheme(overrides = {}) {
       { id: "brand-muted", name: "Muted", color: "#637083" },
       { id: "brand-white", name: "White", color: "#ffffff" },
     ],
+    defaultBackground: {
+      type: "color",
+      color: "#ffffff",
+      gradientStart: "#2454d6",
+      gradientEnd: "#0c8b7f",
+      gradientAngle: 135,
+    },
     spacing: 24,
     master: {
       title: {
@@ -938,6 +945,10 @@ export function normalizeDeck(raw) {
       typographyStyles: {
         ...seed.theme.typographyStyles,
         ...(raw.theme?.typographyStyles || {}),
+      },
+      defaultBackground: {
+        ...seed.theme.defaultBackground,
+        ...(raw.theme?.defaultBackground || {}),
       },
       brandPalette: brandColorStyles.map((style) => style.color),
       brandColorStyles,

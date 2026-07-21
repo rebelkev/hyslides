@@ -56,3 +56,24 @@ test("background color-style links survive deck normalization", () => {
   assert.equal(normalized.slides[0].backgroundEffectColorAStyleId, "brand-primary");
   assert.equal(normalized.slides[0].backgroundOverlayColorStyleId, "brand-ink");
 });
+
+test("deck default background settings survive normalization", () => {
+  const normalized = normalizeDeck(createDeck({
+    theme: {
+      defaultBackground: {
+        type: "gradient",
+        color: "#ffffff",
+        gradientStart: "#112233",
+        gradientEnd: "#aabbcc",
+        gradientAngle: 72,
+      },
+    },
+  }));
+  assert.deepEqual(normalized.theme.defaultBackground, {
+    type: "gradient",
+    color: "#ffffff",
+    gradientStart: "#112233",
+    gradientEnd: "#aabbcc",
+    gradientAngle: 72,
+  });
+});

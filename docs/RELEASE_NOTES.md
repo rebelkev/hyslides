@@ -4,6 +4,8 @@
 
 ### Editor
 
+- Reorganized Global Deck Settings into collapsible Audience access, Color styles, Default background, and Typography sections; global color controls now use hex values and expose the deck’s named swatches.
+- Added a deck-wide default solid or gradient background for newly created blank slides without changing existing or template slides.
 - Improved the emoji picker’s Add control with a clear button treatment, hover/open feedback, a chevron, and automatic scrolling to the expanded picker.
 - Made Global Deck Settings independently scrollable with a fixed, readable header so every typography style remains accessible at any viewport height.
 - Reaction slides now render emojis instead of text labels. Editors can build a removable list of up to five choices using an expanded picker or any emoji entered from their device’s full emoji keyboard.

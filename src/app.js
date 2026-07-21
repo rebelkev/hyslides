@@ -168,6 +168,7 @@ let audienceOpen = false;
 let participantQnaOpen = false;
 let leftRailTab = "slides";
 let inspectorTab = "properties";
+const globalSettingsOpenSections = new Set(["audience"]);
 let liveSession = {
   code: "",
   instanceId: "",
@@ -276,6 +277,7 @@ function bindEvents() {
 
   document.querySelector("#addSlideBtn").addEventListener("click", () => {
     const slide = layoutTemplates[1].apply();
+    applyDeckDefaultBackground(slide);
     slide.sectionId = deck.slides[deck.slides.length - 1]?.sectionId || null;
     deck.slides.push(slide);
     activeSlideIndex = deck.slides.length - 1;
@@ -528,19 +530,83 @@ function closeGlobalSettings() {
   renderAll();
 }
 
+function globalSettingsSectionMarkup(id, title, description, content) {
+  return `<details class="global-settings-section" data-global-settings-section="${attr(id)}" ${globalSettingsOpenSections.has(id) ? "open" : ""}>
+    <summary><span><strong>${escapeHtml(title)}</strong><small>${escapeHtml(description)}</small></span><span class="accordion-chevron" aria-hidden="true">⌄</span></summary>
+    <div class="global-settings-panel">${content}</div>
+  </details>`;
+}
+
+function globalHexColorControlMarkup({ id, label, value, kind, styleId = "", property }) {
+  const color = normalizeHexColor(value) || "#000000";
+  const swatches = brandColorStyles().map((style) => `<button type="button" class="global-color-swatch" data-global-color-swatch="${attr(style.color)}" data-global-color-target="${attr(id)}">
+    <span class="swatch" style="background:${attr(style.color)}"></span><span>${escapeHtml(style.name)}</span><small>${escapeHtml(style.color.toUpperCase())}</small>
+  </button>`).join("");
+  return `<div class="field-row global-hex-color-control">
+    <label>${escapeHtml(label)}</label>
+    <details class="global-color-picker">
+      <summary><span class="background-color-preview" style="background:${attr(color)}"></span><span class="background-color-value">${escapeHtml(color.toUpperCase())}</span></summary>
+      <div class="global-color-picker-menu">
+        <label for="${attr(id)}">Hex value</label>
+        <input id="${attr(id)}" type="text" inputmode="text" maxlength="7" spellcheck="false" value="${attr(color.toUpperCase())}"
+          data-global-hex-color data-global-color-kind="${attr(kind)}" data-global-color-style="${attr(styleId)}" data-global-color-property="${attr(property)}" />
+        ${swatches ? `<div class="global-color-swatches"><strong>Global color styles</strong>${swatches}</div>` : ""}
+      </div>
+    </details>
+  </div>`;
+}
+
+function globalColorStylesMarkup() {
+  return `<div class="global-color-style-list">${brandColorStyles().map((style) => `<div class="global-color-style-row" data-global-color-style-row="${attr(style.id)}">
+    <span class="swatch" style="background:${attr(style.color)}"></span>
+    <input type="text" value="${attr(style.name)}" data-global-style-name="${attr(style.id)}" aria-label="Color style name" />
+    <input class="hex-text-input" type="text" maxlength="7" value="${attr(style.color.toUpperCase())}" data-global-style-color="${attr(style.id)}" aria-label="${attr(style.name)} hex color" />
+    <button type="button" data-global-style-remove="${attr(style.id)}" aria-label="Delete ${attr(style.name)}">×</button>
+  </div>`).join("")}</div>
+  <div class="global-color-style-add">
+    <input id="newGlobalStyleName" type="text" placeholder="Color name" value="Brand ${brandColorStyles().length + 1}" />
+    <input id="newGlobalStyleColor" class="hex-text-input" type="text" maxlength="7" value="${attr((deck.theme.colors.primary || "#2454d6").toUpperCase())}" />
+    <button id="addGlobalColorStyle" type="button">Add color style</button>
+  </div>`;
+}
+
+function applyDeckDefaultBackground(slide) {
+  const background = deck.theme.defaultBackground || {};
+  slide.backgroundType = background.type === "gradient" ? "gradient" : "color";
+  slide.background = normalizeHexColor(background.color) || "#ffffff";
+  slide.backgroundGradientStart = normalizeHexColor(background.gradientStart) || deck.theme.colors.primary;
+  slide.backgroundGradientEnd = normalizeHexColor(background.gradientEnd) || deck.theme.colors.accent;
+  slide.backgroundGradientAngle = Number.isFinite(Number(background.gradientAngle)) ? Number(background.gradientAngle) : 135;
+  slide.backgroundStyleId = null;
+  slide.backgroundGradientStartStyleId = null;
+  slide.backgroundGradientEndStyleId = null;
+}
+
 function renderGlobalSettings() {
   const joinUrl = audienceLink();
   const styles = deck.theme.typographyStyles || {};
+  deck.theme.defaultBackground ||= { type: "color", color: "#ffffff", gradientStart: deck.theme.colors.primary, gradientEnd: deck.theme.colors.accent, gradientAngle: 135 };
+  const defaultBackground = deck.theme.defaultBackground;
   dom.globalSettingsContent.innerHTML = `
-    <section class="global-settings-section">
-      <div><strong>Audience access</strong><span>Share the current link or six-digit code.</span></div>
+    ${globalSettingsSectionMarkup("audience", "Audience access", "Share the current link or six-digit code.", `
       <div class="global-audience-card">
         <img src="${attr(liveQrImageSrc(joinUrl))}" alt="Audience join QR code" />
         <div><strong>Access code ${escapeHtml(ensureAudienceCode())}</strong><div class="audience-join-url-row"><input id="globalAudienceUrl" readonly value="${attr(joinUrl)}" /><button id="copyGlobalAudienceUrl" type="button">Copy</button></div></div>
-      </div>
-    </section>
-    <section class="global-settings-section">
-      <div><strong>Typography styles</strong><span>Linked text updates everywhere in this deck.</span></div>
+      </div>`)}
+    ${globalSettingsSectionMarkup("colors", "Color styles", "Named global swatches available in every HySlides color picker.", globalColorStylesMarkup())}
+    ${globalSettingsSectionMarkup("background", "Default background", "Applied automatically to newly created blank slides.", `
+      <div class="global-default-background">
+        <div class="field-row"><label for="globalDefaultBackgroundType">Style</label><select id="globalDefaultBackgroundType">
+          ${animationOptionList([["color", "Solid color"], ["gradient", "Gradient"]], defaultBackground.type || "color")}
+        </select></div>
+        ${defaultBackground.type === "gradient" ? `<div class="field-grid">
+          ${globalHexColorControlMarkup({ id: "globalGradientStart", label: "Start", value: defaultBackground.gradientStart, kind: "background", property: "gradientStart" })}
+          ${globalHexColorControlMarkup({ id: "globalGradientEnd", label: "End", value: defaultBackground.gradientEnd, kind: "background", property: "gradientEnd" })}
+        </div><div class="field-row"><label for="globalGradientAngle">Angle</label><input id="globalGradientAngle" type="number" min="0" max="360" value="${Number(defaultBackground.gradientAngle) || 0}" /></div>`
+        : globalHexColorControlMarkup({ id: "globalBackgroundColor", label: "Color", value: defaultBackground.color, kind: "background", property: "color" })}
+        <small>This changes the starting style for new blank slides. Existing slides keep their current backgrounds.</small>
+      </div>`)}
+    ${globalSettingsSectionMarkup("typography", "Typography styles", "Linked text updates everywhere in this deck.", `
       <div class="typography-style-list">
         ${Object.entries(styles).map(([id, style]) => `<article class="typography-style-card" data-typography-style="${attr(id)}">
           <strong>${escapeHtml(style.name || id)}</strong>
@@ -549,11 +615,21 @@ function renderGlobalSettings() {
             <div class="field-row"><label>Size</label><input data-type-property="fontSize" type="number" min="8" max="240" value="${Number(style.fontSize) || 24}" /></div>
             <div class="field-row"><label>Weight</label><input data-type-property="fontWeight" type="number" min="100" max="900" step="50" value="${Number(style.fontWeight) || 500}" /></div>
             <div class="field-row"><label>Line height</label><input data-type-property="lineHeight" type="number" min="0.8" max="3" step="0.05" value="${Number(style.lineHeight) || 1.2}" /></div>
-            <div class="field-row"><label>Color</label><input data-type-property="color" type="color" value="${attr(style.color || "#1d232a")}" /></div>
+            ${globalHexColorControlMarkup({ id: `globalTypeColor-${id}`, label: "Color", value: style.color, kind: "typography", styleId: id, property: "color" })}
           </div>
         </article>`).join("")}
-      </div>
-    </section>`;
+      </div>`)}
+  `;
+  dom.globalSettingsContent.querySelectorAll("[data-global-settings-section]").forEach((section) => {
+    section.addEventListener("toggle", () => {
+      if (section.open) globalSettingsOpenSections.add(section.dataset.globalSettingsSection);
+      else globalSettingsOpenSections.delete(section.dataset.globalSettingsSection);
+    });
+  });
+  const colorPickers = [...dom.globalSettingsContent.querySelectorAll(".global-color-picker")];
+  colorPickers.forEach((picker) => picker.addEventListener("toggle", () => {
+    if (picker.open) colorPickers.forEach((other) => { if (other !== picker) other.open = false; });
+  }));
   dom.globalSettingsContent.querySelector("#copyGlobalAudienceUrl")?.addEventListener("click", async (event) => {
     const copied = await copyTextToClipboard(joinUrl);
     event.currentTarget.textContent = copied ? "Copied" : "Select link";
@@ -576,6 +652,73 @@ function renderGlobalSettings() {
       renderSlides();
       if (presenterOpen) renderPresenter();
     });
+  });
+  function commitGlobalHexInput(input, rawValue) {
+    const color = normalizeHexColor(rawValue);
+    if (!color) {
+      input.setCustomValidity("Enter a six-digit hex color such as #2454D6");
+      input.reportValidity();
+      return false;
+    }
+    input.setCustomValidity("");
+    input.value = color.toUpperCase();
+    const picker = input.closest(".global-color-picker");
+    if (picker) {
+      picker.querySelector(".background-color-preview").style.background = color;
+      picker.querySelector(".background-color-value").textContent = color.toUpperCase();
+    }
+    if (input.dataset.globalColorKind === "typography") {
+      styles[input.dataset.globalColorStyle].color = color;
+      markChanged(`${styles[input.dataset.globalColorStyle].name} color updated`);
+    } else {
+      defaultBackground[input.dataset.globalColorProperty] = color;
+      markChanged("Default background updated");
+    }
+    renderCanvas();
+    renderSlides();
+    if (presenterOpen) renderPresenter();
+    return true;
+  }
+  dom.globalSettingsContent.querySelectorAll("[data-global-hex-color]").forEach((input) => {
+    input.addEventListener("change", () => commitGlobalHexInput(input, input.value));
+  });
+  dom.globalSettingsContent.querySelectorAll("[data-global-color-swatch]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const input = dom.globalSettingsContent.querySelector(`#${CSS.escape(button.dataset.globalColorTarget)}`);
+      if (input && commitGlobalHexInput(input, button.dataset.globalColorSwatch)) input.closest("details").open = false;
+    });
+  });
+  dom.globalSettingsContent.querySelector("#globalDefaultBackgroundType")?.addEventListener("change", (event) => {
+    defaultBackground.type = event.target.value;
+    markChanged("Default background style updated");
+    renderGlobalSettings();
+  });
+  dom.globalSettingsContent.querySelector("#globalGradientAngle")?.addEventListener("change", (event) => {
+    defaultBackground.gradientAngle = clamp(Number(event.target.value), 0, 360);
+    markChanged("Default gradient angle updated");
+  });
+  dom.globalSettingsContent.querySelectorAll("[data-global-style-name]").forEach((input) => input.addEventListener("change", () => {
+    updateBrandColorStyle(input.dataset.globalStyleName, { name: input.value }, false);
+    renderGlobalSettings();
+  }));
+  dom.globalSettingsContent.querySelectorAll("[data-global-style-color]").forEach((input) => input.addEventListener("change", () => {
+    const color = normalizeHexColor(input.value);
+    if (!color) { input.setCustomValidity("Enter a six-digit hex color"); input.reportValidity(); return; }
+    updateBrandColorStyle(input.dataset.globalStyleColor, { color }, false);
+    renderGlobalSettings();
+  }));
+  dom.globalSettingsContent.querySelectorAll("[data-global-style-remove]").forEach((button) => button.addEventListener("click", () => {
+    removeBrandColorStyle(button.dataset.globalStyleRemove);
+    renderGlobalSettings();
+  }));
+  dom.globalSettingsContent.querySelector("#addGlobalColorStyle")?.addEventListener("click", () => {
+    const name = dom.globalSettingsContent.querySelector("#newGlobalStyleName").value.trim() || `Brand ${brandColorStyles().length + 1}`;
+    const color = normalizeHexColor(dom.globalSettingsContent.querySelector("#newGlobalStyleColor").value);
+    if (!color) { setStatus("Use a valid six-digit hex color"); return; }
+    deck.theme.brandColorStyles = [...brandColorStyles(), { id: `brand-${Date.now().toString(36)}`, name, color }].slice(0, 24);
+    deck.theme.brandPalette = deck.theme.brandColorStyles.map((style) => style.color);
+    markChanged("Global color style added");
+    renderGlobalSettings();
   });
 }
 
