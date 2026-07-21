@@ -3294,10 +3294,19 @@ function audienceLink() {
 function ensureAudienceCode() {
   deck.settings ||= {};
   const current = String(deck.settings.audienceCode || "").replace(/\D/g, "").slice(0, 6);
-  deck.settings.audienceCode = current
-    ? current.padStart(6, "0")
-    : String(Math.floor(100000 + Math.random() * 900000));
+  deck.settings.audienceCode = current.length === 6
+    ? current
+    : accessCodeForDeck(deck.id);
   return deck.settings.audienceCode;
+}
+
+function accessCodeForDeck(deckId) {
+  let hash = 2166136261;
+  for (const character of String(deckId || crypto.randomUUID?.() || Date.now())) {
+    hash ^= character.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return String(100000 + (hash >>> 0) % 900000);
 }
 
 function isTyping(target) {
