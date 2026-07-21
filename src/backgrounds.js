@@ -3,6 +3,9 @@ export const backgroundShaderOptions = [
   { value: "aurora", label: "Aurora" },
   { value: "waves", label: "Flowing waves" },
   { value: "plasma", label: "Soft plasma" },
+  { value: "mesh", label: "Gradient mesh" },
+  { value: "ripples", label: "Concentric ripples" },
+  { value: "streaks", label: "Light streaks" },
 ];
 
 let shaderRuntime = null;
@@ -21,7 +24,8 @@ export function renderShaderOverlay(effect, width, height, options = {}) {
   gl.uniform2f(uniforms.resolution, width, height);
   gl.uniform1f(uniforms.time, Math.max(0, Number(options.time) || 0) * Math.max(0, Number(options.speed) || 1));
   gl.uniform1f(uniforms.intensity, Math.max(0, Math.min(1, Number(options.intensity) || 0.5)));
-  gl.uniform1i(uniforms.effect, effect === "waves" ? 1 : effect === "plasma" ? 2 : 0);
+  const effectIndex = { aurora: 0, waves: 1, plasma: 2, mesh: 3, ripples: 4, streaks: 5 }[effect] ?? 0;
+  gl.uniform1i(uniforms.effect, effectIndex);
   gl.uniform3fv(uniforms.colorA, hexToRgb(options.colorA || "#2454d6"));
   gl.uniform3fv(uniforms.colorB, hexToRgb(options.colorB || "#0c8b7f"));
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -54,6 +58,19 @@ function createRuntime() {
       } else if (effect == 2) {
         value = sin(p.x * 3.2 + time) + sin(p.y * 4.1 - time * 0.7) + sin((p.x + p.y) * 3.0 + time * 0.4);
         value = 0.5 + 0.1667 * value;
+      } else if (effect == 3) {
+        float a = 0.5 + 0.5 * sin((uv.x * 2.4 + uv.y) * 3.14159 + time * 0.35);
+        float b = 0.5 + 0.5 * cos((uv.y * 2.0 - uv.x) * 3.14159 - time * 0.28);
+        value = smoothstep(0.08, 0.92, a * 0.58 + b * 0.42);
+      } else if (effect == 4) {
+        float distanceFromCenter = length(p - vec2(0.18 * sin(time * 0.22), 0.12 * cos(time * 0.19)));
+        value = 0.5 + 0.5 * sin(distanceFromCenter * 13.0 - time * 1.25);
+        value = 0.25 + 0.75 * smoothstep(0.15, 0.92, value);
+      } else if (effect == 5) {
+        float diagonal = p.x * 0.72 + p.y * 0.36;
+        float beamA = exp(-18.0 * abs(sin(diagonal * 2.2 + time * 0.34)));
+        float beamB = exp(-24.0 * abs(sin((p.x * -0.42 + p.y) * 2.8 - time * 0.22)));
+        value = clamp(beamA + beamB * 0.72 + 0.08, 0.0, 1.0);
       } else {
         float ribbon = sin((uv.x * 1.4 + uv.y * 0.7) * 8.0 + time * 0.65);
         float glow = exp(-2.7 * abs(p.y - 0.28 * ribbon));

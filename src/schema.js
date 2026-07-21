@@ -883,12 +883,14 @@ export function normalizeSection(raw) {
 
 export function normalizeSlide(raw = {}) {
   raw ||= {};
+  const legacyAnimatedBackground = raw.backgroundShader && raw.backgroundShader !== "none" && raw.backgroundType !== "animated";
   const legacyQuiz = raw.engagement?.type === "quiz";
   const correctAnswers = Array.isArray(raw.engagement?.correctAnswers)
     ? raw.engagement.correctAnswers.slice(0, MAX_ENGAGEMENT_OPTIONS)
     : [];
   const slide = createSlide({
     ...raw,
+    backgroundType: legacyAnimatedBackground ? "animated" : raw.backgroundType || "color",
     sectionId: typeof raw.sectionId === "string" ? raw.sectionId : null,
     engagement: {
       ...createSlide().engagement,

@@ -1606,7 +1606,7 @@ function renderSlideInspector(slide) {
     <section class="inspector-section">
       <strong>Background</strong>
       <div class="field-row"><label for="backgroundTypeInput">Style</label><select id="backgroundTypeInput">
-        ${animationOptionList([["color", "Solid color"], ["gradient", "Gradient"], ["image", "Image"]], slide.backgroundType || "color")}
+        ${animationOptionList([["color", "Solid color"], ["gradient", "Gradient"], ["image", "Image"], ["animated", "Animated effect"]], slide.backgroundType || "color")}
       </select></div>
       ${slide.backgroundType === "gradient" ? `
         <div class="field-grid">
@@ -1617,22 +1617,21 @@ function renderSlideInspector(slide) {
       ` : slide.backgroundType === "image" ? `
         <div class="field-row"><label>Image</label><button id="chooseBackgroundImageBtn" type="button">${slide.backgroundImage ? "Replace image" : "Choose image"}</button>${slide.backgroundImage ? `<button id="removeBackgroundImageBtn" type="button">Remove image</button>` : ""}</div>
         <div class="field-row"><label for="backgroundImageFitInput">Fit</label><select id="backgroundImageFitInput">${animationOptionList([["cover", "Fill slide (crop)"], ["contain", "Fit entire image"]], slide.backgroundImageFit || "cover")}</select><small>Images always retain their proportions.</small></div>
-      ` : `<div class="field-row"><label for="slideBgInput">Color</label><input id="slideBgInput" type="color" value="${slide.background || "#ffffff"}" /></div>`}
-      <div class="field-grid">
-        <div class="field-row"><label for="backgroundOverlayColorInput">Overlay</label><input id="backgroundOverlayColorInput" type="color" value="${slide.backgroundOverlayColor || "#000000"}" /></div>
-        <div class="field-row"><label for="backgroundOverlayOpacityInput">Opacity</label><input id="backgroundOverlayOpacityInput" type="range" min="0" max="100" step="1" value="${Math.round((Number(slide.backgroundOverlayOpacity) || 0) * 100)}" /></div>
-      </div>
-      <div class="field-row"><label for="backgroundShaderInput">Animated effect</label><select id="backgroundShaderInput">${animationOptionList(backgroundShaderOptions.map((item) => [item.value, item.label]), slide.backgroundShader || "none")}</select></div>
-      ${slide.backgroundShader && slide.backgroundShader !== "none" ? `
+      ` : slide.backgroundType === "animated" ? `
+        <div class="field-row"><label for="backgroundShaderInput">Effect</label><select id="backgroundShaderInput">${animationOptionList(backgroundShaderOptions.filter((item) => item.value !== "none").map((item) => [item.value, item.label]), slide.backgroundShader || "aurora")}</select></div>
         <div class="field-grid">
-          <div class="field-row"><label for="backgroundEffectColorAInput">Effect color 1</label><input id="backgroundEffectColorAInput" type="color" value="${slide.backgroundEffectColorA || slide.backgroundGradientStart || deck.theme.colors.primary}" /></div>
-          <div class="field-row"><label for="backgroundEffectColorBInput">Effect color 2</label><input id="backgroundEffectColorBInput" type="color" value="${slide.backgroundEffectColorB || slide.backgroundGradientEnd || deck.theme.colors.accent}" /></div>
+          <div class="field-row"><label for="backgroundEffectColorAInput">Effect color 1</label><input id="backgroundEffectColorAInput" type="color" value="${slide.backgroundEffectColorA || deck.theme.colors.primary}" /></div>
+          <div class="field-row"><label for="backgroundEffectColorBInput">Effect color 2</label><input id="backgroundEffectColorBInput" type="color" value="${slide.backgroundEffectColorB || deck.theme.colors.accent}" /></div>
         </div>
         <div class="field-grid">
           <div class="field-row"><label for="backgroundShaderIntensityInput">Intensity</label><input id="backgroundShaderIntensityInput" type="range" min="0" max="100" step="1" value="${Math.round((Number(slide.backgroundShaderIntensity) || 0.5) * 100)}" /></div>
           <div class="field-row"><label for="backgroundShaderSpeedInput">Speed</label><input id="backgroundShaderSpeedInput" type="number" min="0.1" max="3" step="0.1" value="${Number(slide.backgroundShaderSpeed) || 1}" /></div>
         </div>
-      ` : ""}
+      ` : `<div class="field-row"><label for="slideBgInput">Color</label><input id="slideBgInput" type="color" value="${slide.background || "#ffffff"}" /></div>`}
+      <div class="field-grid">
+        <div class="field-row"><label for="backgroundOverlayColorInput">Overlay</label><input id="backgroundOverlayColorInput" type="color" value="${slide.backgroundOverlayColor || "#000000"}" /></div>
+        <div class="field-row"><label for="backgroundOverlayOpacityInput">Opacity</label><input id="backgroundOverlayOpacityInput" type="range" min="0" max="100" step="1" value="${Math.round((Number(slide.backgroundOverlayOpacity) || 0) * 100)}" /></div>
+      </div>
     </section>
     <section class="inspector-section">
       <strong>Theme</strong>
@@ -1681,6 +1680,8 @@ function renderSlideInspector(slide) {
   bindValue("#notesInput", (value) => (slide.notes = value));
   document.querySelector("#backgroundTypeInput")?.addEventListener("change", (event) => {
     slide.backgroundType = event.target.value;
+    if (slide.backgroundType === "animated" && (!slide.backgroundShader || slide.backgroundShader === "none")) slide.backgroundShader = "aurora";
+    if (slide.backgroundType !== "animated") slide.backgroundShader = "none";
     markChanged("Slide background style updated");
     renderAll();
   });

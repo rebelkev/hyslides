@@ -113,16 +113,7 @@ function drawSlideBackground(ctx, slide, deck) {
     else loadImage(slide.backgroundImage).catch(() => {});
   }
 
-  const overlayOpacity = Math.max(0, Math.min(1, Number(slide.backgroundOverlayOpacity) || 0));
-  if (overlayOpacity > 0) {
-    ctx.save();
-    ctx.globalAlpha = overlayOpacity;
-    ctx.fillStyle = slide.backgroundOverlayColor || "#000000";
-    ctx.fillRect(0, 0, SLIDE_SIZE.width, SLIDE_SIZE.height);
-    ctx.restore();
-  }
-
-  if (slide.backgroundShader && slide.backgroundShader !== "none") {
+  if (type === "animated" && slide.backgroundShader && slide.backgroundShader !== "none") {
     const shader = renderShaderOverlay(slide.backgroundShader, SLIDE_SIZE.width, SLIDE_SIZE.height, {
       time: typeof performance !== "undefined" ? performance.now() / 1000 : 0,
       speed: slide.backgroundShaderSpeed,
@@ -132,6 +123,15 @@ function drawSlideBackground(ctx, slide, deck) {
     });
     if (shader) ctx.drawImage(shader, 0, 0, SLIDE_SIZE.width, SLIDE_SIZE.height);
     else drawShaderFallback(ctx, slide, deck);
+  }
+
+  const overlayOpacity = Math.max(0, Math.min(1, Number(slide.backgroundOverlayOpacity) || 0));
+  if (overlayOpacity > 0) {
+    ctx.save();
+    ctx.globalAlpha = overlayOpacity;
+    ctx.fillStyle = slide.backgroundOverlayColor || "#000000";
+    ctx.fillRect(0, 0, SLIDE_SIZE.width, SLIDE_SIZE.height);
+    ctx.restore();
   }
 }
 
