@@ -86,7 +86,10 @@ async function handleLiveApi(request: Request, env: Env, url: URL): Promise<Resp
 
   try {
     if (parts.length === 3 && request.method === "GET") {
-      return json(await liveState(env.DB, code));
+      const session = await getLiveSessionRow(env.DB, code);
+      const presenterRequest = Boolean(request.headers.get("x-hyslides-presenter-token"));
+      if (presenterRequest) await authorizePresenter(env.DB, request, session.deck_id);
+      return json(await liveState(env.DB, code, presenterRequest));
     }
 
     if (parts.length === 3 && request.method === "PUT") {
@@ -110,6 +113,16 @@ async function handleLiveApi(request: Request, env: Env, url: URL): Promise<Resp
       const session = await getLiveSessionRow(env.DB, code);
       await authorizePresenter(env.DB, request, session.deck_id);
       return json(await controlLiveSession(env.DB, code, session, stringValue(payload.action)));
+    }
+    if (parts.length === 6 && parts[3] === "questions" && parts[5] === "vote" && request.method === "POST") {
+      const payload = await readJson(request);
+      return json(await voteForQuestion(env.DB, code, parts[4], stringValue(payload.participantId)));
+    }
+    if (parts.length === 6 && parts[3] === "questions" && parts[5] === "moderate" && request.method === "POST") {
+      const session = await getLiveSessionRow(env.DB, code);
+      await authorizePresenter(env.DB, request, session.deck_id);
+      const payload = await readJson(request);
+      return json(await moderateQuestion(env.DB, code, session, parts[4], stringValue(payload.action)));
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Live session failed.";
@@ -193,9 +206,20 @@ async function ensureLiveSchema(db: D1Database): Promise<void> {
         instance_id TEXT NOT NULL,
         slide_id TEXT NOT NULL,
         text TEXT NOT NULL,
+        participant_id TEXT NOT NULL DEFAULT '',
         upvotes INTEGER NOT NULL DEFAULT 0,
         answered INTEGER NOT NULL DEFAULT 0,
+        visible INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`
+    ),
+    db.prepare(
+      `CREATE TABLE IF NOT EXISTS hyslides_live_instance_question_votes (
+        instance_id TEXT NOT NULL,
+        question_id TEXT NOT NULL,
+        participant_id TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (instance_id, question_id, participant_id)
       )`
     ),
     db.prepare(
@@ -251,6 +275,15 @@ async function ensureLiveSchema(db: D1Database): Promise<void> {
       )`
     ),
   ]);
+  await ensureColumn(db, "hyslides_live_instance_questions", "participant_id", "TEXT NOT NULL DEFAULT ''");
+  await ensureColumn(db, "hyslides_live_instance_questions", "visible", "INTEGER NOT NULL DEFAULT 0");
+}
+
+async function ensureColumn(db: D1Database, table: string, column: string, definition: string) {
+  const columns = await db.prepare(`PRAGMA table_info(${table})`).all<{ name: string }>();
+  if (!(columns.results || []).some((item) => item.name === column)) {
+    await db.prepare(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`).run();
+  }
 }
 
 async function publishLiveSession(db: D1Database, code: string, payload: Record<string, unknown>) {
@@ -335,7 +368,7 @@ async function publishLiveSession(db: D1Database, code: string, payload: Record<
   }
   await db.batch(statements);
 
-  return liveState(db, code);
+  return liveState(db, code, true);
 }
 
 async function listSessionInstances(db: D1Database, deckId: string) {
@@ -378,6 +411,7 @@ async function cleanupExpiredSessions(db: D1Database) {
       db.prepare(`DELETE FROM hyslides_live_instance_participants WHERE instance_id = ?`).bind(row.instance_id),
       db.prepare(`DELETE FROM hyslides_live_instance_submissions WHERE instance_id = ?`).bind(row.instance_id),
       db.prepare(`DELETE FROM hyslides_live_instance_counts WHERE instance_id = ?`).bind(row.instance_id),
+      db.prepare(`DELETE FROM hyslides_live_instance_question_votes WHERE instance_id = ?`).bind(row.instance_id),
       db.prepare(`DELETE FROM hyslides_live_instance_questions WHERE instance_id = ?`).bind(row.instance_id),
       db.prepare(`DELETE FROM hyslides_live_instance_slides WHERE instance_id = ?`).bind(row.instance_id),
       db.prepare(`DELETE FROM hyslides_live_instance_state WHERE instance_id = ?`).bind(row.instance_id),
@@ -426,6 +460,7 @@ async function renameSessionInstance(db: D1Database, instanceId: string, request
 async function deleteSessionInstance(db: D1Database, instanceId: string) {
   await db.batch([
     db.prepare(`DELETE FROM hyslides_live_instance_counts WHERE instance_id = ?`).bind(instanceId),
+    db.prepare(`DELETE FROM hyslides_live_instance_question_votes WHERE instance_id = ?`).bind(instanceId),
     db.prepare(`DELETE FROM hyslides_live_instance_questions WHERE instance_id = ?`).bind(instanceId),
     db.prepare(`DELETE FROM hyslides_live_instance_submissions WHERE instance_id = ?`).bind(instanceId),
     db.prepare(`DELETE FROM hyslides_live_instance_participants WHERE instance_id = ?`).bind(instanceId),
@@ -495,7 +530,7 @@ async function recordParticipantPresence(db: D1Database, code: string, participa
     ) VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     ON CONFLICT(instance_id, participant_id) DO UPDATE SET last_seen_at = CURRENT_TIMESTAMP`
   ).bind(session.instance_id, participantId).run();
-  return liveState(db, code);
+  return liveState(db, code, false);
 }
 
 async function activeParticipantCount(db: D1Database, instanceId: string) {
@@ -516,18 +551,21 @@ async function controlLiveSession(db: D1Database, code: string, session: LiveSes
     await db.batch([
       db.prepare(`DELETE FROM hyslides_live_instance_submissions WHERE instance_id = ? AND slide_id = ?`).bind(session.instance_id, session.active_slide_id),
       db.prepare(`DELETE FROM hyslides_live_instance_counts WHERE instance_id = ? AND slide_id = ?`).bind(session.instance_id, session.active_slide_id),
+      db.prepare(`DELETE FROM hyslides_live_instance_question_votes WHERE instance_id = ? AND question_id IN (SELECT id FROM hyslides_live_instance_questions WHERE instance_id = ? AND slide_id = ?)`)
+        .bind(session.instance_id, session.instance_id, session.active_slide_id),
       db.prepare(`DELETE FROM hyslides_live_instance_questions WHERE instance_id = ? AND slide_id = ?`).bind(session.instance_id, session.active_slide_id),
     ]);
   } else if (action === "resetSession") {
     await db.batch([
       db.prepare(`DELETE FROM hyslides_live_instance_submissions WHERE instance_id = ?`).bind(session.instance_id),
       db.prepare(`DELETE FROM hyslides_live_instance_counts WHERE instance_id = ?`).bind(session.instance_id),
+      db.prepare(`DELETE FROM hyslides_live_instance_question_votes WHERE instance_id = ?`).bind(session.instance_id),
       db.prepare(`DELETE FROM hyslides_live_instance_questions WHERE instance_id = ?`).bind(session.instance_id),
     ]);
   } else {
     throw new Error("Unknown live session action.");
   }
-  return liveState(db, code);
+  return liveState(db, code, true);
 }
 
 async function recordLiveResponse(db: D1Database, code: string, payload: Record<string, unknown>) {
@@ -558,6 +596,15 @@ async function recordLiveResponse(db: D1Database, code: string, payload: Record<
   }
   const kind = type === "qna" ? "qna" : type === "reactions" ? "reaction" : "response";
   const safeValue = value.slice(0, type === "qna" ? 500 : 200);
+  if (type === "qna") {
+    await db.prepare(
+      `INSERT INTO hyslides_live_instance_questions (
+        id, instance_id, slide_id, text, participant_id, upvotes, answered, visible, created_at
+      ) VALUES (?, ?, ?, ?, ?, 0, 0, 0, CURRENT_TIMESTAMP)`
+    ).bind(crypto.randomUUID(), session.instance_id, session.active_slide_id, safeValue, participantId).run();
+    await recordParticipantPresence(db, code, participantId);
+    return { accepted: true, ...(await liveState(db, code, false)) };
+  }
   const existing = await db.prepare(
     `SELECT value FROM hyslides_live_instance_submissions
       WHERE instance_id = ? AND slide_id = ? AND participant_id = ? AND kind = ?`
@@ -583,6 +630,41 @@ async function recordLiveResponse(db: D1Database, code: string, payload: Record<
   };
 }
 
+async function moderateQuestion(db: D1Database, code: string, session: LiveSessionRow, questionId: string, action: string) {
+  if (action === "delete") {
+    await db.batch([
+      db.prepare(`DELETE FROM hyslides_live_instance_question_votes WHERE instance_id = ? AND question_id = ?`).bind(session.instance_id, questionId),
+      db.prepare(`DELETE FROM hyslides_live_instance_questions WHERE instance_id = ? AND id = ?`).bind(session.instance_id, questionId),
+    ]);
+  } else if (["show", "hide", "answered", "unanswered"].includes(action)) {
+    const updates = action === "show" ? ["visible", 1] : action === "hide" ? ["visible", 0] : ["answered", action === "answered" ? 1 : 0];
+    await db.prepare(`UPDATE hyslides_live_instance_questions SET ${updates[0]} = ? WHERE instance_id = ? AND id = ?`)
+      .bind(updates[1], session.instance_id, questionId).run();
+  } else {
+    throw new Error("Unknown question moderation action.");
+  }
+  return liveState(db, code, true);
+}
+
+async function voteForQuestion(db: D1Database, code: string, questionId: string, participantIdValue: string) {
+  const session = await getLiveSessionRow(db, code);
+  const participantId = normalizeParticipantId(participantIdValue);
+  if (!participantId || session.status === "ended") return liveState(db, code, false);
+  const visibleQuestion = await db.prepare(
+    `SELECT id FROM hyslides_live_instance_questions WHERE instance_id = ? AND id = ? AND visible = 1`
+  ).bind(session.instance_id, questionId).first();
+  if (!visibleQuestion) throw new Error("Question not found.");
+  const result = await db.prepare(
+    `INSERT OR IGNORE INTO hyslides_live_instance_question_votes (instance_id, question_id, participant_id, created_at)
+      VALUES (?, ?, ?, CURRENT_TIMESTAMP)`
+  ).bind(session.instance_id, questionId, participantId).run();
+  if (Number(result.meta?.changes || 0) > 0) {
+    await db.prepare(`UPDATE hyslides_live_instance_questions SET upvotes = upvotes + 1 WHERE instance_id = ? AND id = ?`)
+      .bind(session.instance_id, questionId).run();
+  }
+  return { duplicate: Number(result.meta?.changes || 0) === 0, ...(await liveState(db, code, false)) };
+}
+
 async function incrementLiveCount(
   db: D1Database,
   instanceId: string,
@@ -606,16 +688,18 @@ async function incrementLiveCount(
     .run();
 }
 
-async function liveState(db: D1Database, code: string) {
+async function liveState(db: D1Database, code: string, includeHiddenQuestions = false) {
   const session = await getLiveSessionRow(db, code);
   const slide = parseSlide(session.slide_json);
-  await applyLiveAggregates(db, session.instance_id, session.active_slide_id, slide);
+  await applyLiveAggregates(db, session.instance_id, session.active_slide_id, slide, includeHiddenQuestions);
   const participantCount = await activeParticipantCount(db, session.instance_id);
   const responseCount = await db.prepare(
-    `SELECT COUNT(DISTINCT participant_id) AS count
-      FROM hyslides_live_instance_submissions
-      WHERE instance_id = ? AND slide_id = ?`
-  ).bind(session.instance_id, session.active_slide_id).first<{ count: number }>();
+    `SELECT COUNT(DISTINCT participant_id) AS count FROM (
+      SELECT participant_id FROM hyslides_live_instance_submissions WHERE instance_id = ? AND slide_id = ?
+      UNION ALL
+      SELECT participant_id FROM hyslides_live_instance_questions WHERE instance_id = ? AND slide_id = ?
+    )`
+  ).bind(session.instance_id, session.active_slide_id, session.instance_id, session.active_slide_id).first<{ count: number }>();
   return {
     code,
     instanceId: session.instance_id,
@@ -637,7 +721,8 @@ async function applyLiveAggregates(
   db: D1Database,
   instanceId: string,
   slideId: string,
-  slide: Record<string, unknown>
+  slide: Record<string, unknown>,
+  includeHiddenQuestions = true
 ) {
   const engagement = ensureEngagementShape(slide);
   const counts = await db
@@ -668,12 +753,9 @@ async function applyLiveAggregates(
       results[row.response_key] = row.count;
     }
   }
-  const submittedQuestions: Array<{ id: string; text: string; upvotes: number; answered: boolean }> = [];
   for (const row of submissions.results || []) {
     if (row.kind === "reaction") {
       reactions[row.value] = (reactions[row.value] || 0) + 1;
-    } else if (row.kind === "qna") {
-      submittedQuestions.push({ id: crypto.randomUUID(), text: row.value, upvotes: 0, answered: false });
     } else if (stringValue(engagement.type) === "wordCloud") {
       for (const word of row.value.split(/\s+/).map((item) => item.trim().toLowerCase()).filter(Boolean).slice(0, 20)) {
         results[word] = (results[word] || 0) + 1;
@@ -692,9 +774,9 @@ async function applyLiveAggregates(
 
   const questions = await db
     .prepare(
-      `SELECT id, text, upvotes, answered
+      `SELECT id, text, upvotes, answered, visible
         FROM hyslides_live_instance_questions
-        WHERE instance_id = ? AND slide_id = ?
+        WHERE instance_id = ? AND slide_id = ? ${includeHiddenQuestions ? "" : "AND visible = 1"}
         ORDER BY created_at ASC`
     )
     .bind(instanceId, slideId)
@@ -705,7 +787,8 @@ async function applyLiveAggregates(
     text: question.text,
     upvotes: question.upvotes,
     answered: Boolean(question.answered),
-  })), ...submittedQuestions];
+    visible: Boolean((question as LiveQuestionRow & { visible: number }).visible),
+  }))];
 }
 
 async function getLiveSessionRow(db: D1Database, code: string): Promise<LiveSessionRow> {
@@ -817,4 +900,5 @@ interface LiveQuestionRow {
   text: string;
   upvotes: number;
   answered: number;
+  visible: number;
 }
