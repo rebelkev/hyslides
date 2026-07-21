@@ -2034,18 +2034,25 @@ body.presentation-window .presentation-live-status {
   box-shadow: 0 24px 80px rgba(0, 0, 0, .34);
   display: grid;
   gap: 14px;
-  max-height: calc(100vh - 36px);
+  grid-template-rows: auto minmax(0, 1fr);
+  height: min(900px, calc(100dvh - 36px));
   max-width: 900px;
   overflow: hidden;
   padding: 18px;
   width: min(100%, 900px);
 }
 
+.global-settings-card .presenter-head > div { display: grid; gap: 3px; }
+.global-settings-card .presenter-head > div > span { color: var(--muted); font-size: 12px; }
+
 .global-settings-content {
   display: grid;
   gap: 20px;
+  min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
   padding-right: 4px;
+  scrollbar-gutter: stable;
 }
 
 .global-settings-section { display: grid; gap: 12px; }
@@ -2083,6 +2090,8 @@ body.presentation-window .presentation-live-status {
 
 @media (max-width: 700px) {
   .typography-style-list { grid-template-columns: 1fr; }
+  .global-settings { align-items: stretch; padding: 0; }
+  .global-settings-card { border-radius: 0; height: 100dvh; max-width: none; width: 100vw; }
 }
 
 .session-history-card {
