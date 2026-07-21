@@ -49,6 +49,7 @@
           <button id="newDeckBtn" type="button" title="New deck" data-icon="plus">New</button>
           <button id="saveDeckBtn" type="button" title="Save deck" data-icon="save">Save</button>
           <button id="deckLibraryBtn" type="button" title="Open saved decks" data-icon="folder">Decks</button>
+          <button id="sessionHistoryBtn" type="button" title="Session history" data-icon="users">Sessions</button>
           <label class="button" for="pptxInput" title="Import PowerPoint" data-icon="upload">Import PPTX</label>
           <input id="pptxInput" class="sr-only" type="file" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" />
           <button id="exportPptxBtn" type="button" title="Export PowerPoint" data-icon="file-export">PPTX</button>
@@ -169,6 +170,19 @@
           <button id="closeDeckLibraryBtn" type="button" title="Close">Close</button>
         </div>
         <div id="deckLibraryList" class="deck-library-list"></div>
+      </div>
+    </div>
+
+    <div id="sessionHistoryOverlay" class="session-history hidden" aria-hidden="true">
+      <div class="session-history-card" role="dialog" aria-modal="true" aria-labelledby="sessionHistoryTitle">
+        <div class="presenter-head">
+          <div>
+            <strong id="sessionHistoryTitle">Session history</strong>
+            <span id="sessionHistorySubtitle"></span>
+          </div>
+          <button id="closeSessionHistoryBtn" type="button" title="Close">Close</button>
+        </div>
+        <div id="sessionHistoryContent" class="session-history-content"></div>
       </div>
     </div>
 
