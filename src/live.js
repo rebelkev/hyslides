@@ -354,16 +354,11 @@ function supabaseResponseRows(code, slideId, engagement, value) {
   }
 
   if (engagement.type === "wordCloud") {
-    return text
-      .split(/\s+/)
-      .map((word) => word.trim().toLowerCase())
-      .filter(Boolean)
-      .slice(0, 20)
-      .map((word) => ({
-        ...base,
-        kind: "response",
-        value: word.slice(0, 60),
-      }));
+    return [{
+      ...base,
+      kind: "response",
+      value: text.replace(/\s+/g, " ").toLowerCase().slice(0, 200),
+    }];
   }
 
   if (engagement.type === "qna") {

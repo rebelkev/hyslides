@@ -10,6 +10,7 @@ import {
   syncEngagementResultCharts,
 } from "../src/schema.js";
 import { measureEngagementElementHeight } from "../src/renderer.js";
+import { recordAudienceResponse } from "../src/engagement.js";
 
 test("linked poll charts mirror live totals and clear stale bars", () => {
   const chart = createElement("chart", {
@@ -129,4 +130,12 @@ test("engagement element height grows with its option list", () => {
     options: Array.from({ length: 10 }, (_, index) => `Option ${index + 1}`),
   });
   assert.ok(measureEngagementElementHeight(long) > measureEngagementElementHeight(short));
+});
+
+test("word cloud submissions preserve phrases instead of splitting words", () => {
+  const slide = createSlide({
+    engagement: { enabled: true, type: "wordCloud", results: {} },
+  });
+  recordAudienceResponse(slide, { value: "Customer success" });
+  assert.deepEqual(slide.engagement.results, { "customer success": 1 });
 });

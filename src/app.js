@@ -731,6 +731,7 @@ function renderCanvas() {
     guides,
     includeSelection: true,
     scale: zoom,
+    showEngagementPlaceholders: true,
     elementStates: editorAnimationStates,
   });
   preloadSlideImages(currentSlide()).then(() => {
@@ -739,6 +740,7 @@ function renderCanvas() {
       guides,
       includeSelection: true,
       scale: zoom,
+      showEngagementPlaceholders: true,
       elementStates: editorAnimationStates,
     });
   });
@@ -4077,7 +4079,7 @@ function drawThumb(canvas, slide) {
   const thumbCtx = canvas.getContext("2d");
   thumbCtx.save();
   thumbCtx.scale(canvas.width / SLIDE_SIZE.width, canvas.height / SLIDE_SIZE.height);
-  drawSlide(thumbCtx, slide, deck, { footer: false });
+  drawSlide(thumbCtx, slide, deck, { footer: false, showEngagementPlaceholders: true });
   thumbCtx.restore();
 }
 

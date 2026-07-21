@@ -45,6 +45,7 @@ export function drawSlide(ctx, slide, deck, options = {}) {
     scale = 1,
     footer = true,
     revealCorrectAnswers = true,
+    showEngagementPlaceholders = false,
     elementStates = null,
     countdownStates = null,
   } = options;
@@ -59,6 +60,7 @@ export function drawSlide(ctx, slide, deck, options = {}) {
     if (state?.hidden) continue;
     drawElement(ctx, element, deck, {
       revealCorrectAnswers,
+      showEngagementPlaceholders,
       opacityMultiplier: state?.opacity ?? 1,
       countdownStates,
     });
@@ -476,7 +478,7 @@ function drawEngagement(ctx, element, deck, renderOptions = {}) {
   y += 8;
 
   if (mode === "wordCloud") {
-    drawWordCloudPreview(ctx, element, deck, options, padding, y);
+    drawWordCloudPreview(ctx, element, deck, options, padding, y, renderOptions);
   } else if (mode === "qna") {
     drawQnaPreview(ctx, element, deck, padding, y);
   } else if (mode === "reactions") {
@@ -521,11 +523,12 @@ function drawChoicePreview(ctx, element, deck, options, padding, y, renderOption
   });
 }
 
-function drawWordCloudPreview(ctx, element, deck, options, padding, y) {
+function drawWordCloudPreview(ctx, element, deck, options, padding, y, renderOptions = {}) {
   const words = Object.entries(element.results || {})
     .sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0))
     .slice(0, 12);
   if (!words.length) {
+    if (!renderOptions.showEngagementPlaceholders) return;
     ctx.fillStyle = deck.theme.colors.muted;
     ctx.font = `700 20px ${deck.theme.fonts.body}, Arial, sans-serif`;
     ctx.textBaseline = "top";

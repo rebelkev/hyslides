@@ -617,6 +617,8 @@ async function recordLiveResponse(db: D1Database, code: string, payload: Record<
   }
   const kind = type === "reactions"
     ? "reaction"
+    : type === "wordCloud"
+      ? `response:${safeValue.replace(/\s+/g, " ").toLowerCase()}`
     : type === "poll" && responseLimit > 1
       ? `response:${safeValue}`
       : "response";
@@ -827,9 +829,8 @@ async function applyLiveAggregates(
     if (row.kind === "reaction") {
       reactions[row.value] = (reactions[row.value] || 0) + 1;
     } else if (stringValue(engagement.type) === "wordCloud") {
-      for (const word of row.value.split(/\s+/).map((item) => item.trim().toLowerCase()).filter(Boolean).slice(0, 20)) {
-        results[word] = (results[word] || 0) + 1;
-      }
+      const phrase = row.value.trim().replace(/\s+/g, " ").toLowerCase();
+      if (phrase) results[phrase] = (results[phrase] || 0) + 1;
     } else {
       results[row.value] = (results[row.value] || 0) + 1;
     }

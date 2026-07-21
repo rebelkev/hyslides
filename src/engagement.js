@@ -65,10 +65,8 @@ export function recordAudienceResponse(slide, payload) {
   }
 
   if (engagement.type === "wordCloud") {
-    for (const word of String(payload.value || "").split(/\s+/).filter(Boolean)) {
-      const key = word.toLowerCase();
-      engagement.results[key] = (engagement.results[key] || 0) + 1;
-    }
+    const phrase = String(payload.value || "").trim().replace(/\s+/g, " ").toLowerCase();
+    if (phrase) engagement.results[phrase] = (engagement.results[phrase] || 0) + 1;
   }
 
   if (engagement.type === "qna" && payload.value) {
