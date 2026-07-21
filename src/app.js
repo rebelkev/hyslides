@@ -365,7 +365,7 @@ function renderAll() {
 function upgradeIconButtons() {
   const lucideNames = {
     plus: "plus", save: "save", folder: "folder-open", upload: "file-up", "file-text": "file-text",
-    play: "play", users: "users", cursor: "mouse-pointer-2", type: "type", image: "image",
+    play: "play", users: "users", history: "history", cursor: "mouse-pointer-2", type: "type", image: "image",
     shapes: "shapes", star: "star", chart: "bar-chart-3", table: "table-2", minus: "minus",
     engagement: "message-square", copy: "copy", group: "combine", lock: "lock",
     "layer-up": "bring-to-front", "layer-down": "send-to-back", "to-front": "chevrons-up",
