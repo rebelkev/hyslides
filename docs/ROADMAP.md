@@ -30,6 +30,13 @@
 
 ## Following Milestones
 
+- Global Deck Settings:
+  - Current live-session status and audience join card
+  - Audience join URL with Copy Link and Open Participant View actions
+  - Six-digit access code and QR code
+  - Global colors, named linked swatches, and slide-assignment colors
+  - Global typography for headings, body text, labels, and placeholders, with Google Fonts and per-element overrides
+  - Persistent brand/logo treatment and default slide appearance
 - Q&A enhancements: pinning, presenter spotlight layouts, and CSV export
 - User accounts and authentication
 - Server-backed deck library and media storage
