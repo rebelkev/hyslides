@@ -86,14 +86,29 @@ export async function publishLiveSession(code, snapshot, presenterToken) {
   });
 }
 
-export async function getLiveSession(code) {
-  return requestJson(`${LIVE_API_BASE}/${encodeURIComponent(normalizeLiveCode(code))}`);
+export async function getLiveSession(code, presenterToken = "") {
+  return requestJson(`${LIVE_API_BASE}/${encodeURIComponent(normalizeLiveCode(code))}`, { headers: presenterHeaders(presenterToken) });
 }
 
 export async function submitLiveResponse(code, payload) {
   return requestJson(`${LIVE_API_BASE}/${encodeURIComponent(normalizeLiveCode(code))}/responses`, {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+export async function moderateLiveQuestion(code, questionId, action, presenterToken) {
+  return requestJson(`${LIVE_API_BASE}/${encodeURIComponent(normalizeLiveCode(code))}/questions/${encodeURIComponent(questionId)}/moderate`, {
+    method: "POST",
+    headers: presenterHeaders(presenterToken),
+    body: JSON.stringify({ action }),
+  });
+}
+
+export async function voteLiveQuestion(code, questionId, participantId) {
+  return requestJson(`${LIVE_API_BASE}/${encodeURIComponent(normalizeLiveCode(code))}/questions/${encodeURIComponent(questionId)}/vote`, {
+    method: "POST",
+    body: JSON.stringify({ participantId }),
   });
 }
 
