@@ -45,6 +45,13 @@
 - Added Presenter View controls for Start, Pause, Reset, and adding one minute.
 - Synchronized active countdowns with Presentation View and Participant View without overwriting the deck’s configured starting duration.
 
+### Live Q&A Moderation
+
+- Added persistent, hidden-by-default Q&A submissions with stable question IDs.
+- Added Presenter View moderation actions: Display, Hide, Mark answered/unanswered, and Delete.
+- Added participant upvoting with one vote per device and private filtering of unapproved questions.
+- Included questions, votes, and moderation status in session history and 14-day cleanup.
+
 ### Terminology
 
 - Established Editor View, Presentation View, Participant View, and Presenter View as the canonical product names.
