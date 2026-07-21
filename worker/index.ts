@@ -1,6 +1,7 @@
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
+import { containsBlockedLanguage } from "../src/moderation.js";
 
 interface Env {
   ASSETS: Fetcher;
@@ -112,7 +113,7 @@ async function handleLiveApi(request: Request, env: Env, url: URL): Promise<Resp
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Live session failed.";
-    const status = message.includes("Unauthorized") ? 403 : message.includes("not found") ? 404 : 500;
+    const status = message.includes("Unauthorized") ? 403 : message.includes("not allowed") ? 400 : message.includes("not found") ? 404 : 500;
     return json({ error: message }, status);
   }
 
@@ -545,6 +546,9 @@ async function recordLiveResponse(db: D1Database, code: string, payload: Record<
   }
 
   const type = stringValue(engagement.type) || "poll";
+  if ((type === "wordCloud" || type === "qna") && containsBlockedLanguage(value)) {
+    throw new Error("That response contains language that is not allowed. Please revise it and try again.");
+  }
   const kind = type === "qna" ? "qna" : type === "reactions" ? "reaction" : "response";
   const safeValue = value.slice(0, type === "qna" ? 500 : 200);
   const existing = await db.prepare(
