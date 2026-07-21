@@ -96,6 +96,8 @@ let openSlideMenuIndex = null;
 let openSectionMenuId = null;
 let selectedIds = [];
 let zoom = 0.82;
+let autoFitZoom = true;
+let canvasResizeObserver = null;
 let guides = [];
 let dragState = null;
 let clipboard = [];
@@ -151,6 +153,7 @@ async function init() {
   deck = normalizeDeck(saved || createSeedDeck());
   bindEvents();
   renderAll();
+  setupCanvasAutoFit();
   setStatus("Ready");
   bindPresenterChannel();
   if (presenterWindowMode) {
@@ -291,9 +294,9 @@ function bindEvents() {
   document.querySelector("#sendFrontBtn").addEventListener("click", () => sendLayer("front"));
   document.querySelector("#sendBackBtn").addEventListener("click", () => sendLayer("back"));
 
-  document.querySelector("#zoomOutBtn").addEventListener("click", () => setZoom(zoom - 0.08));
-  document.querySelector("#zoomInBtn").addEventListener("click", () => setZoom(zoom + 0.08));
-  dom.zoomRange.addEventListener("input", () => setZoom(Number(dom.zoomRange.value) / 100));
+  document.querySelector("#zoomOutBtn").addEventListener("click", () => setZoom(zoom - 0.08, { manual: true }));
+  document.querySelector("#zoomInBtn").addEventListener("click", () => setZoom(zoom + 0.08, { manual: true }));
+  dom.zoomRange.addEventListener("input", () => setZoom(Number(dom.zoomRange.value) / 100, { manual: true }));
 
   document.querySelectorAll("[data-add]").forEach((button) => {
     button.addEventListener("click", () => addElement(button.dataset.add));
@@ -3266,8 +3269,39 @@ function snapBounds(bounds, movingIds) {
   return next;
 }
 
-function setZoom(value) {
-  zoom = Math.max(0.35, Math.min(1.5, value));
+function setupCanvasAutoFit() {
+  if (presenterWindowMode) {
+    return;
+  }
+  requestAnimationFrame(fitCanvasToViewport);
+  if ("ResizeObserver" in window) {
+    canvasResizeObserver = new ResizeObserver(fitCanvasToViewport);
+    canvasResizeObserver.observe(dom.viewport);
+  } else {
+    window.addEventListener("resize", fitCanvasToViewport);
+  }
+}
+
+function fitCanvasToViewport() {
+  if (!autoFitZoom || !dom.viewport.clientWidth) {
+    return;
+  }
+  const viewportStyle = getComputedStyle(dom.viewport);
+  const horizontalPadding = parseFloat(viewportStyle.paddingLeft || 0) + parseFloat(viewportStyle.paddingRight || 0);
+  const availableWidth = Math.max(0, dom.viewport.clientWidth - horizontalPadding);
+  const fittedZoom = availableWidth / SLIDE_SIZE.width;
+  setZoom(fittedZoom);
+}
+
+function setZoom(value, options = {}) {
+  if (options.manual) {
+    autoFitZoom = false;
+  }
+  const nextZoom = Math.max(0.2, Math.min(1.5, value));
+  if (Math.abs(nextZoom - zoom) < 0.001) {
+    return;
+  }
+  zoom = nextZoom;
   renderCanvas();
 }
 
