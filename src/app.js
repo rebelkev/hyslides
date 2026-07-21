@@ -300,6 +300,7 @@ function bindEvents() {
   });
   document.querySelector("#duplicateBtn").addEventListener("click", duplicateSelection);
   document.querySelector("#groupBtn").addEventListener("click", groupSelection);
+  document.querySelector("#ungroupBtn").addEventListener("click", ungroupSelection);
   document.querySelector("#lockBtn").addEventListener("click", toggleLockSelection);
   document.querySelector("#centerHorizontalBtn").addEventListener("click", () => centerSelection("horizontal"));
   document.querySelector("#centerVerticalBtn").addEventListener("click", () => centerSelection("vertical"));
@@ -384,7 +385,7 @@ function upgradeIconButtons() {
     plus: "plus", save: "save", folder: "folder-open", upload: "file-up", "file-text": "file-text",
     play: "play", users: "users", history: "history", cursor: "mouse-pointer-2", type: "type", image: "image",
     shapes: "shapes", star: "star", chart: "bar-chart-3", table: "table-2", minus: "minus",
-    engagement: "message-square", copy: "copy", group: "combine", lock: "lock",
+    engagement: "message-square", copy: "copy", group: "combine", ungroup: "ungroup", lock: "lock",
     "layer-up": "bring-to-front", "layer-down": "send-to-back", "to-front": "chevrons-up",
     "to-back": "chevrons-down", "align-horizontal": "align-horizontal-space-around",
     "align-vertical": "align-vertical-space-around", "zoom-out": "zoom-out", "zoom-in": "zoom-in",
