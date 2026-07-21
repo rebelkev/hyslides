@@ -121,6 +121,17 @@ A new session instance is created for each presentation. Its default name combin
 
 Ended sessions, participant records, and responses are retained for 14 days and then cleaned up automatically.
 
+## Live Q&A
+
+Set an engagement slide’s mode to **Q&A** to collect audience questions.
+
+- Submitted questions enter a private **Pending review** queue in Presenter View.
+- Presenters can Display, Hide, Mark answered/unanswered, or Delete each question.
+- Participant View exposes only questions the presenter has approved for display.
+- Participants can upvote a displayed question once per device; questions are ordered by upvotes.
+- Offensive-language filtering is applied before a question is stored.
+- Questions, votes, and moderation state belong to the current session instance and follow the same 14-day retention policy as responses.
+
 ## Import and Export
 
 - Import editable content from `.pptx` files where supported.
@@ -129,7 +140,6 @@ Ended sessions, participant records, and responses are retained for 14 days and 
 
 ## Current Limitations
 
-- Presenter View v1 is complete. Its responsive mobile layout supports the core controls, but touch-focused gestures, pace coaching, and a dedicated Q&A moderation queue are future enhancements.
+- Presenter View v1 is complete. Its responsive mobile layout supports core controls and Q&A moderation, but touch-focused gestures and pace coaching are future enhancements.
 - User accounts, server-backed deck libraries, admin template management, and collaboration are planned rather than complete.
-- Live Q&A moderation is planned. The final workflow will support review, display/hide, mark answered, and delete actions.
 - PowerPoint import does not reproduce every master, SmartArt, media, typography, transition, or animation feature.
