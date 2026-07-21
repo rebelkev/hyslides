@@ -82,11 +82,24 @@ export const liveInstanceQuestions = sqliteTable(
     instanceId: text("instance_id").notNull(),
     slideId: text("slide_id").notNull(),
     text: text("text").notNull(),
+    participantId: text("participant_id").notNull().default(""),
     upvotes: integer("upvotes").notNull().default(0),
     answered: integer("answered").notNull().default(0),
+    visible: integer("visible").notNull().default(0),
     createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [index("hyslides_live_instance_questions_instance_slide_idx").on(table.instanceId, table.slideId, table.createdAt)]
+);
+
+export const liveInstanceQuestionVotes = sqliteTable(
+  "hyslides_live_instance_question_votes",
+  {
+    instanceId: text("instance_id").notNull(),
+    questionId: text("question_id").notNull(),
+    participantId: text("participant_id").notNull(),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [primaryKey({ columns: [table.instanceId, table.questionId, table.participantId] })]
 );
 
 export const liveInstanceMetadata = sqliteTable("hyslides_live_instance_metadata", {
