@@ -105,3 +105,40 @@ export const liveInstanceSlides = sqliteTable(
   },
   (table) => [primaryKey({ columns: [table.instanceId, table.slideId] })]
 );
+
+export const presenterTokens = sqliteTable("hyslides_presenter_tokens", {
+  deckId: text("deck_id").primaryKey(),
+  tokenHash: text("token_hash").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const liveInstanceParticipants = sqliteTable(
+  "hyslides_live_instance_participants",
+  {
+    instanceId: text("instance_id").notNull(),
+    participantId: text("participant_id").notNull(),
+    joinedAt: text("joined_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    lastSeenAt: text("last_seen_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    primaryKey({ columns: [table.instanceId, table.participantId] }),
+    index("hyslides_live_participants_seen_idx").on(table.instanceId, table.lastSeenAt),
+  ]
+);
+
+export const liveInstanceSubmissions = sqliteTable(
+  "hyslides_live_instance_submissions",
+  {
+    instanceId: text("instance_id").notNull(),
+    slideId: text("slide_id").notNull(),
+    participantId: text("participant_id").notNull(),
+    kind: text("kind").notNull(),
+    value: text("value").notNull(),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    primaryKey({ columns: [table.instanceId, table.slideId, table.participantId, table.kind] }),
+    index("hyslides_live_submissions_slide_idx").on(table.instanceId, table.slideId),
+  ]
+);
