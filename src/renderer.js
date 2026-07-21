@@ -33,6 +33,7 @@ export function drawSlide(ctx, slide, deck, options = {}) {
     footer = true,
     revealCorrectAnswers = true,
     elementStates = null,
+    countdownStates = null,
   } = options;
 
   ctx.save();
@@ -46,6 +47,7 @@ export function drawSlide(ctx, slide, deck, options = {}) {
     drawElement(ctx, element, deck, {
       revealCorrectAnswers,
       opacityMultiplier: state?.opacity ?? 1,
+      countdownStates,
     });
   }
 
@@ -105,11 +107,35 @@ export function drawElement(ctx, element, deck, options = {}) {
     case "engagement":
       drawEngagement(ctx, element, deck, options);
       break;
+    case "countdown":
+      drawCountdown(ctx, element, deck, options);
+      break;
     default:
       drawUnsupported(ctx, element);
   }
 
   ctx.restore();
+}
+
+function drawCountdown(ctx, element, deck, options = {}) {
+  const state = options.countdownStates?.[element.id];
+  const remaining = Math.max(0, Math.round(state?.remainingSeconds ?? element.runtimeRemainingSeconds ?? element.durationSeconds ?? 0));
+  const completed = Boolean(state?.completed ?? element.runtimeCompleted);
+  const showMessage = completed && element.completionBehavior === "message" && element.completionMessage;
+  const text = showMessage
+    ? element.completionMessage
+    : `${String(Math.floor(remaining / 60)).padStart(2, "0")}:${String(remaining % 60).padStart(2, "0")}`;
+  if (element.fill && element.fill !== "transparent") {
+    ctx.fillStyle = element.fill;
+    roundedRect(ctx, 0, 0, element.w, element.h, 12);
+    ctx.fill();
+  }
+  ctx.fillStyle = element.color || deck.theme.colors.ink;
+  ctx.font = `${element.fontWeight || 800} ${showMessage ? Math.min(element.fontSize || 104, 64) : element.fontSize || 104}px ${element.fontFamily || deck.theme.fonts.heading}, Arial, sans-serif`;
+  ctx.textAlign = element.align || "center";
+  ctx.textBaseline = "middle";
+  const x = ctx.textAlign === "left" ? 0 : ctx.textAlign === "right" ? element.w : element.w / 2;
+  ctx.fillText(text, x, element.h / 2, element.w);
 }
 
 function resolveElementBrandColor(element, deck) {
