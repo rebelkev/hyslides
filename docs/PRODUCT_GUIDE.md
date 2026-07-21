@@ -73,6 +73,7 @@ Color styles are saved per deck.
 
 - Create, rename, recolor, or delete styles under **Global Deck Settings → Color styles**.
 - Color controls use six-digit hex values and include every named global color style in their picker.
+- Global Settings color controls open a shared modal picker, keeping typography and background cards compact while showing the hex value, visual picker, and named swatches together.
 - Applying a style links the element to that style.
 - Recoloring the style updates all linked elements throughout the deck.
 - Use **Unlink color style** when an element needs a one-off color.

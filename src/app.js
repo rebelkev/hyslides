@@ -539,20 +539,30 @@ function globalSettingsSectionMarkup(id, title, description, content) {
 
 function globalHexColorControlMarkup({ id, label, value, kind, styleId = "", property }) {
   const color = normalizeHexColor(value) || "#000000";
-  const swatches = brandColorStyles().map((style) => `<button type="button" class="global-color-swatch" data-global-color-swatch="${attr(style.color)}" data-global-color-target="${attr(id)}">
-    <span class="swatch" style="background:${attr(style.color)}"></span><span>${escapeHtml(style.name)}</span><small>${escapeHtml(style.color.toUpperCase())}</small>
-  </button>`).join("");
   return `<div class="field-row global-hex-color-control">
     <label>${escapeHtml(label)}</label>
-    <details class="global-color-picker">
-      <summary><span class="background-color-preview" style="background:${attr(color)}"></span><span class="background-color-value">${escapeHtml(color.toUpperCase())}</span></summary>
-      <div class="global-color-picker-menu">
-        <label for="${attr(id)}">Hex value</label>
-        <input id="${attr(id)}" type="text" inputmode="text" maxlength="7" spellcheck="false" value="${attr(color.toUpperCase())}"
-          data-global-hex-color data-global-color-kind="${attr(kind)}" data-global-color-style="${attr(styleId)}" data-global-color-property="${attr(property)}" />
-        ${swatches ? `<div class="global-color-swatches"><strong>Global color styles</strong>${swatches}</div>` : ""}
+    <button id="${attr(id)}" type="button" class="global-color-picker-trigger" data-open-global-color
+      data-global-color-kind="${attr(kind)}" data-global-color-style="${attr(styleId)}" data-global-color-property="${attr(property)}" data-global-color-value="${attr(color)}" data-global-color-label="${attr(label)}">
+      <span class="background-color-preview" style="background:${attr(color)}"></span><span class="background-color-value">${escapeHtml(color.toUpperCase())}</span>
+    </button>
+  </div>`;
+}
+
+function globalColorPickerModalMarkup() {
+  const swatches = brandColorStyles().map((style) => `<button type="button" class="global-color-swatch" data-global-modal-swatch="${attr(style.color)}">
+    <span class="swatch" style="background:${attr(style.color)}"></span><span>${escapeHtml(style.name)}</span><small>${escapeHtml(style.color.toUpperCase())}</small>
+  </button>`).join("");
+  return `<div id="globalColorPickerModal" class="global-color-modal hidden" role="dialog" aria-modal="true" aria-labelledby="globalColorPickerTitle" aria-hidden="true">
+    <button class="global-color-modal-backdrop" type="button" data-close-global-color aria-label="Close color picker"></button>
+    <div class="global-color-modal-card">
+      <div class="global-color-modal-head"><div><strong id="globalColorPickerTitle">Choose color</strong><span>Use the visual picker, enter a hex value, or select a global style.</span></div><button type="button" data-close-global-color aria-label="Close color picker">×</button></div>
+      <div class="global-color-modal-body">
+        <div class="field-row"><label for="globalVisualColor">Visual color picker</label><input id="globalVisualColor" class="global-visual-color" type="color" value="#000000" /></div>
+        <div class="field-row"><label for="globalModalHexColor">Hex value</label><input id="globalModalHexColor" class="hex-text-input" type="text" maxlength="7" spellcheck="false" value="#000000" /></div>
+        <div class="global-color-swatches"><strong>Global color styles</strong>${swatches || `<span class="brand-palette-empty">No global color styles saved.</span>`}</div>
       </div>
-    </details>
+      <div class="global-color-modal-actions"><button type="button" data-close-global-color>Done</button></div>
+    </div>
   </div>`;
 }
 
@@ -638,6 +648,7 @@ function renderGlobalSettings() {
           </div>
         </article>`).join("")}
       </div>`)}
+    ${globalColorPickerModalMarkup()}
   `;
   dom.globalSettingsContent.querySelectorAll("[data-global-settings-section]").forEach((section) => {
     section.addEventListener("toggle", () => {
@@ -690,10 +701,6 @@ function renderGlobalSettings() {
     renderSlides();
     if (presenterOpen) renderPresenter();
   });
-  const colorPickers = [...dom.globalSettingsContent.querySelectorAll(".global-color-picker")];
-  colorPickers.forEach((picker) => picker.addEventListener("toggle", () => {
-    if (picker.open) colorPickers.forEach((other) => { if (other !== picker) other.open = false; });
-  }));
   dom.globalSettingsContent.querySelector("#copyGlobalAudienceUrl")?.addEventListener("click", async (event) => {
     const copied = await copyTextToClipboard(joinUrl);
     event.currentTarget.textContent = copied ? "Copied" : "Select link";
@@ -717,25 +724,30 @@ function renderGlobalSettings() {
       if (presenterOpen) renderPresenter();
     });
   });
-  function commitGlobalHexInput(input, rawValue) {
+  const colorModal = dom.globalSettingsContent.querySelector("#globalColorPickerModal");
+  const modalHexInput = dom.globalSettingsContent.querySelector("#globalModalHexColor");
+  const modalVisualInput = dom.globalSettingsContent.querySelector("#globalVisualColor");
+  function commitGlobalModalColor(rawValue) {
     const color = normalizeHexColor(rawValue);
     if (!color) {
-      input.setCustomValidity("Enter a six-digit hex color such as #2454D6");
-      input.reportValidity();
+      modalHexInput.setCustomValidity("Enter a six-digit hex color such as #2454D6");
+      modalHexInput.reportValidity();
       return false;
     }
-    input.setCustomValidity("");
-    input.value = color.toUpperCase();
-    const picker = input.closest(".global-color-picker");
-    if (picker) {
-      picker.querySelector(".background-color-preview").style.background = color;
-      picker.querySelector(".background-color-value").textContent = color.toUpperCase();
+    modalHexInput.setCustomValidity("");
+    modalHexInput.value = color.toUpperCase();
+    modalVisualInput.value = color;
+    const trigger = dom.globalSettingsContent.querySelector(`#${CSS.escape(colorModal.dataset.triggerId || "")}`);
+    if (trigger) {
+      trigger.dataset.globalColorValue = color;
+      trigger.querySelector(".background-color-preview").style.background = color;
+      trigger.querySelector(".background-color-value").textContent = color.toUpperCase();
     }
-    if (input.dataset.globalColorKind === "typography") {
-      styles[input.dataset.globalColorStyle].color = color;
-      markChanged(`${styles[input.dataset.globalColorStyle].name} color updated`);
+    if (colorModal.dataset.colorKind === "typography") {
+      styles[colorModal.dataset.colorStyle].color = color;
+      markChanged(`${styles[colorModal.dataset.colorStyle].name} color updated`);
     } else {
-      defaultBackground[input.dataset.globalColorProperty] = color;
+      defaultBackground[colorModal.dataset.colorProperty] = color;
       markChanged("Default background updated");
     }
     renderCanvas();
@@ -743,15 +755,35 @@ function renderGlobalSettings() {
     if (presenterOpen) renderPresenter();
     return true;
   }
-  dom.globalSettingsContent.querySelectorAll("[data-global-hex-color]").forEach((input) => {
-    input.addEventListener("change", () => commitGlobalHexInput(input, input.value));
-  });
-  dom.globalSettingsContent.querySelectorAll("[data-global-color-swatch]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const input = dom.globalSettingsContent.querySelector(`#${CSS.escape(button.dataset.globalColorTarget)}`);
-      if (input && commitGlobalHexInput(input, button.dataset.globalColorSwatch)) input.closest("details").open = false;
+  function closeGlobalColorModal() {
+    colorModal.classList.add("hidden");
+    colorModal.setAttribute("aria-hidden", "true");
+  }
+  dom.globalSettingsContent.querySelectorAll("[data-open-global-color]").forEach((trigger) => {
+    trigger.addEventListener("click", () => {
+      const color = normalizeHexColor(trigger.dataset.globalColorValue) || "#000000";
+      colorModal.dataset.triggerId = trigger.id;
+      colorModal.dataset.colorKind = trigger.dataset.globalColorKind;
+      colorModal.dataset.colorStyle = trigger.dataset.globalColorStyle || "";
+      colorModal.dataset.colorProperty = trigger.dataset.globalColorProperty;
+      colorModal.querySelector("#globalColorPickerTitle").textContent = trigger.dataset.globalColorKind === "typography"
+        ? `${styles[trigger.dataset.globalColorStyle]?.name || "Typography"} color`
+        : `${trigger.dataset.globalColorLabel || "Background"} color`;
+      modalHexInput.value = color.toUpperCase();
+      modalVisualInput.value = color;
+      colorModal.classList.remove("hidden");
+      colorModal.setAttribute("aria-hidden", "false");
+      modalHexInput.focus();
+      modalHexInput.select();
     });
   });
+  modalHexInput.addEventListener("change", () => commitGlobalModalColor(modalHexInput.value));
+  modalVisualInput.addEventListener("input", () => commitGlobalModalColor(modalVisualInput.value));
+  dom.globalSettingsContent.querySelectorAll("[data-global-modal-swatch]").forEach((button) => {
+    button.addEventListener("click", () => commitGlobalModalColor(button.dataset.globalModalSwatch));
+  });
+  dom.globalSettingsContent.querySelectorAll("[data-close-global-color]").forEach((button) => button.addEventListener("click", closeGlobalColorModal));
+  colorModal.addEventListener("keydown", (event) => { if (event.key === "Escape") closeGlobalColorModal(); });
   dom.globalSettingsContent.querySelector("#globalDefaultBackgroundType")?.addEventListener("change", (event) => {
     defaultBackground.type = event.target.value;
     markChanged("Default background style updated");
