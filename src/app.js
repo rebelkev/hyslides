@@ -96,6 +96,7 @@ let audienceOpen = false;
 let templatesExpanded = readTemplatesExpandedPreference();
 let liveSession = {
   code: "",
+  instanceId: "",
   joinUrl: "",
   qrSrc: "",
   backendAvailable: false,
@@ -2049,9 +2050,14 @@ function deleteSelection() {
     return;
   }
   const slide = currentSlide();
-  slide.elements = slide.elements.filter((element) => !selectedIds.includes(element.id) || element.locked);
+  const protectedJoinElementSelected = slide.elements.some(
+    (element) => selectedIds.includes(element.id) && element.audienceJoinRole
+  );
+  slide.elements = slide.elements.filter(
+    (element) => !selectedIds.includes(element.id) || element.locked || element.audienceJoinRole
+  );
   selectedIds = [];
-  markChanged("Selection deleted");
+  markChanged(protectedJoinElementSelected ? "Join elements can be hidden from Slide settings" : "Selection deleted");
   renderAll();
 }
 
@@ -2500,6 +2506,8 @@ function renderAudience() {
 function startLiveSession() {
   const code = ensureAudienceCode();
   liveSession.code = code;
+  liveSession.instanceId = crypto.randomUUID?.() || `session-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  liveSession.lastPublishedSignature = "";
   liveSession.joinUrl = audienceLink();
   liveSession.qrSrc = liveQrImageSrc(liveSession.joinUrl);
   liveSession.status = isLocalJoinUrl(liveSession.joinUrl)
@@ -2535,7 +2543,7 @@ async function publishCurrentLiveSession(force = false) {
   if (liveSession.publishing || !liveSession.code) {
     return;
   }
-  const snapshot = liveSnapshotForDeck(deck, currentSlide(), activeSlideIndex);
+  const snapshot = liveSnapshotForDeck(deck, currentSlide(), activeSlideIndex, liveSession.instanceId);
   const signature = JSON.stringify(snapshot);
   if (!force && signature === liveSession.lastPublishedSignature) {
     return;
