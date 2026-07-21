@@ -3624,6 +3624,7 @@ async function renderLiveAudience() {
   }
 
   const liveSlide = audienceLive.state.slide;
+  syncEngagementElementsFromSlide(liveSlide);
   const liveDeck = normalizeDeck({
     ...liveStateDeck(audienceLive.state),
     slides: [liveSlide],

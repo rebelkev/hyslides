@@ -489,16 +489,32 @@ function drawChoicePreview(ctx, element, deck, options, padding, y, renderOption
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = correct.has(option) ? "#0c6f66" : deck.theme.colors.ink;
-    ctx.fillText(`${String.fromCharCode(65 + index)}. ${option}`, padding + 16, rowY + rowHeight / 2, element.w - padding * 2 - 32);
+    const count = Math.max(0, Number(element.results?.[option]) || 0);
+    const total = Math.max(1, Object.values(element.results || {}).reduce((sum, value) => sum + (Number(value) || 0), 0));
+    const progress = count / total;
+    if (progress > 0) {
+      ctx.save();
+      ctx.globalAlpha *= 0.16;
+      ctx.fillStyle = correct.has(option) ? "#0c8b7f" : element.accent || deck.theme.colors.primary;
+      roundedRect(ctx, padding, rowY, (element.w - padding * 2) * progress, rowHeight, 8);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.fillStyle = correct.has(option) ? "#0c6f66" : deck.theme.colors.ink;
+    ctx.fillText(`${String.fromCharCode(65 + index)}. ${option} · ${count}`, padding + 16, rowY + rowHeight / 2, element.w - padding * 2 - 32);
   });
 }
 
 function drawWordCloudPreview(ctx, element, deck, options, padding, y) {
-  const words = options.slice(0, 8);
+  const words = Object.entries(element.results || {})
+    .sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0))
+    .slice(0, 12);
+  const displayWords = words.length ? words : options.slice(0, 8).map((word) => [word, 0]);
+  const maxCount = Math.max(1, ...displayWords.map(([, count]) => Number(count) || 0));
   let x = padding;
   ctx.textBaseline = "middle";
-  words.forEach((word, index) => {
-    const fontSize = 18 + (index % 3) * 7;
+  displayWords.forEach(([word, count], index) => {
+    const fontSize = 16 + Math.round(((Number(count) || 0) / maxCount) * 20);
     ctx.font = `800 ${fontSize}px ${deck.theme.fonts.body}, Arial, sans-serif`;
     const width = ctx.measureText(word).width + 24;
     if (x + width > element.w - padding) {
@@ -529,14 +545,20 @@ function drawQnaPreview(ctx, element, deck, padding, y) {
 }
 
 function drawReactionPreview(ctx, element, deck, padding, y) {
-  const labels = ["Like", "Love", "Clap", "Wow", "Fire"];
+  const labels = [
+    ["Like", "thumbsUp"],
+    ["Love", "heart"],
+    ["Clap", "clap"],
+    ["Wow", "wow"],
+    ["Fire", "fire"],
+  ];
   const itemGap = 10;
   const itemWidth = Math.max(70, (element.w - padding * 2 - itemGap * 4) / 5);
   const itemHeight = Math.max(46, Math.min(74, element.h - y - padding));
   ctx.font = `800 16px ${deck.theme.fonts.body}, Arial, sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  labels.forEach((label, index) => {
+  labels.forEach(([label, key], index) => {
     const x = padding + index * (itemWidth + itemGap);
     ctx.fillStyle = "#f8fafc";
     ctx.strokeStyle = "#d7dde6";
@@ -544,7 +566,7 @@ function drawReactionPreview(ctx, element, deck, padding, y) {
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = deck.theme.colors.ink;
-    ctx.fillText(label, x + itemWidth / 2, y + itemHeight / 2, itemWidth - 10);
+    ctx.fillText(`${label} · ${Math.max(0, Number(element.reactions?.[key]) || 0)}`, x + itemWidth / 2, y + itemHeight / 2, itemWidth - 10);
   });
   ctx.textAlign = "left";
 }

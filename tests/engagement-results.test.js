@@ -41,3 +41,25 @@ test("linked poll charts update from canonical engagement results", () => {
 
   assert.deepEqual(chart.values, [3, 7]);
 });
+
+test("legacy charts bind when their labels match engagement options", () => {
+  const chart = createElement("chart", {
+    name: "Chart",
+    labels: ["Alpha", "Beta"],
+    values: [9, 4],
+  });
+  const slide = createSlide({
+    engagement: {
+      enabled: true,
+      type: "poll",
+      options: ["Alpha", "Beta"],
+      results: { Beta: 1 },
+    },
+    elements: [chart],
+  });
+
+  syncEngagementResultCharts(slide);
+
+  assert.equal(chart.engagementResults, true);
+  assert.deepEqual(chart.values, [0, 1]);
+});

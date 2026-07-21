@@ -793,10 +793,17 @@ export function normalizeElement(raw) {
 
 export function syncEngagementResultCharts(slide) {
   const engagement = slide?.engagement || {};
+  const engagementLabels = (engagement.options || []).map((label) => String(label));
   for (const element of slide?.elements || []) {
+    const chartLabels = Array.isArray(element.labels)
+      ? element.labels.map((label) => String(label))
+      : [];
+    const labelsMatchEngagement = engagementLabels.length > 0 &&
+      chartLabels.length === engagementLabels.length &&
+      chartLabels.every((label, index) => label === engagementLabels[index]);
     if (
       element.type !== "chart" ||
-      (!element.engagementResults && element.name !== "Poll results")
+      (!element.engagementResults && element.name !== "Poll results" && !labelsMatchEngagement)
     ) {
       continue;
     }
