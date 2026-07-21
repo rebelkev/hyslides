@@ -8,6 +8,7 @@
 - Corrected animated-background frame compositing so the Intensity control now ranges visibly from transparent/subtle to vivid without accumulating to full strength.
 - Simplified animated-background Intensity to a compact 0–100 percentage field beside Speed.
 - Made background overlays explicitly optional with an enable checkbox, and made 100% animated intensity render the chosen effect colors at full strength.
+- Added the deck’s linked global color swatches beneath every background color picker, including solid, gradient, animated-effect, and overlay colors.
 - Consolidated Quiz into Multiple Choice with an optional “This question has correct answers” setting, and automatically migrates existing Quiz slides without losing their answer keys.
 - Renamed the selected element's inner inspector heading to “Engagement type” to distinguish it from the element name.
 - Holding Shift while dragging any resize handle now preserves the selection's aspect ratio.

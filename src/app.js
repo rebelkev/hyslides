@@ -1610,8 +1610,8 @@ function renderSlideInspector(slide) {
       </select></div>
       ${slide.backgroundType === "gradient" ? `
         <div class="field-grid">
-          <div class="field-row"><label for="gradientStartInput">Start</label><input id="gradientStartInput" type="color" value="${slide.backgroundGradientStart || deck.theme.colors.primary}" /></div>
-          <div class="field-row"><label for="gradientEndInput">End</label><input id="gradientEndInput" type="color" value="${slide.backgroundGradientEnd || deck.theme.colors.accent}" /></div>
+          ${backgroundColorControlMarkup("gradientStartInput", "Start", slide.backgroundGradientStart || deck.theme.colors.primary, "backgroundGradientStart", "backgroundGradientStartStyleId", slide.backgroundGradientStartStyleId)}
+          ${backgroundColorControlMarkup("gradientEndInput", "End", slide.backgroundGradientEnd || deck.theme.colors.accent, "backgroundGradientEnd", "backgroundGradientEndStyleId", slide.backgroundGradientEndStyleId)}
         </div>
         <div class="field-row"><label for="gradientAngleInput">Angle</label><input id="gradientAngleInput" type="range" min="0" max="360" step="1" value="${Number(slide.backgroundGradientAngle) || 0}" /><span>${Math.round(Number(slide.backgroundGradientAngle) || 0)}°</span></div>
       ` : slide.backgroundType === "image" ? `
@@ -1620,17 +1620,17 @@ function renderSlideInspector(slide) {
       ` : slide.backgroundType === "animated" ? `
         <div class="field-row"><label for="backgroundShaderInput">Effect</label><select id="backgroundShaderInput">${animationOptionList(backgroundShaderOptions.filter((item) => item.value !== "none").map((item) => [item.value, item.label]), slide.backgroundShader || "aurora")}</select></div>
         <div class="field-grid">
-          <div class="field-row"><label for="backgroundEffectColorAInput">Effect color 1</label><input id="backgroundEffectColorAInput" type="color" value="${slide.backgroundEffectColorA || deck.theme.colors.primary}" /></div>
-          <div class="field-row"><label for="backgroundEffectColorBInput">Effect color 2</label><input id="backgroundEffectColorBInput" type="color" value="${slide.backgroundEffectColorB || deck.theme.colors.accent}" /></div>
+          ${backgroundColorControlMarkup("backgroundEffectColorAInput", "Effect color 1", slide.backgroundEffectColorA || deck.theme.colors.primary, "backgroundEffectColorA", "backgroundEffectColorAStyleId", slide.backgroundEffectColorAStyleId)}
+          ${backgroundColorControlMarkup("backgroundEffectColorBInput", "Effect color 2", slide.backgroundEffectColorB || deck.theme.colors.accent, "backgroundEffectColorB", "backgroundEffectColorBStyleId", slide.backgroundEffectColorBStyleId)}
         </div>
         <div class="field-grid">
           <div class="field-row"><label for="backgroundShaderIntensityInput">Intensity (%)</label><input id="backgroundShaderIntensityInput" type="number" min="0" max="100" step="1" value="${Math.round((Number.isFinite(Number(slide.backgroundShaderIntensity)) ? Number(slide.backgroundShaderIntensity) : 0.5) * 100)}" /></div>
           <div class="field-row"><label for="backgroundShaderSpeedInput">Speed</label><input id="backgroundShaderSpeedInput" type="number" min="0.1" max="3" step="0.1" value="${Number(slide.backgroundShaderSpeed) || 1}" /></div>
         </div>
-      ` : `<div class="field-row"><label for="slideBgInput">Color</label><input id="slideBgInput" type="color" value="${slide.background || "#ffffff"}" /></div>`}
+      ` : backgroundColorControlMarkup("slideBgInput", "Color", slide.background || "#ffffff", "background", "backgroundStyleId", slide.backgroundStyleId)}
       <div class="check-row"><input id="backgroundOverlayEnabledInput" type="checkbox" ${slide.backgroundOverlayEnabled ? "checked" : ""} /><label for="backgroundOverlayEnabledInput">Overlay</label></div>
       ${slide.backgroundOverlayEnabled ? `<div class="field-grid">
-        <div class="field-row"><label for="backgroundOverlayColorInput">Color</label><input id="backgroundOverlayColorInput" type="color" value="${slide.backgroundOverlayColor || "#000000"}" /></div>
+        ${backgroundColorControlMarkup("backgroundOverlayColorInput", "Color", slide.backgroundOverlayColor || "#000000", "backgroundOverlayColor", "backgroundOverlayColorStyleId", slide.backgroundOverlayColorStyleId)}
         <div class="field-row"><label for="backgroundOverlayOpacityInput">Opacity (%)</label><input id="backgroundOverlayOpacityInput" type="number" min="0" max="100" step="1" value="${Math.round((Number(slide.backgroundOverlayOpacity) || 0) * 100)}" /></div>
       </div>` : ""}
     </section>
@@ -1686,16 +1686,13 @@ function renderSlideInspector(slide) {
     markChanged("Slide background style updated");
     renderAll();
   });
-  bindValue("#slideBgInput", (value) => (slide.background = value));
-  bindValue("#gradientStartInput", (value) => (slide.backgroundGradientStart = value));
-  bindValue("#gradientEndInput", (value) => (slide.backgroundGradientEnd = value));
+  bindBackgroundColorControls(slide);
   bindNumber("#gradientAngleInput", (value) => (slide.backgroundGradientAngle = value));
   bindValue("#backgroundImageFitInput", (value) => (slide.backgroundImageFit = value));
   bindToggle("#backgroundOverlayEnabledInput", (value) => {
     slide.backgroundOverlayEnabled = value;
     if (value && !Number(slide.backgroundOverlayOpacity)) slide.backgroundOverlayOpacity = 0.2;
   });
-  bindValue("#backgroundOverlayColorInput", (value) => (slide.backgroundOverlayColor = value));
   bindNumber("#backgroundOverlayOpacityInput", (value) => (slide.backgroundOverlayOpacity = clamp(value / 100, 0, 1)));
   document.querySelector("#backgroundShaderInput")?.addEventListener("change", (event) => {
     slide.backgroundShader = event.target.value;
@@ -1704,8 +1701,6 @@ function renderSlideInspector(slide) {
   });
   bindNumber("#backgroundShaderIntensityInput", (value) => (slide.backgroundShaderIntensity = clamp(value / 100, 0, 1)));
   bindNumber("#backgroundShaderSpeedInput", (value) => (slide.backgroundShaderSpeed = clamp(value, 0.1, 3)));
-  bindValue("#backgroundEffectColorAInput", (value) => (slide.backgroundEffectColorA = value));
-  bindValue("#backgroundEffectColorBInput", (value) => (slide.backgroundEffectColorB = value));
   document.querySelector("#chooseBackgroundImageBtn")?.addEventListener("click", () => {
     dom.imageInput.dataset.replaceId = "";
     dom.imageInput.dataset.backgroundSlideId = slide.id;
@@ -2063,6 +2058,40 @@ function brandColorStyles() {
   return deck.theme.brandColorStyles;
 }
 
+function backgroundColorControlMarkup(inputId, label, value, colorKey, styleKey, activeStyleId) {
+  const swatches = brandColorStyles().map((style) => `
+    <button class="background-style-swatch ${activeStyleId === style.id ? "active" : ""}" type="button"
+      data-background-color-key="${attr(colorKey)}" data-background-style-key="${attr(styleKey)}"
+      data-background-style-id="${attr(style.id)}" title="${attr(style.name)}" aria-label="Use ${attr(style.name)}">
+      <span style="background:${attr(style.color)}"></span>
+    </button>`).join("");
+  return `<div class="field-row background-color-control"><label for="${attr(inputId)}">${escapeHtml(label)}</label><input id="${attr(inputId)}" type="color" value="${attr(value)}" data-background-color-input="${attr(colorKey)}" data-background-style-key="${attr(styleKey)}" /><div class="background-style-swatches">${swatches}</div></div>`;
+}
+
+function bindBackgroundColorControls(slide) {
+  document.querySelectorAll("[data-background-color-input]").forEach((input) => {
+    input.addEventListener("input", () => {
+      slide[input.dataset.backgroundColorInput] = input.value;
+      slide[input.dataset.backgroundStyleKey] = null;
+      markChanged("Background color updated");
+      renderCanvas();
+      renderSlides();
+      if (presenterOpen) renderPresenter();
+      if (audienceOpen) renderAudience();
+    });
+  });
+  document.querySelectorAll("[data-background-style-id]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const style = brandColorStyles().find((item) => item.id === button.dataset.backgroundStyleId);
+      if (!style) return;
+      slide[button.dataset.backgroundColorKey] = style.color;
+      slide[button.dataset.backgroundStyleKey] = style.id;
+      markChanged(`${style.name} color style linked`);
+      renderAll();
+    });
+  });
+}
+
 function normalizeHexColor(value) {
   const color = String(value || "").trim();
   return /^#[0-9a-f]{6}$/i.test(color) ? color.toLowerCase() : null;
@@ -2193,6 +2222,19 @@ function removeBrandColorStyle(styleId) {
   const style = brandColorStyles().find((item) => item.id === styleId);
   if (!style) return;
   for (const slide of deck.slides) {
+    for (const [colorKey, styleKey] of [
+      ["background", "backgroundStyleId"],
+      ["backgroundGradientStart", "backgroundGradientStartStyleId"],
+      ["backgroundGradientEnd", "backgroundGradientEndStyleId"],
+      ["backgroundEffectColorA", "backgroundEffectColorAStyleId"],
+      ["backgroundEffectColorB", "backgroundEffectColorBStyleId"],
+      ["backgroundOverlayColor", "backgroundOverlayColorStyleId"],
+    ]) {
+      if (slide[styleKey] === styleId) {
+        slide[colorKey] = style.color;
+        slide[styleKey] = null;
+      }
+    }
     for (const element of slide.elements) {
       if (element.brandColorStyleId === styleId) {
         setElementBrandColor(element, style.color);

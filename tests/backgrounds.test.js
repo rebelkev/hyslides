@@ -48,3 +48,11 @@ test("animated background intensity supports the full zero-to-one range", () => 
   assert.equal(normalizeBackgroundIntensity(1), 1);
   assert.equal(normalizeBackgroundIntensity(4), 1);
 });
+
+test("background color-style links survive deck normalization", () => {
+  const normalized = normalizeDeck(createDeck({
+    slides: [createSlide({ backgroundType: "animated", backgroundEffectColorAStyleId: "brand-primary", backgroundOverlayColorStyleId: "brand-ink" })],
+  }));
+  assert.equal(normalized.slides[0].backgroundEffectColorAStyleId, "brand-primary");
+  assert.equal(normalized.slides[0].backgroundOverlayColorStyleId, "brand-ink");
+});
