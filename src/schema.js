@@ -72,6 +72,14 @@ export function createElement(type, overrides = {}) {
     locked: false,
     groupId: null,
     name: titleCase(type),
+    animation: {
+      effect: "none",
+      trigger: "slideStart",
+      durationMs: 500,
+      delayMs: 0,
+      easing: "ease",
+      order: 0,
+    },
   };
 
   const byType = {
@@ -706,10 +714,15 @@ export function normalizeSlide(raw = {}) {
 }
 
 export function normalizeElement(raw) {
+  const defaults = createElement(raw.type || "shape");
   return {
-    ...createElement(raw.type || "shape"),
+    ...defaults,
     ...raw,
     id: raw.id || uid(raw.type || "element"),
+    animation: {
+      ...defaults.animation,
+      ...(raw.animation || {}),
+    },
   };
 }
 
