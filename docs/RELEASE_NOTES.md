@@ -62,6 +62,8 @@
 - Added a one-click timer insertion action for unplanned breaks.
 - Stabilized the countdown control card so timer actions no longer shift or jump the right panel.
 - Grouped Previous and Next together on the bottom-right.
+- Added projected live response and connected-participant counts.
+- Synchronized live Editor View changes into Presenter and Presentation Views while preserving active-session responses.
 
 ### Participant View Layout
 

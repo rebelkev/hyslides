@@ -1623,6 +1623,26 @@ body.presentation-window .presenter-actions:focus-within {
   opacity: 1;
 }
 
+.presentation-live-status {
+  display: none;
+}
+
+body.presentation-window .presentation-live-status {
+  backdrop-filter: blur(10px);
+  background: rgba(15, 23, 42, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  bottom: 20px;
+  color: #fff;
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  left: 20px;
+  padding: 9px 14px;
+  position: fixed;
+  z-index: 29;
+}
+
 .deck-library {
   align-items: center;
   display: flex;

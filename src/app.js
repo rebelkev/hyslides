@@ -86,6 +86,7 @@ const dom = {
   presenterTimer: document.querySelector("#presenterTimer"),
   presenterParticipantCount: document.querySelector("#presenterParticipantCount"),
   presenterResponseCount: document.querySelector("#presenterResponseCount"),
+  presentationLiveStatus: document.querySelector("#presentationLiveStatus"),
   presenterConnectionStatus: document.querySelector("#presenterConnectionStatus"),
   presenterFlowCount: document.querySelector("#presenterFlowCount"),
   presenterSlideList: document.querySelector("#presenterSlideList"),
@@ -120,6 +121,7 @@ let guides = [];
 let dragState = null;
 let clipboard = [];
 let saveTimer = null;
+let editorPresenterSyncTimer = null;
 let undoStack = [];
 let redoStack = [];
 let lastHistoryMessage = "";
@@ -2955,10 +2957,35 @@ function bindPresenterChannel() {
       skippedSlideIds = new Set(message.skippedSlideIds || []);
       presentationBlackout = Boolean(message.presentationBlackout);
       applyCountdownState(message.countdownStates || {});
+      liveSession.participantCount = Number(message.liveStatus?.participantCount || 0);
+      liveSession.responseCount = Number(message.liveStatus?.responseCount || 0);
       selectedSlideIndexes = new Set([activeSlideIndex]);
       renderAll();
       applyPresentationBlackout();
       queueLivePublish(true);
+    }
+    if (message.type === "editor-deck-updated" && (presenterWindowMode || presentationWindowMode) && message.deck) {
+      const activeSlideId = currentSlide()?.id;
+      const updatedDeck = normalizeDeck(message.deck);
+      for (const updatedSlide of updatedDeck.slides) {
+        const liveSlide = deck.slides.find((slide) => slide.id === updatedSlide.id);
+        if (!liveSlide?.engagement?.enabled || !updatedSlide.engagement?.enabled) continue;
+        updatedSlide.engagement.results = { ...(liveSlide.engagement.results || {}) };
+        updatedSlide.engagement.qna = [...(liveSlide.engagement.qna || [])];
+        updatedSlide.engagement.reactions = { ...(liveSlide.engagement.reactions || {}) };
+        syncEngagementElementsFromSlide(updatedSlide);
+      }
+      deck = updatedDeck;
+      const updatedActiveIndex = deck.slides.findIndex((slide) => slide.id === activeSlideId);
+      activeSlideIndex = updatedActiveIndex >= 0
+        ? updatedActiveIndex
+        : Math.max(0, Math.min(deck.slides.length - 1, activeSlideIndex));
+      selectedSlideIndexes = new Set([activeSlideIndex]);
+      renderAll();
+      if (presenterWindowMode) {
+        queueLivePublish(true);
+        sendPresenterSnapshot();
+      }
     }
     if (message.type === "active-slide" && message.source !== window.name) {
       activeSlideIndex = Math.max(0, Math.min(deck.slides.length - 1, Number(message.activeSlideIndex) || 0));
@@ -3002,6 +3029,10 @@ function sendPresenterSnapshot() {
     skippedSlideIds: [...skippedSlideIds],
     presentationBlackout,
     countdownStates: serializedCountdownState(),
+    liveStatus: {
+      participantCount: liveSession.participantCount,
+      responseCount: liveSession.responseCount,
+    },
   });
 }
 
@@ -3016,6 +3047,11 @@ async function renderPresenter() {
   dom.presenterResponseCount.textContent = slide.engagement?.enabled
     ? `${liveSession.responseCount}/${liveSession.participantCount}`
     : `—/${liveSession.participantCount}`;
+  if (dom.presentationLiveStatus) {
+    dom.presentationLiveStatus.textContent = slide.engagement?.enabled
+      ? `${liveSession.responseCount} response${liveSession.responseCount === 1 ? "" : "s"} · ${liveSession.participantCount} connected`
+      : `${liveSession.participantCount} connected`;
+  }
   dom.presenterConnectionStatus.textContent = liveSession.backendAvailable ? "Live" : liveSession.status;
   await drawSlideAsync(presenterCtx, slide, deck, {
     footer: true,
@@ -4435,6 +4471,19 @@ function markChanged(message) {
   setStatus(message);
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => saveDeck(deck).catch(() => {}), 500);
+  queueEditorPresenterSync();
+}
+
+function queueEditorPresenterSync() {
+  if (presenterWindowMode || presentationWindowMode) return;
+  clearTimeout(editorPresenterSyncTimer);
+  editorPresenterSyncTimer = setTimeout(() => {
+    presenterChannel?.postMessage({
+      type: "editor-deck-updated",
+      deck: JSON.parse(JSON.stringify(deck)),
+      activeSlideIndex,
+    });
+  }, 120);
 }
 
 function captureHistorySnapshot() {

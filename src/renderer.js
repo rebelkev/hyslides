@@ -389,7 +389,10 @@ function drawChart(ctx, element, deck) {
   ctx.textBaseline = "top";
   labels.forEach((label, index) => {
     const x = padding + index * (barWidth + barGap) + barWidth / 2;
-    ctx.fillText(shorten(label, 14), x, padding + chartHeight + 8, barWidth + 24);
+    const displayLabel = element.engagementResults
+      ? `${shorten(label, 11)} · ${values[index] || 0}`
+      : shorten(label, 14);
+    ctx.fillText(displayLabel, x, padding + chartHeight + 8, barWidth + 24);
   });
 }
 
