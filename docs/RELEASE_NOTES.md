@@ -74,6 +74,7 @@
 
 ### Participant View Layout
 
+- Removed automatic right/wrong feedback cards; correct answers now appear only after the presenter explicitly selects Display correct answers.
 - Converted QR/access-code entry into a standalone full-page Participant View with no Editor View behind it and no Close action.
 - Removed presentation-only and generic connected-status messages.
 - Replaced the always-open Q&A form with a floating bottom-right question launcher.

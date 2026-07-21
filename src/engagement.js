@@ -47,7 +47,7 @@ export function getAnswerFeedback(slide, response) {
   return {
     correctAnswers,
     isCorrect: correctAnswers.includes(response),
-    shouldReveal: engagement.showCorrectAnswer,
+    shouldReveal: engagement.correctAnswerRevealed,
   };
 }
 
@@ -130,21 +130,6 @@ export function renderAudienceContent(container, deck, slide, onSubmit, latestRe
   join.className = "result-row";
   join.innerHTML = `<strong>${escapeHtml(engagement.prompt)}</strong>`;
   container.append(join);
-
-  const feedback = getAnswerFeedback(slide, latestResponses.at(-1) || null);
-  const canRevealAnswer = ["multipleChoice", "quiz"].includes(engagement.type);
-  if (feedback?.shouldReveal || (canRevealAnswer && engagement.correctAnswerRevealed)) {
-    renderAudienceFeedback(
-      container,
-      feedback || {
-        correctAnswers: normalizedCorrectAnswers(engagement),
-        isCorrect: false,
-        shouldReveal: true,
-        revealedByPresenter: true,
-      },
-      latestResponse
-    );
-  }
 
   if (["poll", "multipleChoice", "quiz"].includes(engagement.type)) {
     const responseLimit = engagement.type === "poll"
@@ -276,21 +261,6 @@ function renderCorrectAnswerSummary(container, engagement) {
     ? `<strong>Correct answer${correctAnswers.length > 1 ? "s" : ""}</strong><span>${correctAnswers.map(escapeHtml).join(", ")}</span>`
     : "<strong>Correct answers</strong><span>No correct answer marked yet</span>";
   container.append(row);
-}
-
-function renderAudienceFeedback(container, feedback, response) {
-  const card = document.createElement("div");
-  const tone = response ? (feedback.isCorrect ? "correct" : "incorrect") : "correct";
-  card.className = `feedback-card ${tone}`;
-  const answerText = feedback.correctAnswers.length
-    ? feedback.correctAnswers.map(escapeHtml).join(", ")
-    : "No correct answer has been marked yet.";
-  card.innerHTML = `
-    <strong>${response ? (feedback.isCorrect ? "Correct" : "Answer submitted") : "Correct answer"}</strong>
-    <span>${response ? `You chose ${escapeHtml(response)}.` : ""}</span>
-    <span>Correct answer${feedback.correctAnswers.length > 1 ? "s" : ""}: ${answerText}</span>
-  `;
-  container.append(card);
 }
 
 function renderWordCloud(container, engagement) {

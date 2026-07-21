@@ -43,7 +43,7 @@ await test("PPTX export imports back into editable slides", async () => {
   assert(imported.slides[0].elements.length > 0, "expected editable elements after import");
 });
 
-await test("multiple choice feedback supports multiple correct answers", async () => {
+await test("multiple choice answers stay private until the presenter reveals them", async () => {
   const deck = createSeedDeck();
   const slide = deck.slides[0];
   slide.engagement.enabled = true;
@@ -52,8 +52,13 @@ await test("multiple choice feedback supports multiple correct answers", async (
   slide.engagement.correctAnswers = ["Alpha", "Gamma"];
   slide.engagement.showCorrectAnswer = true;
 
+  const hidden = getAnswerFeedback(slide, "Gamma");
+  assert(!hidden.shouldReveal, "expected correct answers to remain hidden before presenter reveal");
+
+  slide.engagement.correctAnswerRevealed = true;
   const correct = getAnswerFeedback(slide, "Gamma");
   const incorrect = getAnswerFeedback(slide, "Beta");
+  assert(correct.shouldReveal, "expected presenter reveal to expose correct answers");
   assert(correct.isCorrect, "expected Gamma to be accepted as correct");
   assert(!incorrect.isCorrect, "expected Beta to be marked incorrect");
   assert(correct.correctAnswers.length === 2, "expected two correct answers");

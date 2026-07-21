@@ -1475,25 +1475,6 @@ label {
   padding: 8px;
 }
 
-.feedback-card {
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  display: grid;
-  gap: 5px;
-  margin-top: 14px;
-  padding: 12px;
-}
-
-.feedback-card.correct {
-  background: #eefbf8;
-  border-color: #95d8cf;
-}
-
-.feedback-card.incorrect {
-  background: #fff7ed;
-  border-color: #f3c47a;
-}
-
 .presenter-actions {
   background: #f8fafc;
   border-radius: 10px;

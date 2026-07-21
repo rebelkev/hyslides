@@ -1592,7 +1592,6 @@ function renderSlideInspector(slide) {
       <div class="field-row"><label for="engagementPrompt">Prompt</label><input id="engagementPrompt" value="${attr(slide.engagement.prompt)}" /></div>
       ${engagementOptionEditor(slide.engagement, "slide")}
       ${slide.engagement.type === "poll" ? `<div class="field-row"><label for="engagementResponseLimit">Selections allowed per participant</label><input id="engagementResponseLimit" type="number" min="1" max="${Math.max(1, slide.engagement.options.length)}" value="${Math.min(Math.max(1, Number(slide.engagement.responseLimit) || 1), Math.max(1, slide.engagement.options.length))}" /></div>` : ""}
-      ${answerRevealField(slide.engagement, "slide")}
       <div class="check-row"><input id="audienceJoinElementsToggle" type="checkbox" ${audienceJoinVisible ? "checked" : ""} /><label for="audienceJoinElementsToggle">Show QR code and access code on this slide</label></div>
       <div class="field-row">
         <label>Audience join</label>
@@ -1648,7 +1647,6 @@ function renderSlideInspector(slide) {
     markChanged("Poll response limit updated");
     renderAll();
   });
-  bindAnswerRevealField(slide.engagement, "slide", () => syncEngagementElementsFromSlide(slide));
 }
 
 function renderElementInspector(element) {
@@ -1790,7 +1788,6 @@ function elementInspectorFields(element) {
         <div class="field-row"><label for="engagementElementMode">Mode</label><select id="engagementElementMode">${engagementTypes.map((type) => `<option value="${type.value}" ${element.mode === type.value ? "selected" : ""}>${type.label}</option>`).join("")}</select></div>
         <div class="field-row"><label for="engagementElementPrompt">Prompt</label><input id="engagementElementPrompt" value="${attr(element.prompt)}" /></div>
         ${engagementOptionEditor({ ...element, type: element.mode }, "element")}
-        ${answerRevealField({ ...element, type: element.mode }, "element")}
       </section>`;
   }
 
@@ -2169,19 +2166,6 @@ function engagementOptionEditor(engagement, scope) {
       ${supportsAnswers ? `<span class="field-help">Check every correct answer.</span>` : ""}
       <div class="engagement-option-list">${optionRows}</div>
       <button class="engagement-option-add" type="button" data-option-add>Add option</button>
-    </div>
-  `;
-}
-
-function answerRevealField(engagement, scope) {
-  if (!["multipleChoice", "quiz"].includes(engagement.type)) {
-    return "";
-  }
-  const id = scope === "slide" ? "showCorrectAnswerToggle" : "engagementElementReveal";
-  return `
-    <div class="check-row">
-      <input id="${id}" type="checkbox" ${engagement.showCorrectAnswer ? "checked" : ""} />
-      <label for="${id}">Show correct answer after response</label>
     </div>
   `;
 }
@@ -4311,18 +4295,6 @@ function bindEngagementOptionEditor(engagement, scope, synchronize) {
   });
 }
 
-function bindAnswerRevealField(engagement, scope, synchronize) {
-  const selector = scope === "slide" ? "#showCorrectAnswerToggle" : "#engagementElementReveal";
-  const toggle = document.querySelector(selector);
-  toggle?.addEventListener("change", () => {
-    engagement.showCorrectAnswer = toggle.checked;
-    synchronize();
-    markChanged("Answer reveal updated");
-    if (presenterOpen) renderPresenter();
-    if (audienceOpen) renderAudience();
-  });
-}
-
 function bindEngagementElementFields(element) {
   const mode = document.querySelector("#engagementElementMode");
   mode?.addEventListener("change", () => {
@@ -4348,7 +4320,6 @@ function bindEngagementElementFields(element) {
   });
 
   bindEngagementOptionEditor(element, "element", () => syncSlideEngagementFromElement(element));
-  bindAnswerRevealField(element, "element", () => syncSlideEngagementFromElement(element));
 }
 
 function bindNumber(selector, setter) {
