@@ -57,11 +57,13 @@ Ended sessions older than 14 days are purged with their participant records, sub
 
 ## Live API Surface
 
-- `GET /api/live/:code` — current participant-facing session state
+- `GET /api/live/:code` — current participant-facing session state; a valid presenter token includes pending Q&A
 - `PUT /api/live/:code` — publish presenter state
 - `POST /api/live/:code/responses` — submit a response
 - `POST /api/live/:code/presence` — participant heartbeat
 - `POST /api/live/:code/control` — session control actions
+- `POST /api/live/:code/questions/:questionId/moderate` — presenter-only display/hide/answered/delete actions
+- `POST /api/live/:code/questions/:questionId/vote` — one participant upvote per device
 - `GET /api/sessions?deckId=...` — session history for a deck
 - `GET /api/sessions/:instanceId` — session details
 - `PATCH /api/sessions/:instanceId` — rename a session
@@ -97,4 +99,4 @@ Before publishing a change:
 
 ## Next Architectural Milestone
 
-Separate the four canonical views cleanly, then build Presenter View Desktop and Mobile. Presenter View should control Presentation View while Participant View follows the same live active-slide state.
+Add user accounts before server-backed deck ownership, admin template management, team workspaces, or durable cross-device analytics.
