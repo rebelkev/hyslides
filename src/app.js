@@ -130,6 +130,8 @@ let skippedSlideIds = new Set();
 let presentationBlackout = false;
 let presenterStartedAt = 0;
 let presenterTimerInterval = 0;
+let countdownRuntime = new Map();
+let countdownTickInterval = 0;
 let audienceOpen = false;
 let templatesExpanded = readTemplatesExpandedPreference();
 let inspectorTab = "properties";
@@ -409,7 +411,7 @@ function upgradeIconButtons() {
     "layer-up": "bring-to-front", "layer-down": "send-to-back", "to-front": "chevrons-up",
     "to-back": "chevrons-down", "align-horizontal": "align-horizontal-space-around",
     "align-vertical": "align-vertical-space-around", "zoom-out": "zoom-out", "zoom-in": "zoom-in",
-    undo: "undo-2", redo: "redo-2",
+    undo: "undo-2", redo: "redo-2", timer: "timer",
   };
   document.querySelectorAll("[data-icon]").forEach((control) => {
     const label = control.getAttribute("aria-label") || control.getAttribute("title") || control.textContent.trim();
@@ -1523,6 +1525,7 @@ function elementTreeIconForType(type) {
     table: ["table-2", "table"],
     divider: ["minus", "minus"],
     engagement: ["message-square", "engagement"],
+    countdown: ["timer", "history"],
   };
   const [lucideName, fallbackName] = icons[type] || ["square", "shapes"];
   return elementTreeIcon(lucideName, fallbackName);
@@ -1767,6 +1770,26 @@ function elementInspectorFields(element) {
       </section>`;
   }
 
+  if (element.type === "countdown") {
+    return `
+      <section class="inspector-section">
+        <strong>Countdown</strong>
+        <div class="field-grid">
+          <div class="field-row"><label for="countdownMinutesInput">Minutes</label><input id="countdownMinutesInput" type="number" min="0" max="999" value="${Math.floor((element.durationSeconds || 0) / 60)}" /></div>
+          <div class="field-row"><label for="countdownSecondsInput">Seconds</label><input id="countdownSecondsInput" type="number" min="0" max="59" value="${(element.durationSeconds || 0) % 60}" /></div>
+          <div class="field-row"><label for="countdownFontSizeInput">Text size</label><input id="countdownFontSizeInput" type="number" min="12" max="240" value="${element.fontSize || 104}" /></div>
+          <div class="field-row"><label for="countdownColorInput">Text color</label><input id="countdownColorInput" type="color" value="${element.color || "#1d232a"}" /></div>
+          <div class="field-row"><label for="countdownFillInput">Background</label><input id="countdownFillInput" type="color" value="${element.fill === "transparent" ? "#ffffff" : element.fill || "#ffffff"}" /></div>
+          <div class="field-row"><label for="countdownAlignInput">Align</label><select id="countdownAlignInput">${optionList(["left", "center", "right"], element.align || "center")}</select></div>
+        </div>
+        <div class="field-row"><label for="countdownCompletionInput">At zero</label><select id="countdownCompletionInput">${animationOptionList([["zero", "Remain at 00:00"], ["message", "Show a message"]], element.completionBehavior || "message")}</select></div>
+        <div class="field-row"><label for="countdownMessageInput">Completion message</label><input id="countdownMessageInput" value="${attr(element.completionMessage || "Break is over")}" /></div>
+        <div class="check-row"><input id="countdownAutoStartInput" type="checkbox" ${element.autoStart ? "checked" : ""} /><label for="countdownAutoStartInput">Start when slide appears</label></div>
+        <div class="check-row"><input id="countdownAutoAdvanceInput" type="checkbox" ${element.autoAdvance ? "checked" : ""} /><label for="countdownAutoAdvanceInput">Advance to next slide at zero</label></div>
+        <p class="field-help">The timer is controlled live from Presenter View. Editor and filmstrip previews show its starting duration.</p>
+      </section>`;
+  }
+
   return "";
 }
 
@@ -1834,6 +1857,26 @@ function bindTypeFields(element) {
 
   if (element.type === "engagement") {
     bindEngagementElementFields(element);
+  }
+
+  if (element.type === "countdown") {
+    const updateDuration = () => {
+      const minutes = Math.max(0, Number(document.querySelector("#countdownMinutesInput")?.value) || 0);
+      const seconds = Math.max(0, Math.min(59, Number(document.querySelector("#countdownSecondsInput")?.value) || 0));
+      element.durationSeconds = minutes * 60 + seconds;
+      markChanged("Countdown duration updated");
+      renderCanvas();
+    };
+    document.querySelector("#countdownMinutesInput")?.addEventListener("change", updateDuration);
+    document.querySelector("#countdownSecondsInput")?.addEventListener("change", updateDuration);
+    bindNumber("#countdownFontSizeInput", (value) => (element.fontSize = Math.max(12, value)));
+    bindValue("#countdownColorInput", (value) => (element.color = value));
+    bindValue("#countdownFillInput", (value) => (element.fill = value));
+    bindValue("#countdownAlignInput", (value) => (element.align = value));
+    bindValue("#countdownCompletionInput", (value) => (element.completionBehavior = value));
+    bindValue("#countdownMessageInput", (value) => (element.completionMessage = value));
+    bindToggle("#countdownAutoStartInput", (value) => (element.autoStart = value));
+    bindToggle("#countdownAutoAdvanceInput", (value) => (element.autoAdvance = value));
   }
 }
 
@@ -2837,6 +2880,8 @@ function closePresenter() {
   }
   clearInterval(presenterTimerInterval);
   presenterTimerInterval = 0;
+  clearInterval(countdownTickInterval);
+  countdownTickInterval = 0;
   if (presenterWindowMode || presentationWindowMode) {
     window.close();
   }
@@ -2882,6 +2927,7 @@ function bindPresenterChannel() {
       activeSlideIndex = Math.max(0, Math.min(deck.slides.length - 1, Number(message.activeSlideIndex) || 0));
       skippedSlideIds = new Set(message.skippedSlideIds || []);
       presentationBlackout = Boolean(message.presentationBlackout);
+      applyCountdownState(message.countdownStates || {});
       selectedSlideIndexes = new Set([activeSlideIndex]);
       renderAll();
       applyPresentationBlackout();
@@ -2908,6 +2954,10 @@ function bindPresenterChannel() {
       const slide = deck.slides.find((item) => item.id === message.slideId);
       if (slide) slide.notes = message.notes || "";
     }
+    if (message.type === "countdown-state") {
+      applyCountdownState(message.states || {});
+      if (presentationWindowMode) drawPresentationCountdownFrame();
+    }
   });
 }
 
@@ -2918,11 +2968,13 @@ function sendPresenterSnapshot() {
     activeSlideIndex,
     skippedSlideIds: [...skippedSlideIds],
     presentationBlackout,
+    countdownStates: serializedCountdownState(),
   });
 }
 
 async function renderPresenter() {
   const slide = currentSlide();
+  ensureSlideCountdowns(slide);
   ensurePresenterAnimationPlayback(slide);
   dom.presenterDeckTitle.textContent = deck.title;
   dom.presenterSlideTitle.textContent = `${activeSlideIndex + 1}. ${slide.title}`;
@@ -2936,6 +2988,7 @@ async function renderPresenter() {
     footer: true,
     revealCorrectAnswers: shouldRevealCorrectAnswers(slide),
     elementStates: presentationWindowMode ? presenterElementStates(slide) : null,
+    countdownStates: countdownStatesForRenderer(),
   });
   const nextIndex = nextIncludedSlideIndex(activeSlideIndex, 1);
   const nextSlide = nextIndex === activeSlideIndex ? slide : deck.slides[nextIndex];
@@ -2957,8 +3010,175 @@ async function renderPresenter() {
       renderAll();
     });
     renderLiveJoinPanel(slide);
+    renderCountdownControls(slide);
     queueLivePublish();
   }
+}
+
+function countdownElements(slide = currentSlide()) {
+  return (slide?.elements || []).filter((element) => element.type === "countdown");
+}
+
+function ensureSlideCountdowns(slide) {
+  for (const element of countdownElements(slide)) {
+    if (countdownRuntime.has(element.id)) continue;
+    countdownRuntime.set(element.id, {
+      remainingSeconds: Math.max(0, Number(element.durationSeconds) || 0),
+      running: false,
+      endsAt: 0,
+      completed: false,
+    });
+    if (element.autoStart && presenterWindowMode) startCountdown(element.id);
+  }
+}
+
+function countdownStatesForRenderer() {
+  return Object.fromEntries([...countdownRuntime].map(([id, state]) => [id, {
+    remainingSeconds: countdownRemaining(state),
+    running: state.running,
+    completed: state.completed,
+  }]));
+}
+
+function serializedCountdownState() {
+  return countdownStatesForRenderer();
+}
+
+function applyCountdownState(states) {
+  for (const [id, state] of Object.entries(states)) {
+    countdownRuntime.set(id, {
+      remainingSeconds: Math.max(0, Number(state.remainingSeconds) || 0),
+      running: Boolean(state.running),
+      endsAt: state.running ? Date.now() + Math.max(0, Number(state.remainingSeconds) || 0) * 1000 : 0,
+      completed: Boolean(state.completed),
+    });
+  }
+}
+
+function countdownRemaining(state) {
+  return state.running ? Math.max(0, Math.ceil((state.endsAt - Date.now()) / 1000)) : Math.max(0, Number(state.remainingSeconds) || 0);
+}
+
+function startCountdown(elementId) {
+  const element = currentSlide().elements.find((item) => item.id === elementId && item.type === "countdown");
+  if (!element) return;
+  const state = countdownRuntime.get(elementId) || { remainingSeconds: element.durationSeconds || 0 };
+  const remaining = state.completed || countdownRemaining(state) <= 0 ? element.durationSeconds || 0 : countdownRemaining(state);
+  countdownRuntime.set(elementId, { remainingSeconds: remaining, running: true, endsAt: Date.now() + remaining * 1000, completed: false });
+  startCountdownTicker();
+  broadcastCountdownState();
+}
+
+function pauseCountdown(elementId) {
+  const state = countdownRuntime.get(elementId);
+  if (!state) return;
+  state.remainingSeconds = countdownRemaining(state);
+  state.running = false;
+  state.endsAt = 0;
+  broadcastCountdownState();
+  renderCountdownControls(currentSlide());
+}
+
+function resetCountdown(elementId) {
+  const element = currentSlide().elements.find((item) => item.id === elementId);
+  if (!element) return;
+  countdownRuntime.set(elementId, { remainingSeconds: element.durationSeconds || 0, running: false, endsAt: 0, completed: false });
+  broadcastCountdownState();
+  drawPresentationCountdownFrame();
+  renderCountdownControls(currentSlide());
+}
+
+function addCountdownTime(elementId, seconds = 60) {
+  const state = countdownRuntime.get(elementId);
+  if (!state) return;
+  if (state.running) state.endsAt += seconds * 1000;
+  else state.remainingSeconds = countdownRemaining(state) + seconds;
+  state.completed = false;
+  broadcastCountdownState();
+}
+
+function startCountdownTicker() {
+  if (countdownTickInterval) return;
+  countdownTickInterval = window.setInterval(tickCountdowns, 250);
+}
+
+function tickCountdowns() {
+  let hasRunning = false;
+  let changed = false;
+  for (const [id, state] of countdownRuntime) {
+    if (!state.running) continue;
+    hasRunning = true;
+    if (countdownRemaining(state) <= 0) {
+      state.running = false;
+      state.remainingSeconds = 0;
+      state.completed = true;
+      changed = true;
+      const element = currentSlide().elements.find((item) => item.id === id);
+      if (element?.autoAdvance && presenterWindowMode) window.setTimeout(() => stepSlide(1), 400);
+    }
+  }
+  drawPresentationCountdownFrame();
+  updateCountdownControlReadouts();
+  if (Math.floor(Date.now() / 1000) !== tickCountdowns.lastSecond || changed) {
+    tickCountdowns.lastSecond = Math.floor(Date.now() / 1000);
+    broadcastCountdownState();
+    queueLivePublish(true);
+  }
+  if (!hasRunning) {
+    clearInterval(countdownTickInterval);
+    countdownTickInterval = 0;
+  }
+}
+tickCountdowns.lastSecond = 0;
+
+function broadcastCountdownState() {
+  presenterChannel?.postMessage({ type: "countdown-state", states: serializedCountdownState() });
+  drawPresentationCountdownFrame();
+  updateCountdownControlReadouts();
+}
+
+function drawPresentationCountdownFrame() {
+  if (!presenterOpen) return;
+  drawSlide(presenterCtx, currentSlide(), deck, {
+    footer: true,
+    revealCorrectAnswers: shouldRevealCorrectAnswers(currentSlide()),
+    elementStates: presentationWindowMode ? presenterElementStates(currentSlide()) : null,
+    countdownStates: countdownStatesForRenderer(),
+  });
+}
+
+function renderCountdownControls(slide) {
+  dom.liveControls.querySelector(".countdown-control-panel")?.remove();
+  const elements = countdownElements(slide);
+  if (!elements.length) return;
+  const panel = document.createElement("section");
+  panel.className = "countdown-control-panel";
+  panel.innerHTML = `<div class="countdown-control-head"><strong>On-screen countdown</strong><span>Visible to everyone</span></div>${elements.map((element) => {
+    const state = countdownRuntime.get(element.id);
+    return `<div class="countdown-control-row" data-countdown-id="${attr(element.id)}"><strong class="countdown-readout">${formatCountdown(countdownRemaining(state))}</strong><div><button data-countdown-action="${state?.running ? "pause" : "start"}" type="button">${state?.running ? "Pause" : "Start"}</button><button data-countdown-action="add" type="button">+1 min</button><button data-countdown-action="reset" type="button">Reset</button></div></div>`;
+  }).join("")}`;
+  dom.liveControls.prepend(panel);
+  panel.querySelectorAll("[data-countdown-action]").forEach((button) => button.addEventListener("click", () => {
+    const id = button.closest("[data-countdown-id]").dataset.countdownId;
+    if (button.dataset.countdownAction === "start") startCountdown(id);
+    if (button.dataset.countdownAction === "pause") pauseCountdown(id);
+    if (button.dataset.countdownAction === "add") addCountdownTime(id, 60);
+    if (button.dataset.countdownAction === "reset") resetCountdown(id);
+    renderCountdownControls(currentSlide());
+  }));
+}
+
+function updateCountdownControlReadouts() {
+  document.querySelectorAll("[data-countdown-id]").forEach((row) => {
+    const state = countdownRuntime.get(row.dataset.countdownId);
+    const readout = row.querySelector(".countdown-readout");
+    if (readout && state) readout.textContent = formatCountdown(countdownRemaining(state));
+  });
+}
+
+function formatCountdown(seconds) {
+  const value = Math.max(0, Math.round(Number(seconds) || 0));
+  return `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
 }
 
 async function renderPresenterFlow() {
@@ -3120,7 +3340,7 @@ async function publishCurrentLiveSession(force = false) {
   }
   const snapshot = liveSnapshotForDeck(
     deck,
-    currentSlide(),
+    liveSlideWithCountdownState(),
     activeSlideIndex,
     liveSession.instanceId,
     liveSession.sessionName
@@ -3160,6 +3380,17 @@ async function publishCurrentLiveSession(force = false) {
     liveSession.publishing = false;
     renderLiveJoinPanel(currentSlide());
   }
+}
+
+function liveSlideWithCountdownState() {
+  const slide = JSON.parse(JSON.stringify(currentSlide()));
+  const states = countdownStatesForRenderer();
+  for (const element of slide.elements || []) {
+    if (element.type !== "countdown" || !states[element.id]) continue;
+    element.runtimeRemainingSeconds = states[element.id].remainingSeconds;
+    element.runtimeCompleted = states[element.id].completed;
+  }
+  return slide;
 }
 
 async function refreshLiveSession() {
