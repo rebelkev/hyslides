@@ -88,3 +88,20 @@ export const liveInstanceQuestions = sqliteTable(
   },
   (table) => [index("hyslides_live_instance_questions_instance_slide_idx").on(table.instanceId, table.slideId, table.createdAt)]
 );
+
+export const liveInstanceMetadata = sqliteTable("hyslides_live_instance_metadata", {
+  instanceId: text("instance_id").primaryKey(),
+  sessionName: text("session_name").notNull(),
+});
+
+export const liveInstanceSlides = sqliteTable(
+  "hyslides_live_instance_slides",
+  {
+    instanceId: text("instance_id").notNull(),
+    slideId: text("slide_id").notNull(),
+    slideIndex: integer("slide_index").notNull().default(0),
+    slideJson: text("slide_json").notNull(),
+    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [primaryKey({ columns: [table.instanceId, table.slideId] })]
+);
