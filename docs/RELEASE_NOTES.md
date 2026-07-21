@@ -62,6 +62,7 @@
 
 ### Presenter View v1
 
+- Synchronized YouTube play, pause, restart, and playback position through the live session so remote Participant Views display the playing video instead of a static placeholder. Participant video is muted to avoid room echo and satisfy mobile autoplay rules.
 - Added a muted, synchronized YouTube monitor directly on the Presenter View slide preview, plus Play/Pause and Restart controls that operate the projected Presentation View player.
 - Kept Presenter View slide rendering aligned with Presentation View so solid, gradient, image, and animated slide backgrounds remain visible behind presenter-monitored media.
 - Word Cloud engagement elements now use a true weighted cloud layout: repeated words and phrases grow larger and results are arranged around the center instead of appearing as a line of tags.

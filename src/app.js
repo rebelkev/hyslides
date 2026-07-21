@@ -63,6 +63,7 @@ const dom = {
   presenterCanvas: document.querySelector("#presenterCanvas"),
   presentationEmbedLayer: document.querySelector("#presentationEmbedLayer"),
   audienceCanvas: document.querySelector("#audienceCanvas"),
+  audienceEmbedLayer: document.querySelector("#audienceEmbedLayer"),
   nextCanvas: document.querySelector("#nextCanvas"),
   viewport: document.querySelector("#canvasViewport"),
   textEditor: document.querySelector("#textEditor"),
@@ -152,6 +153,7 @@ let presenterTimerInterval = 0;
 let countdownRuntime = new Map();
 let countdownTickInterval = 0;
 const presenterVideoStates = new Map();
+const liveVideoPlayback = new Map();
 let lastVideoTelemetryAt = 0;
 let presenterQnaTab = "unanswered";
 let audienceOpen = false;
@@ -227,6 +229,7 @@ async function init() {
 function bindEvents() {
   window.addEventListener("resize", () => {
     if (presentationWindowMode && presenterOpen) syncPresentationEmbeds(currentSlide());
+    if (audienceOpen && audienceLive.state?.slide) syncAudienceEmbeds(audienceLive.state.slide);
   });
   window.addEventListener("message", handleYouTubePlayerMessage);
   dom.deckTitle.addEventListener("input", () => {
@@ -3204,8 +3207,10 @@ function bindPresenterChannel() {
     }
     if (message.type === "video-telemetry" && presenterWindowMode) {
       presenterVideoStates.set(message.elementId, message.playerState);
+      updateLiveVideoPlayback(message.elementId, message.playerState, message.time);
       applyVideoTelemetry(message);
       renderVideoControls(currentSlide());
+      queueLivePublish(true);
     }
   });
 }
@@ -3494,7 +3499,9 @@ function configureYouTubePlayer(iframe, element) {
   send("addEventListener", ["onStateChange"]);
   const applySettings = () => {
     send("addEventListener", ["onStateChange"]);
-    send("setVolume", [clamp(Number(element.volume) || 0, 0, 100)]);
+    const volume = clamp(Number(element.volume) || 0, 0, 100);
+    send("setVolume", [volume]);
+    send(volume <= 0 ? "mute" : "unMute");
     send("setPlaybackRate", [Number(element.playbackRate) || 1]);
     if (element.autoplay) send("playVideo");
   };
@@ -3557,7 +3564,30 @@ function applyVideoTelemetry(message) {
 
 function runPresenterVideoCommand(elementId, action) {
   applyVideoCommand(elementId, action);
+  const previous = liveVideoPlayback.get(elementId) || { playerState: 2, time: 0, updatedAt: Date.now() };
+  const currentTime = estimatedVideoTime(previous);
+  const playerState = action === "pause" ? 2 : 1;
+  updateLiveVideoPlayback(elementId, playerState, action === "restart" ? 0 : currentTime);
+  presenterVideoStates.set(elementId, playerState);
   presenterChannel?.postMessage({ type: "video-command", elementId, action });
+  queueLivePublish(true);
+  renderVideoControls(currentSlide());
+}
+
+function updateLiveVideoPlayback(elementId, playerState, time) {
+  const previous = liveVideoPlayback.get(elementId) || { playerState: 2, time: 0, updatedAt: Date.now() };
+  liveVideoPlayback.set(elementId, {
+    playerState: Number.isFinite(Number(playerState)) ? Number(playerState) : previous.playerState,
+    time: Number.isFinite(Number(time)) ? Math.max(0, Number(time)) : estimatedVideoTime(previous),
+    updatedAt: Date.now(),
+  });
+}
+
+function estimatedVideoTime(state, now = Date.now()) {
+  const time = Math.max(0, Number(state?.time) || 0);
+  return Number(state?.playerState) === 1
+    ? time + Math.max(0, now - (Number(state?.updatedAt) || now)) / 1000
+    : time;
 }
 
 function renderVideoControls(slide) {
@@ -3696,6 +3726,7 @@ function openAudience() {
 function closeAudience() {
   audienceOpen = false;
   stopAudienceLivePolling();
+  dom.audienceEmbedLayer?.replaceChildren();
   dom.audienceOverlay.classList.add("hidden");
   dom.audienceOverlay.setAttribute("aria-hidden", "true");
 }
@@ -3847,6 +3878,11 @@ function liveSlideWithCountdownState() {
     if (element.type !== "countdown" || !states[element.id]) continue;
     element.runtimeRemainingSeconds = states[element.id].remainingSeconds;
     element.runtimeCompleted = states[element.id].completed;
+  }
+  for (const element of slide.elements || []) {
+    if (element.type !== "embed") continue;
+    const state = liveVideoPlayback.get(element.id);
+    if (state) element.runtimeVideoState = { ...state, time: estimatedVideoTime(state), updatedAt: Date.now() };
   }
   return slide;
 }
@@ -4108,6 +4144,7 @@ async function runLiveControl(action) {
 
 async function renderLiveAudience() {
   if (!audienceLive.state) {
+    dom.audienceEmbedLayer?.replaceChildren();
     dom.audienceDeckTitle.textContent = deck.title || "Untitled presentation";
     dom.audienceContent.innerHTML = `
       <div class="result-row">
@@ -4138,6 +4175,7 @@ async function renderLiveAudience() {
     footer: false,
     revealCorrectAnswers: shouldRevealCorrectAnswers(liveSlide),
   });
+  syncAudienceEmbeds(liveSlide);
   const latestResponse = audienceLive.responses[liveSlide.id] || null;
   renderAudienceContent(
     dom.audienceContent,
@@ -4159,6 +4197,79 @@ async function renderLiveAudience() {
   }
   renderAudienceLiveStatus();
   audienceLive.lastRenderSignature = audienceRenderSignature();
+}
+
+function syncAudienceEmbeds(slide) {
+  const layer = dom.audienceEmbedLayer;
+  if (!layer || !audienceOpen) return;
+  const embeds = (slide?.elements || []).filter((element) =>
+    element.type === "embed" && youtubeVideoId(element.url || element.videoId)
+  );
+  const activeIds = new Set(embeds.map((element) => element.id));
+  layer.querySelectorAll("[data-embed-id]").forEach((node) => {
+    if (!activeIds.has(node.dataset.embedId)) node.remove();
+  });
+
+  const canvasRect = dom.audienceCanvas.getBoundingClientRect();
+  const parentRect = layer.parentElement.getBoundingClientRect();
+  const scaleX = canvasRect.width / SLIDE_SIZE.width;
+  const scaleY = canvasRect.height / SLIDE_SIZE.height;
+  for (const element of embeds) {
+    let frame = layer.querySelector(`[data-embed-id="${CSS.escape(element.id)}"]`);
+    if (!frame) {
+      frame = document.createElement("div");
+      frame.className = "audience-embed-frame";
+      frame.dataset.embedId = element.id;
+      layer.append(frame);
+    }
+    frame.style.left = `${canvasRect.left - parentRect.left + element.x * scaleX}px`;
+    frame.style.top = `${canvasRect.top - parentRect.top + element.y * scaleY}px`;
+    frame.style.width = `${element.w * scaleX}px`;
+    frame.style.height = `${element.h * scaleY}px`;
+    frame.style.transform = `rotate(${Number(element.rotation) || 0}deg)`;
+    frame.style.opacity = String(element.opacity ?? 1);
+
+    let iframe = frame.querySelector("iframe");
+    const playerElement = { ...element, autoplay: false, volume: 0, showControls: false, fullscreenOnPlay: false };
+    const source = youtubeEmbedUrl(playerElement, location.origin);
+    if (!iframe || frame.dataset.source !== source) {
+      frame.dataset.source = source;
+      iframe = document.createElement("iframe");
+      iframe.src = source;
+      iframe.title = element.name || "YouTube video";
+      iframe.allow = "autoplay; encrypted-media; picture-in-picture";
+      iframe.referrerPolicy = "strict-origin-when-cross-origin";
+      iframe.addEventListener("load", () => {
+        configureYouTubePlayer(iframe, playerElement);
+        delete frame.dataset.videoInitialized;
+        delete frame.dataset.stateKey;
+        window.setTimeout(() => syncAudienceVideoState(frame, element), 650);
+      });
+      frame.replaceChildren(iframe);
+    }
+    syncAudienceVideoState(frame, element);
+  }
+}
+
+function syncAudienceVideoState(frame, element) {
+  const iframe = frame.querySelector("iframe");
+  const state = element.runtimeVideoState;
+  if (!iframe || !state) return;
+  const stateKey = `${Number(state.playerState)}:${Number(state.time).toFixed(1)}:${Number(state.updatedAt)}`;
+  if (frame.dataset.stateKey === stateKey) return;
+  frame.dataset.stateKey = stateKey;
+  const playerState = Number(state.playerState);
+  const stateChanged = frame.dataset.lastPlayerState !== String(playerState);
+  const shouldSeek = !frame.dataset.videoInitialized || stateChanged || Date.now() - Number(frame.dataset.lastSeekAt || 0) > 10000;
+  if (shouldSeek) {
+    sendYouTubeCommand(iframe, "seekTo", [Math.max(0, Number(state.time) || 0), true]);
+    frame.dataset.lastSeekAt = String(Date.now());
+  }
+  if (!frame.dataset.videoInitialized || stateChanged) {
+    sendYouTubeCommand(iframe, playerState === 1 ? "playVideo" : "pauseVideo");
+  }
+  frame.dataset.videoInitialized = "true";
+  frame.dataset.lastPlayerState = String(playerState);
 }
 
 function participantTextEntryActive() {
