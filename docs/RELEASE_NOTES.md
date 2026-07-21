@@ -39,6 +39,12 @@
 - Added a session-only presentation-flow filmstrip. Slides can be unchecked to skip them, visibly gray out, and be restored without changing the saved deck.
 - Added direct slide jumping, animation-aware next navigation, and a black-screen safety control.
 
+### Countdown Timers
+
+- Added a customizable Countdown slide element with duration, typography, color, background, alignment, completion message, auto-start, and optional auto-advance settings.
+- Added Presenter View controls for Start, Pause, Reset, and adding one minute.
+- Synchronized active countdowns with Presentation View and Participant View without overwriting the deck’s configured starting duration.
+
 ### Terminology
 
 - Established Editor View, Presentation View, Participant View, and Presenter View as the canonical product names.
