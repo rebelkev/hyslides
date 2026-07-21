@@ -5,6 +5,19 @@ import { renderShaderOverlay } from "./backgrounds.js";
 
 const imageCache = new Map();
 
+export function resolveTextTypography(element, deck) {
+  const style = element?.useGlobalTypography !== false
+    ? deck?.theme?.typographyStyles?.[element.typographyStyleId || "body"]
+    : null;
+  return {
+    fontFamily: style?.fontFamily || element.fontFamily || (element.fontWeight >= 700 ? deck?.theme?.fonts?.heading : deck?.theme?.fonts?.body) || "Inter",
+    fontSize: Number(style?.fontSize || element.fontSize || 28),
+    fontWeight: Number(style?.fontWeight || element.fontWeight || 500),
+    lineHeight: Number(style?.lineHeight || element.lineHeight || 1.18),
+    color: style?.color || element.color || deck?.theme?.colors?.ink || "#1d232a",
+  };
+}
+
 export async function preloadSlideImages(slide) {
   const images = slide.elements
     .filter((element) => element.type === "image" && element.src)
@@ -16,14 +29,11 @@ export async function preloadSlideImages(slide) {
 export function measureTextElementHeight(ctx, element, deck) {
   if (!ctx || element?.type !== "text") return Number(element?.h || 0);
   ctx.save();
-  const fontFamily = element.fontFamily ||
-    (element.fontWeight >= 700 ? deck.theme.fonts.heading : deck.theme.fonts.body);
-  const fontSize = element.fontSize || 28;
-  const fontWeight = element.fontWeight || 500;
+  const { fontFamily, fontSize, fontWeight, lineHeight } = resolveTextTypography(element, deck);
   const fontStyle = element.italic ? "italic " : "";
   ctx.font = `${fontStyle}${fontWeight} ${fontSize}px ${fontFamily}, Arial, sans-serif`;
-  const lineCount = Math.max(1, layoutTextLines(ctx, element).length);
-  const height = Math.ceil(lineCount * fontSize * (element.lineHeight || 1.18) + 4);
+  const lineCount = Math.max(1, layoutTextLines(ctx, { ...element, fontSize, lineHeight }).length);
+  const height = Math.ceil(lineCount * fontSize * lineHeight + 4);
   ctx.restore();
   return Math.max(12, height);
 }
@@ -356,14 +366,10 @@ export function fitCanvasToImage(canvas, image, mode = "cover") {
 }
 
 function drawText(ctx, element, deck) {
-  const fontFamily =
-    element.fontFamily ||
-    (element.fontWeight >= 700 ? deck.theme.fonts.heading : deck.theme.fonts.body);
-  const fontSize = element.fontSize || 28;
-  const fontWeight = element.fontWeight || 500;
+  const { fontFamily, fontSize, fontWeight, lineHeight, color } = resolveTextTypography(element, deck);
   const fontStyle = element.italic ? "italic " : "";
   ctx.font = `${fontStyle}${fontWeight} ${fontSize}px ${fontFamily}, Arial, sans-serif`;
-  ctx.fillStyle = element.color || deck.theme.colors.ink;
+  ctx.fillStyle = color;
   ctx.textAlign = element.bulletList ? "left" : element.align || "left";
   ctx.textBaseline = "top";
 
@@ -371,12 +377,12 @@ function drawText(ctx, element, deck) {
     ctx.fillStyle = element.fill;
     roundedRect(ctx, 0, 0, element.w, element.h, element.radius || 0);
     ctx.fill();
-    ctx.fillStyle = element.color || deck.theme.colors.ink;
+    ctx.fillStyle = color;
   }
 
-  const lines = layoutTextLines(ctx, element);
-  const lineHeight = fontSize * (element.lineHeight || 1.18);
-  const totalHeight = lines.length * lineHeight;
+  const lines = layoutTextLines(ctx, { ...element, fontSize, lineHeight });
+  const lineHeightPx = fontSize * lineHeight;
+  const totalHeight = lines.length * lineHeightPx;
   let y = 2;
   if (element.verticalAlign === "middle") {
     y = Math.max(2, (element.h - totalHeight) / 2);
@@ -393,7 +399,7 @@ function drawText(ctx, element, deck) {
     if (element.underline) {
       drawUnderline(ctx, line.text, line.x, y, fontSize, line.maxWidth, ctx.textAlign);
     }
-    y += lineHeight;
+    y += lineHeightPx;
   }
 }
 

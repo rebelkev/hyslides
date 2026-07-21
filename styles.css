@@ -1310,7 +1310,8 @@ label {
 .presenter,
 .audience,
 .deck-library,
-.session-history {
+.session-history,
+.global-settings {
   background: rgba(15, 20, 28, 0.92);
   inset: 0;
   position: fixed;
@@ -1993,6 +1994,70 @@ body.presentation-window .presentation-live-status {
   display: flex;
   justify-content: center;
   padding: 18px;
+}
+
+.global-settings {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  padding: 18px;
+}
+
+.global-settings-card {
+  background: #f8fafc;
+  border-radius: 10px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .34);
+  display: grid;
+  gap: 14px;
+  max-height: calc(100vh - 36px);
+  max-width: 900px;
+  overflow: hidden;
+  padding: 18px;
+  width: min(100%, 900px);
+}
+
+.global-settings-content {
+  display: grid;
+  gap: 20px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.global-settings-section { display: grid; gap: 12px; }
+.global-settings-section > div:first-child { display: grid; gap: 3px; }
+.global-settings-section > div:first-child > span { color: var(--muted); font-size: 12px; }
+
+.global-audience-card {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 84px minmax(0, 1fr);
+  padding: 12px;
+}
+
+.global-audience-card img { height: 84px; width: 84px; }
+.global-audience-card > div { display: grid; gap: 8px; }
+
+.typography-style-list {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.typography-style-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 9px;
+  padding: 12px;
+}
+
+@media (max-width: 700px) {
+  .typography-style-list { grid-template-columns: 1fr; }
 }
 
 .session-history-card {

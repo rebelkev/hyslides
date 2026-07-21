@@ -35,6 +35,14 @@ export function createTheme(overrides = {}) {
       heading: "Inter",
       body: "Inter",
     },
+    typographyStyles: {
+      display: { name: "Display", fontFamily: "Inter", fontSize: 72, fontWeight: 800, lineHeight: 1.05, color: "#1d232a" },
+      title: { name: "Slide title", fontFamily: "Inter", fontSize: 52, fontWeight: 800, lineHeight: 1.08, color: "#1d232a" },
+      subtitle: { name: "Subtitle", fontFamily: "Inter", fontSize: 34, fontWeight: 600, lineHeight: 1.15, color: "#637083" },
+      heading: { name: "Heading", fontFamily: "Inter", fontSize: 30, fontWeight: 750, lineHeight: 1.15, color: "#1d232a" },
+      body: { name: "Body", fontFamily: "Inter", fontSize: 24, fontWeight: 500, lineHeight: 1.25, color: "#1d232a" },
+      caption: { name: "Caption / label", fontFamily: "Inter", fontSize: 16, fontWeight: 600, lineHeight: 1.2, color: "#637083" },
+    },
     colors: {
       ink: "#1d232a",
       muted: "#637083",
@@ -109,6 +117,8 @@ export function createElement(type, overrides = {}) {
       lineHeight: 1.12,
       autoHeight: true,
       fill: "transparent",
+      typographyStyleId: "body",
+      useGlobalTypography: true,
     },
     shape: {
       shape: "roundedRect",
@@ -211,11 +221,16 @@ export function createElement(type, overrides = {}) {
     },
   };
 
-  return {
+  const element = {
     ...base,
     ...byType[type],
     ...overrides,
   };
+  if (type === "text" && overrides.useGlobalTypography === undefined) {
+    const formatKeys = ["fontFamily", "fontSize", "fontWeight", "lineHeight", "color"];
+    element.useGlobalTypography = !formatKeys.some((key) => Object.prototype.hasOwnProperty.call(overrides, key));
+  }
+  return element;
 }
 
 export function createSection(overrides = {}) {
@@ -839,6 +854,10 @@ export function normalizeDeck(raw) {
         ...seed.theme.colors,
         ...(raw.theme?.colors || {}),
       },
+      typographyStyles: {
+        ...seed.theme.typographyStyles,
+        ...(raw.theme?.typographyStyles || {}),
+      },
       brandPalette: brandColorStyles.map((style) => style.color),
       brandColorStyles,
     },
@@ -946,6 +965,10 @@ export function normalizeElement(raw) {
     element.correctAnswers = (Array.isArray(element.correctAnswers) ? element.correctAnswers : [])
       .filter((answer) => element.options.includes(answer));
     element.hasCorrectAnswers = legacyQuiz || (raw.hasCorrectAnswers ?? (element.correctAnswers.length > 0));
+  }
+  if (element.type === "text") {
+    element.typographyStyleId = raw.typographyStyleId || "body";
+    element.useGlobalTypography = raw.useGlobalTypography ?? false;
   }
   return element;
 }

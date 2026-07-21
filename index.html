@@ -43,6 +43,7 @@
         <symbol id="icon-align-vertical" viewBox="0 0 24 24"><path d="M4 12h16M8 6h8v12H8z" /></symbol>
         <symbol id="icon-zoom-out" viewBox="0 0 24 24"><path d="M10 17a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM15 15l5 5M7 10h6" /></symbol>
         <symbol id="icon-zoom-in" viewBox="0 0 24 24"><path d="M10 17a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM15 15l5 5M10 7v6M7 10h6" /></symbol>
+        <symbol id="icon-settings" viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM4 13v-2l2-1 .5-1.2-.7-2.1 1.4-1.4 2.1.7L10.5 5l.5-2h2l.5 2 1.2 1 2.1-.7 1.4 1.4-.7 2.1L18 10l2 1v2l-2 1-.5 1.2.7 2.1-1.4 1.4-2.1-.7-1.2 1-.5 2h-2l-.5-2-1.2-1-2.1.7-1.4-1.4.7-2.1L6 14z" /></symbol>
       </defs>
     </svg>
     <div id="app" class="app-shell" data-mode="edit">
@@ -58,6 +59,7 @@
           <button id="redoBtn" type="button" title="Redo (Command/Ctrl+Shift+Z)" data-icon="redo" disabled>Redo</button>
           <button id="deckLibraryBtn" type="button" title="Open saved decks" data-icon="folder">Decks</button>
           <button id="sessionHistoryBtn" type="button" title="Session history" data-icon="history">Sessions</button>
+          <button id="globalSettingsBtn" type="button" title="Global deck settings" data-icon="settings">Settings</button>
           <label class="button" for="pptxInput" title="Import PowerPoint" data-icon="upload">Import PPTX</label>
           <input id="pptxInput" class="sr-only" type="file" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" />
           <button id="exportPdfBtn" type="button" title="Export PDF" data-icon="file-text">PDF</button>
@@ -241,6 +243,16 @@
           <button id="closeSessionHistoryBtn" type="button" title="Close">Close</button>
         </div>
         <div id="sessionHistoryContent" class="session-history-content"></div>
+      </div>
+    </div>
+
+    <div id="globalSettingsOverlay" class="global-settings hidden" aria-hidden="true">
+      <div class="global-settings-card" role="dialog" aria-modal="true" aria-labelledby="globalSettingsTitle">
+        <div class="presenter-head">
+          <div><strong id="globalSettingsTitle">Global deck settings</strong><span>Typography and audience access for this presentation.</span></div>
+          <button id="closeGlobalSettingsBtn" type="button" title="Close">Close</button>
+        </div>
+        <div id="globalSettingsContent" class="global-settings-content"></div>
       </div>
     </div>
 

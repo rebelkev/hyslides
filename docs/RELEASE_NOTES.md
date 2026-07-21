@@ -4,6 +4,7 @@
 
 ### Editor
 
+- Added Global Deck Settings with reusable Display, Slide title, Subtitle, Heading, Body, and Caption typography styles plus audience access. Text elements can remain globally linked or switch to custom font formatting; legacy text preserves its existing appearance.
 - Added a one-click Copy button beside the Audience Join URL in slide properties, with clipboard confirmation and a selection fallback.
 - Limited the background inspector to one open color picker at a time, automatically closing the previous picker when another is opened.
 - Kept right-column color-picker menus inside the inspector viewport instead of opening beyond the screen edge.

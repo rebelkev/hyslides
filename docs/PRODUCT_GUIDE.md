@@ -78,6 +78,12 @@ Color styles are saved per deck.
 - Deleting a style preserves the current appearance of linked elements and converts them to fixed colors.
 - Older saved swatches are automatically migrated to named styles.
 
+## Typography Styles
+
+Open **Global Deck Settings** from the Editor toolbar to manage Display, Slide title, Subtitle, Heading, Body, and Caption/label styles. Each style controls font family, size, weight, line height, and color across the deck.
+
+When a text element is selected, choose its **Typography style** in Properties. Keep **Use global style** enabled so future global changes update that element automatically. Disable it to reveal custom font formatting for that one element. Existing decks retain their current custom typography, while newly added text uses the global Body style by default.
+
 ## Element Animations
 
 Each element can use **None**, **Appear**, or **Fade in**.

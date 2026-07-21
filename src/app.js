@@ -21,6 +21,7 @@ import {
   measureEngagementElementHeight,
   measureTextElementHeight,
   preloadSlideImages,
+  resolveTextTypography,
 } from "./renderer.js";
 import { deleteDeck, downloadBlob, loadCurrentDeck, loadDecks, saveDeck } from "./storage.js";
 import { importPptx, pptxCapabilities } from "./pptx.js";
@@ -91,6 +92,8 @@ const dom = {
   sessionHistoryOverlay: document.querySelector("#sessionHistoryOverlay"),
   sessionHistoryContent: document.querySelector("#sessionHistoryContent"),
   sessionHistorySubtitle: document.querySelector("#sessionHistorySubtitle"),
+  globalSettingsOverlay: document.querySelector("#globalSettingsOverlay"),
+  globalSettingsContent: document.querySelector("#globalSettingsContent"),
   endSessionOverlay: document.querySelector("#endSessionOverlay"),
   presenterNotes: document.querySelector("#presenterNotes"),
   presenterSlideTitle: document.querySelector("#presenterSlideTitle"),
@@ -263,6 +266,8 @@ function bindEvents() {
   document.querySelector("#closeDeckLibraryBtn").addEventListener("click", closeDeckLibrary);
   document.querySelector("#sessionHistoryBtn").addEventListener("click", openSessionHistory);
   document.querySelector("#closeSessionHistoryBtn").addEventListener("click", closeSessionHistory);
+  document.querySelector("#globalSettingsBtn").addEventListener("click", openGlobalSettings);
+  document.querySelector("#closeGlobalSettingsBtn").addEventListener("click", closeGlobalSettings);
 
   document.querySelector("#addSlideBtn").addEventListener("click", () => {
     const slide = layoutTemplates[1].apply();
@@ -504,6 +509,69 @@ function openSessionHistory() {
 function closeSessionHistory() {
   dom.sessionHistoryOverlay.classList.add("hidden");
   dom.sessionHistoryOverlay.setAttribute("aria-hidden", "true");
+}
+
+function openGlobalSettings() {
+  dom.globalSettingsOverlay.classList.remove("hidden");
+  dom.globalSettingsOverlay.setAttribute("aria-hidden", "false");
+  renderGlobalSettings();
+}
+
+function closeGlobalSettings() {
+  dom.globalSettingsOverlay.classList.add("hidden");
+  dom.globalSettingsOverlay.setAttribute("aria-hidden", "true");
+  renderAll();
+}
+
+function renderGlobalSettings() {
+  const joinUrl = audienceLink();
+  const styles = deck.theme.typographyStyles || {};
+  dom.globalSettingsContent.innerHTML = `
+    <section class="global-settings-section">
+      <div><strong>Audience access</strong><span>Share the current link or six-digit code.</span></div>
+      <div class="global-audience-card">
+        <img src="${attr(liveQrImageSrc(joinUrl))}" alt="Audience join QR code" />
+        <div><strong>Access code ${escapeHtml(ensureAudienceCode())}</strong><div class="audience-join-url-row"><input id="globalAudienceUrl" readonly value="${attr(joinUrl)}" /><button id="copyGlobalAudienceUrl" type="button">Copy</button></div></div>
+      </div>
+    </section>
+    <section class="global-settings-section">
+      <div><strong>Typography styles</strong><span>Linked text updates everywhere in this deck.</span></div>
+      <div class="typography-style-list">
+        ${Object.entries(styles).map(([id, style]) => `<article class="typography-style-card" data-typography-style="${attr(id)}">
+          <strong>${escapeHtml(style.name || id)}</strong>
+          <div class="field-grid">
+            <div class="field-row"><label>Font</label><input data-type-property="fontFamily" value="${attr(style.fontFamily || "Inter")}" /></div>
+            <div class="field-row"><label>Size</label><input data-type-property="fontSize" type="number" min="8" max="240" value="${Number(style.fontSize) || 24}" /></div>
+            <div class="field-row"><label>Weight</label><input data-type-property="fontWeight" type="number" min="100" max="900" step="50" value="${Number(style.fontWeight) || 500}" /></div>
+            <div class="field-row"><label>Line height</label><input data-type-property="lineHeight" type="number" min="0.8" max="3" step="0.05" value="${Number(style.lineHeight) || 1.2}" /></div>
+            <div class="field-row"><label>Color</label><input data-type-property="color" type="color" value="${attr(style.color || "#1d232a")}" /></div>
+          </div>
+        </article>`).join("")}
+      </div>
+    </section>`;
+  dom.globalSettingsContent.querySelector("#copyGlobalAudienceUrl")?.addEventListener("click", async (event) => {
+    const copied = await copyTextToClipboard(joinUrl);
+    event.currentTarget.textContent = copied ? "Copied" : "Select link";
+    if (!copied) dom.globalSettingsContent.querySelector("#globalAudienceUrl")?.select();
+  });
+  dom.globalSettingsContent.querySelectorAll("[data-type-property]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const styleId = input.closest("[data-typography-style]").dataset.typographyStyle;
+      const property = input.dataset.typeProperty;
+      styles[styleId][property] = input.type === "number" ? Number(input.value) : input.value;
+      for (const slide of deck.slides) {
+        for (const element of slide.elements || []) {
+          if (element.type === "text" && element.useGlobalTypography !== false && element.typographyStyleId === styleId && element.autoHeight) {
+            element.h = measureTextElementHeight(ctx, element, deck);
+          }
+        }
+      }
+      markChanged(`${styles[styleId].name} typography updated`);
+      renderCanvas();
+      renderSlides();
+      if (presenterOpen) renderPresenter();
+    });
+  });
 }
 
 async function renderSessionHistoryList() {
@@ -1653,10 +1721,6 @@ function renderSlideInspector(slide) {
         </div>
         ${brandPaletteManagerMarkup()}
       </div>
-      <div class="field-grid">
-        <div class="field-row"><label for="headingFont">Heading font</label><input id="headingFont" value="${attr(deck.theme.fonts.heading)}" /></div>
-        <div class="field-row"><label for="bodyFont">Body font</label><input id="bodyFont" value="${attr(deck.theme.fonts.body)}" /></div>
-      </div>
       <div class="check-row"><input id="snapToggle" type="checkbox" ${deck.settings.snapToGrid ? "checked" : ""} /><label for="snapToggle">Snap to grid</label></div>
       <div class="check-row"><input id="guideToggle" type="checkbox" ${deck.settings.showGuides ? "checked" : ""} /><label for="guideToggle">Alignment guides</label></div>
     </section>
@@ -1732,8 +1796,6 @@ function renderSlideInspector(slide) {
   bindValue("#primaryColor", (value) => (deck.theme.colors.primary = value));
   bindValue("#accentColor", (value) => (deck.theme.colors.accent = value));
   bindBrandPaletteManager();
-  bindValue("#headingFont", (value) => (deck.theme.fonts.heading = value));
-  bindValue("#bodyFont", (value) => (deck.theme.fonts.body = value));
   bindToggle("#snapToggle", (value) => (deck.settings.snapToGrid = value));
   bindToggle("#guideToggle", (value) => (deck.settings.showGuides = value));
   bindToggle("#audienceJoinElementsToggle", (value) => {
@@ -1814,23 +1876,31 @@ function renderElementInspector(element) {
 
 function elementInspectorFields(element) {
   if (element.type === "text") {
+    const typography = resolveTextTypography(element, deck);
+    const typographyOptions = Object.entries(deck.theme.typographyStyles || {}).map(([id, style]) =>
+      `<option value="${attr(id)}" ${element.typographyStyleId === id ? "selected" : ""}>${escapeHtml(style.name || id)}</option>`
+    ).join("");
     return `
       <section class="inspector-section">
         <strong>Text</strong>
         <div class="field-row"><label for="textInput">Content</label><textarea id="textInput">${escapeHtml(element.text || "")}</textarea></div>
-        <div class="format-toolbar" role="toolbar" aria-label="Text formatting">
+        <div class="field-row"><label for="typographyStyleInput">Typography style</label><select id="typographyStyleInput">${typographyOptions}</select></div>
+        <div class="check-row"><input id="useGlobalTypographyInput" type="checkbox" ${element.useGlobalTypography !== false ? "checked" : ""} /><label for="useGlobalTypographyInput">Use global style</label></div>
+        ${element.useGlobalTypography !== false ? `<p class="field-help">${escapeHtml(typography.fontFamily)} · ${typography.fontSize}px · ${typography.fontWeight}. Edit this style in Global Settings, or turn off “Use global style” for custom formatting.</p>` : ""}
+        <div class="format-toolbar ${element.useGlobalTypography !== false ? "hidden" : ""}" role="toolbar" aria-label="Text formatting">
           <button id="boldToggle" class="format-button" type="button" aria-pressed="${(element.fontWeight || 400) >= 700}" title="Bold"><span class="format-bold">B</span></button>
           <button id="italicToggle" class="format-button" type="button" aria-pressed="${Boolean(element.italic)}" title="Italic"><span class="format-italic">I</span></button>
           <button id="underlineToggle" class="format-button" type="button" aria-pressed="${Boolean(element.underline)}" title="Underline"><span class="format-underline">U</span></button>
           <button id="bulletToggle" class="format-button" type="button" aria-pressed="${Boolean(element.bulletList)}" title="Bullet list"><span class="format-bullets">&#8226;</span></button>
         </div>
-        <div class="field-grid">
+        ${element.useGlobalTypography === false ? `<div class="field-grid">
+          <div class="field-row"><label for="fontFamilyInput">Font</label><input id="fontFamilyInput" value="${attr(element.fontFamily || typography.fontFamily)}" /></div>
           <div class="field-row"><label for="fontSizeInput">Size</label><input id="fontSizeInput" type="number" value="${element.fontSize}" /></div>
           <div class="field-row"><label for="fontWeightInput">Weight</label><input id="fontWeightInput" type="number" value="${element.fontWeight}" /></div>
           <div class="field-row"><label for="lineHeightInput">Line height</label><input id="lineHeightInput" type="text" inputmode="decimal" value="${formatLineHeight(element.lineHeight)}" /></div>
           <div class="field-row"><label for="textColorInput">Color</label><input id="textColorInput" type="color" value="${element.color}" /></div>
           <div class="field-row"><label for="alignInput">Align</label><select id="alignInput">${optionList(["left", "center", "right"], element.align)}</select></div>
-        </div>
+        </div>` : `<div class="field-row"><label for="alignInput">Align</label><select id="alignInput">${optionList(["left", "center", "right"], element.align)}</select></div>`}
       </section>`;
   }
 
@@ -1932,6 +2002,19 @@ function elementInspectorFields(element) {
 function bindTypeFields(element) {
   if (element.type === "text") {
     bindValue("#textInput", (value) => (element.text = value));
+    bindValue("#typographyStyleInput", (value) => {
+      element.typographyStyleId = value;
+      if (element.useGlobalTypography !== false && element.autoHeight) element.h = measureTextElementHeight(ctx, element, deck);
+    });
+    bindToggle("#useGlobalTypographyInput", (value) => {
+      if (!value) {
+        const typography = resolveTextTypography(element, deck);
+        Object.assign(element, typography);
+      }
+      element.useGlobalTypography = value;
+      if (element.autoHeight) element.h = measureTextElementHeight(ctx, element, deck);
+    });
+    bindValue("#fontFamilyInput", (value) => (element.fontFamily = value));
     bindNumber("#fontSizeInput", (value) => (element.fontSize = value));
     bindNumber("#fontWeightInput", (value) => (element.fontWeight = value));
     bindLineHeightInput("#lineHeightInput", element);
@@ -2478,11 +2561,14 @@ function openTextEditor() {
   dom.textEditor.style.top = `${canvasRect.top - viewportRect.top + element.y * zoom}px`;
   dom.textEditor.style.width = `${element.w * zoom}px`;
   dom.textEditor.style.height = `${element.h * zoom}px`;
-  dom.textEditor.style.fontSize = `${Math.max(12, element.fontSize * zoom)}px`;
-  dom.textEditor.style.fontWeight = element.fontWeight || 500;
+  const typography = resolveTextTypography(element, deck);
+  dom.textEditor.style.fontSize = `${Math.max(12, typography.fontSize * zoom)}px`;
+  dom.textEditor.style.fontFamily = typography.fontFamily;
+  dom.textEditor.style.fontWeight = typography.fontWeight;
   dom.textEditor.style.fontStyle = element.italic ? "italic" : "normal";
   dom.textEditor.style.textDecoration = element.underline ? "underline" : "none";
-  dom.textEditor.style.lineHeight = element.lineHeight || 1.18;
+  dom.textEditor.style.lineHeight = typography.lineHeight;
+  dom.textEditor.style.color = typography.color;
   dom.textEditor.classList.toggle("bulleted", Boolean(element.bulletList));
   dom.textEditor.classList.add("open");
   dom.textEditor.focus();
