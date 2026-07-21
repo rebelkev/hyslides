@@ -59,3 +59,11 @@ test("element color-style links survive normalization", () => {
   const element = normalizeElement({ type: "text", brandColorStyleId: "brand-primary" });
   assert.equal(element.brandColorStyleId, "brand-primary");
 });
+
+test("countdown elements default to a seven-minute presenter-controlled timer", () => {
+  const element = createElement("countdown");
+  assert.equal(element.durationSeconds, 420);
+  assert.equal(element.autoStart, false);
+  assert.equal(element.autoAdvance, false);
+  assert.equal(element.completionBehavior, "message");
+});
