@@ -52,7 +52,6 @@
           <button id="sessionHistoryBtn" type="button" title="Session history" data-icon="users">Sessions</button>
           <label class="button" for="pptxInput" title="Import PowerPoint" data-icon="upload">Import PPTX</label>
           <input id="pptxInput" class="sr-only" type="file" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" />
-          <button id="exportPptxBtn" type="button" title="Export PowerPoint" data-icon="file-export">PPTX</button>
           <button id="exportPdfBtn" type="button" title="Export PDF" data-icon="file-text">PDF</button>
           <button id="presentBtn" type="button" title="Presenter mode" data-icon="play">Present</button>
           <button id="audienceBtn" type="button" title="Audience view" data-icon="users">Audience</button>
@@ -122,7 +121,10 @@
 
       <aside class="rail rail-right" aria-label="Properties">
         <div class="panel-header">
-          <strong>Inspector</strong>
+          <div class="inspector-tabs" role="tablist" aria-label="Right panel">
+            <button id="propertiesTabBtn" class="inspector-tab active" type="button" role="tab" aria-selected="true" aria-controls="inspector">Properties</button>
+            <button id="elementsTabBtn" class="inspector-tab" type="button" role="tab" aria-selected="false" aria-controls="inspector">Elements</button>
+          </div>
           <button id="deleteBtn" type="button" title="Delete">Delete</button>
         </div>
         <div id="inspector" class="inspector"></div>
@@ -187,6 +189,7 @@
     </div>
 
     <input id="imageInput" class="sr-only" type="file" accept="image/*" />
+    <script defer src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" crossorigin="anonymous"></script>
     <script type="module" src="./src/app.js"></script>
   </body>
 </html>
