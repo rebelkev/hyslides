@@ -79,7 +79,26 @@ button[aria-pressed="true"] {
 .icon-button {
   min-width: 32px;
   padding: 0;
+  transition:
+    background-color 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    color 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
   width: 32px;
+}
+
+.icon-button:hover:not(:disabled) {
+  background: #edf2ff;
+  border-color: #a5b8ef;
+  box-shadow: 0 2px 8px rgba(36, 84, 214, 0.12);
+  color: #1d4db7;
+}
+
+.icon-button.active:hover:not(:disabled),
+.icon-button[aria-pressed="true"]:hover:not(:disabled) {
+  background: #e6edff;
+  border-color: #90a9f8;
+  color: #153aa3;
 }
 
 .toolbar .icon-button {
@@ -98,6 +117,12 @@ button[aria-pressed="true"] {
   stroke-linejoin: round;
   stroke-width: 1.8;
   width: 17px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .icon-button {
+    transition: none;
+  }
 }
 
 .button-icon > .button-icon {
