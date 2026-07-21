@@ -78,9 +78,10 @@ export function liveStateDeck(state) {
   };
 }
 
-export async function publishLiveSession(code, snapshot) {
+export async function publishLiveSession(code, snapshot, presenterToken) {
   return requestJson(`${LIVE_API_BASE}/${encodeURIComponent(normalizeLiveCode(code))}`, {
     method: "PUT",
+    headers: presenterHeaders(presenterToken),
     body: JSON.stringify(snapshot),
   });
 }
@@ -96,25 +97,42 @@ export async function submitLiveResponse(code, payload) {
   });
 }
 
-export function listLiveSessions(deckId = "") {
+export function listLiveSessions(deckId = "", presenterToken = "") {
   const query = deckId ? `?deckId=${encodeURIComponent(deckId)}` : "";
-  return requestJson(`/api/sessions${query}`);
+  return requestJson(`/api/sessions${query}`, { headers: presenterHeaders(presenterToken) });
 }
 
-export function getLiveSessionHistory(instanceId) {
-  return requestJson(`/api/sessions/${encodeURIComponent(instanceId)}`);
+export function getLiveSessionHistory(instanceId, presenterToken = "") {
+  return requestJson(`/api/sessions/${encodeURIComponent(instanceId)}`, { headers: presenterHeaders(presenterToken) });
 }
 
-export function renameLiveSession(instanceId, sessionName) {
+export function renameLiveSession(instanceId, sessionName, presenterToken = "") {
   return requestJson(`/api/sessions/${encodeURIComponent(instanceId)}`, {
     method: "PATCH",
+    headers: presenterHeaders(presenterToken),
     body: JSON.stringify({ sessionName }),
   });
 }
 
-export function deleteLiveSession(instanceId) {
+export function deleteLiveSession(instanceId, presenterToken = "") {
   return requestJson(`/api/sessions/${encodeURIComponent(instanceId)}`, {
     method: "DELETE",
+    headers: presenterHeaders(presenterToken),
+  });
+}
+
+export function registerLiveParticipant(code, participantId) {
+  return requestJson(`${LIVE_API_BASE}/${encodeURIComponent(normalizeLiveCode(code))}/presence`, {
+    method: "POST",
+    body: JSON.stringify({ participantId }),
+  });
+}
+
+export function controlLiveSession(code, action, presenterToken) {
+  return requestJson(`${LIVE_API_BASE}/${encodeURIComponent(normalizeLiveCode(code))}/control`, {
+    method: "POST",
+    headers: presenterHeaders(presenterToken),
+    body: JSON.stringify({ action }),
   });
 }
 
@@ -139,6 +157,10 @@ async function requestJson(url, options = {}) {
     throw new Error(payload.error || "Live session is unavailable.");
   }
   return payload;
+}
+
+function presenterHeaders(token) {
+  return token ? { "x-hyslides-presenter-token": token } : {};
 }
 
 function hasSupabaseLive() {
