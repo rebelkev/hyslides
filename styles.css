@@ -88,6 +88,8 @@ button[aria-pressed="true"] {
 }
 
 .button-icon {
+  align-items: center;
+  display: inline-flex;
   fill: none;
   height: 17px;
   pointer-events: none;
@@ -96,6 +98,11 @@ button[aria-pressed="true"] {
   stroke-linejoin: round;
   stroke-width: 1.8;
   width: 17px;
+}
+
+.button-icon > .button-icon {
+  height: 100%;
+  width: 100%;
 }
 
 .toolbar .button-icon {
@@ -674,6 +681,123 @@ label {
   display: grid;
   gap: 13px;
   padding: 12px;
+}
+
+.inspector-tabs {
+  align-items: center;
+  display: flex;
+  gap: 4px;
+}
+
+.inspector-tab {
+  background: transparent;
+  border-color: transparent;
+  border-radius: 6px;
+  color: #5b6677;
+  font-size: 12px;
+  font-weight: 750;
+  min-width: 0;
+  padding: 6px 8px;
+}
+
+.inspector-tab.active {
+  background: #e9efff;
+  border-color: #b8c8f5;
+  color: #173c9d;
+}
+
+.element-tree-section {
+  gap: 8px;
+}
+
+.element-tree-heading {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.element-tree-heading span,
+.element-tree-count {
+  color: #768195;
+  font-size: 11px;
+}
+
+.element-tree-help {
+  color: #6b7688;
+  font-size: 11px;
+  line-height: 1.4;
+  margin: 0 0 3px;
+}
+
+.element-tree,
+.element-tree ul {
+  display: grid;
+  gap: 3px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.element-tree-group > ul {
+  border-left: 1px solid #d8deea;
+  margin-left: 13px;
+  padding-left: 8px;
+}
+
+.element-tree-row {
+  align-items: center;
+  background: transparent;
+  border-color: transparent;
+  display: grid;
+  gap: 7px;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  justify-items: start;
+  min-height: 34px;
+  padding: 5px 7px;
+  text-align: left;
+  width: 100%;
+}
+
+.element-tree-row:hover {
+  background: #f1f4fa;
+}
+
+.element-tree-row.selected {
+  background: #e7eeff;
+  border-color: #9eb4ed;
+  color: #173c9d;
+}
+
+.element-tree-chevron,
+.element-type-badge {
+  align-items: center;
+  background: #edf1f7;
+  border-radius: 5px;
+  color: #576276;
+  display: inline-flex;
+  font-size: 10px;
+  font-weight: 800;
+  height: 22px;
+  justify-content: center;
+  width: 22px;
+}
+
+.element-tree-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.element-tree-state {
+  color: #7a8495;
+  font-size: 10px;
+}
+
+.element-tree-empty {
+  color: #7a8495;
+  font-size: 12px;
+  padding: 12px 4px;
 }
 
 .inspector-section {
