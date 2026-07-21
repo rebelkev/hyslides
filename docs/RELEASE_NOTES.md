@@ -4,6 +4,7 @@
 
 ### Editor
 
+- Kept right-column color-picker menus inside the inspector viewport instead of opening beyond the screen edge.
 - Moved named global color swatches into expandable background color pickers so gradient, animated-effect, overlay, and solid-color controls stay compact.
 - Hid the inactive slide Layout metadata field until true layout switching is available; saved layout metadata remains intact.
 - Added advanced slide backgrounds with solid colors, adjustable two-color gradients, proportionally fitted images (fill or fit), and a dedicated Animated Effect style with six effects, dedicated effect colors, and static fallbacks. Color overlays now apply consistently on top of every background style.
