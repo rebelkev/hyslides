@@ -63,6 +63,7 @@ Ended sessions older than 14 days are purged with their participant records, sub
 - `POST /api/live/:code/presence` — participant heartbeat
 - `POST /api/live/:code/control` — session control actions
 - `POST /api/live/:code/questions/:questionId/moderate` — presenter-only display/hide/answered/delete actions
+- `POST /api/live/:code/questions` — submit a session-wide participant question
 - `POST /api/live/:code/questions/:questionId/vote` — one participant upvote per device
 - `GET /api/sessions?deckId=...` — session history for a deck
 - `GET /api/sessions/:instanceId` — session details
