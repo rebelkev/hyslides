@@ -478,6 +478,7 @@ export function createSeedDeck() {
           h: 150,
           labels: ["PPTX fidelity", "Templates", "Live Q&A", "Analytics"],
           values: [9, 5, 3, 2],
+          engagementResults: true,
           fill: "#d94b3d",
           name: "Poll results",
         }),
@@ -651,6 +652,17 @@ export const layoutTemplates = [
             fontSize: 34,
             fontWeight: 800,
           }),
+          createElement("chart", {
+            x: 138,
+            y: 320,
+            w: 900,
+            h: 140,
+            labels: ["Context", "Examples", "Decision", "Next steps"],
+            values: [0, 0, 0, 0],
+            engagementResults: true,
+            fill: "#2454d6",
+            name: "Poll results",
+          }),
         ],
       });
     },
@@ -777,6 +789,24 @@ export function normalizeElement(raw) {
       ...(raw.animation || {}),
     },
   };
+}
+
+export function syncEngagementResultCharts(slide) {
+  const engagement = slide?.engagement || {};
+  for (const element of slide?.elements || []) {
+    if (
+      element.type !== "chart" ||
+      (!element.engagementResults && element.name !== "Poll results")
+    ) {
+      continue;
+    }
+    element.engagementResults = true;
+    element.labels = [...(engagement.options || [])];
+    element.values = element.labels.map((option) =>
+      Math.max(0, Number(engagement.results?.[option]) || 0)
+    );
+  }
+  return slide;
 }
 
 export function cloneDeck(deck) {

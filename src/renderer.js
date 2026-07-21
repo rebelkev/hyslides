@@ -348,11 +348,15 @@ function drawIcon(ctx, element) {
 }
 
 function drawChart(ctx, element, deck) {
+  const values = Array.isArray(element.values)
+    ? element.values.map((value) => Math.max(0, Number(value) || 0))
+    : [];
+  const labels = Array.isArray(element.labels) ? element.labels : [];
   const padding = 30;
-  const max = Math.max(1, ...element.values);
+  const max = Math.max(1, ...values);
   const barGap = 12;
   const barAreaWidth = element.w - padding * 2;
-  const barWidth = Math.max(10, (barAreaWidth - barGap * (element.values.length - 1)) / element.values.length);
+  const barWidth = Math.max(10, (barAreaWidth - barGap * Math.max(0, values.length - 1)) / Math.max(1, values.length));
   const chartHeight = element.h - padding * 2 - 18;
 
   ctx.fillStyle = element.background || "transparent";
@@ -369,19 +373,21 @@ function drawChart(ctx, element, deck) {
   ctx.stroke();
 
   ctx.fillStyle = element.fill || deck.theme.colors.accent;
-  element.values.forEach((value, index) => {
+  values.forEach((value, index) => {
     const height = (value / max) * chartHeight;
     const x = padding + index * (barWidth + barGap);
     const y = padding + chartHeight - height;
-    roundedRect(ctx, x, y, barWidth, height, 5);
-    ctx.fill();
+    if (height > 0) {
+      roundedRect(ctx, x, y, barWidth, height, Math.min(5, height / 2));
+      ctx.fill();
+    }
   });
 
   ctx.font = `600 14px ${deck.theme.fonts.body}, Arial, sans-serif`;
   ctx.fillStyle = deck.theme.colors.muted;
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
-  element.labels.forEach((label, index) => {
+  labels.forEach((label, index) => {
     const x = padding + index * (barWidth + barGap) + barWidth / 2;
     ctx.fillText(shorten(label, 14), x, padding + chartHeight + 8, barWidth + 24);
   });

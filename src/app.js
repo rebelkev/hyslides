@@ -9,6 +9,7 @@ import {
   createSeedDeck,
   layoutTemplates,
   normalizeDeck,
+  syncEngagementResultCharts,
 } from "./schema.js";
 import {
   boundsForElements,
@@ -3494,7 +3495,11 @@ function applyLiveStateToCurrentSlide(state) {
     qna: slide.engagement.qna,
     reactions: slide.engagement.reactions,
   });
-  return before !== after || priorLive !== `${liveSession.participantCount}:${liveSession.responseCount}:${liveSession.lifecycleStatus}` || priorQuestions !== JSON.stringify(liveSession.questions || []);
+  const changed = before !== after || priorLive !== `${liveSession.participantCount}:${liveSession.responseCount}:${liveSession.lifecycleStatus}` || priorQuestions !== JSON.stringify(liveSession.questions || []);
+  if (changed) {
+    sendPresenterSnapshot();
+  }
+  return changed;
 }
 
 function renderLiveJoinPanel(slide) {
@@ -4548,6 +4553,7 @@ function syncSlideEngagementFromElement(element) {
 
 function syncEngagementElementsFromSlide(slide) {
   ensureEngagement(slide);
+  syncEngagementResultCharts(slide);
   for (const element of slide.elements) {
     if (element.type !== "engagement") {
       continue;
@@ -4556,6 +4562,9 @@ function syncEngagementElementsFromSlide(slide) {
     element.prompt = slide.engagement.prompt;
     element.options = [...(slide.engagement.options || [])];
     element.correctAnswers = [...(slide.engagement.correctAnswers || [])];
+    element.results = { ...(slide.engagement.results || {}) };
+    element.qna = [...(slide.engagement.qna || [])];
+    element.reactions = { ...(slide.engagement.reactions || {}) };
     element.showCorrectAnswer = slide.engagement.showCorrectAnswer;
     element.correctAnswerRevealed = slide.engagement.correctAnswerRevealed ?? false;
     pruneElementCorrectAnswers(element);
