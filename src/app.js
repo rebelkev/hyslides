@@ -29,13 +29,17 @@ import {
 import {
   audienceCodeFromHash,
   audienceJoinUrl,
+  deleteLiveSession,
+  getLiveSessionHistory,
   getLiveSession,
   isLocalJoinUrl,
   liveQrImageSrc,
   liveSnapshotForDeck,
   liveStateDeck,
+  listLiveSessions,
   normalizeLiveCode,
   publishLiveSession,
+  renameLiveSession,
   submitLiveResponse,
 } from "./live.js";
 
@@ -65,6 +69,9 @@ const dom = {
   audienceOverlay: document.querySelector("#audienceOverlay"),
   deckLibraryOverlay: document.querySelector("#deckLibraryOverlay"),
   deckLibraryList: document.querySelector("#deckLibraryList"),
+  sessionHistoryOverlay: document.querySelector("#sessionHistoryOverlay"),
+  sessionHistoryContent: document.querySelector("#sessionHistoryContent"),
+  sessionHistorySubtitle: document.querySelector("#sessionHistorySubtitle"),
   presenterNotes: document.querySelector("#presenterNotes"),
   presenterSlideTitle: document.querySelector("#presenterSlideTitle"),
   liveControls: document.querySelector("#liveControls"),
@@ -97,6 +104,7 @@ let templatesExpanded = readTemplatesExpandedPreference();
 let liveSession = {
   code: "",
   instanceId: "",
+  sessionName: "",
   joinUrl: "",
   qrSrc: "",
   backendAvailable: false,
@@ -160,7 +168,6 @@ function bindEvents() {
     openSlideMenuIndex = null;
     openSectionMenuId = null;
     selectedIds = [];
-    audienceResponses = {};
     markChanged("New deck created");
     renderAll();
   });
@@ -171,6 +178,8 @@ function bindEvents() {
   });
   document.querySelector("#deckLibraryBtn").addEventListener("click", openDeckLibrary);
   document.querySelector("#closeDeckLibraryBtn").addEventListener("click", closeDeckLibrary);
+  document.querySelector("#sessionHistoryBtn").addEventListener("click", openSessionHistory);
+  document.querySelector("#closeSessionHistoryBtn").addEventListener("click", closeSessionHistory);
 
   document.querySelector("#addSlideBtn").addEventListener("click", () => {
     const slide = layoutTemplates[1].apply();
@@ -214,7 +223,6 @@ function bindEvents() {
       openSlideMenuIndex = null;
       openSectionMenuId = null;
       selectedIds = [];
-      audienceResponses = {};
       await saveDeck(deck);
       setStatus("PowerPoint imported");
       renderAll();
@@ -377,6 +385,166 @@ function closeDeckLibrary() {
   dom.deckLibraryOverlay.setAttribute("aria-hidden", "true");
 }
 
+function openSessionHistory() {
+  dom.sessionHistoryOverlay.classList.remove("hidden");
+  dom.sessionHistoryOverlay.setAttribute("aria-hidden", "false");
+  dom.sessionHistorySubtitle.textContent = deck.title || "Untitled deck";
+  renderSessionHistoryList();
+}
+
+function closeSessionHistory() {
+  dom.sessionHistoryOverlay.classList.add("hidden");
+  dom.sessionHistoryOverlay.setAttribute("aria-hidden", "true");
+}
+
+async function renderSessionHistoryList() {
+  dom.sessionHistoryContent.innerHTML = `<div class="session-history-empty">Loading sessions…</div>`;
+  try {
+    const payload = await listLiveSessions(deck.id);
+    const sessions = payload.sessions || [];
+    if (!sessions.length) {
+      dom.sessionHistoryContent.innerHTML = `
+        <div class="session-history-empty">
+          <strong>No presentation sessions yet</strong>
+          <span>Start Present mode to create the first session.</span>
+        </div>
+      `;
+      return;
+    }
+    dom.sessionHistoryContent.innerHTML = sessions.map((session) => `
+      <article class="session-history-row">
+        <div class="session-history-meta">
+          <strong>${escapeHtml(session.session_name || defaultSessionName(session))}</strong>
+          <span>${escapeHtml(formatSessionDate(session.started_at))} · Code ${escapeHtml(session.access_code)}</span>
+          <span>${Number(session.response_count || 0)} responses · ${Number(session.question_count || 0)} questions · ${escapeHtml(session.status || "ended")}</span>
+        </div>
+        <div class="session-history-actions">
+          <button type="button" data-open-session="${attr(session.instance_id)}">View</button>
+          <button type="button" data-delete-session="${attr(session.instance_id)}">Delete</button>
+        </div>
+      </article>
+    `).join("");
+    dom.sessionHistoryContent.querySelectorAll("[data-open-session]").forEach((button) => {
+      button.addEventListener("click", () => renderSessionHistoryDetail(button.dataset.openSession));
+    });
+    dom.sessionHistoryContent.querySelectorAll("[data-delete-session]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const session = sessions.find((item) => item.instance_id === button.dataset.deleteSession);
+        if (!session || !confirm(`Delete session "${session.session_name || defaultSessionName(session)}" and all its responses?`)) {
+          return;
+        }
+        await deleteLiveSession(session.instance_id);
+        setStatus("Session deleted");
+        renderSessionHistoryList();
+      });
+    });
+  } catch (error) {
+    dom.sessionHistoryContent.innerHTML = `<div class="session-history-empty"><strong>Session history unavailable</strong><span>${escapeHtml(error.message)}</span></div>`;
+  }
+}
+
+async function renderSessionHistoryDetail(instanceId) {
+  dom.sessionHistoryContent.innerHTML = `<div class="session-history-empty">Loading results…</div>`;
+  try {
+    const detail = await getLiveSessionHistory(instanceId);
+    const session = detail.session;
+    const name = session.session_name || defaultSessionName(session);
+    dom.sessionHistoryContent.innerHTML = `
+      <div class="session-detail-toolbar">
+        <button id="backToSessionsBtn" type="button">Back</button>
+        <form id="renameSessionForm">
+          <input id="sessionNameInput" value="${attr(name)}" aria-label="Session name" />
+          <button type="submit">Rename</button>
+        </form>
+        <button id="exportSessionCsvBtn" type="button">Export CSV</button>
+      </div>
+      <div class="session-detail-summary">
+        <strong>${escapeHtml(name)}</strong>
+        <span>${escapeHtml(formatSessionDate(session.started_at))} · Access code ${escapeHtml(session.access_code)}</span>
+      </div>
+      <div class="session-slide-results">
+        ${(detail.slides || []).map(renderHistoricalSlide).join("") || `<div class="session-history-empty">No slide results were recorded.</div>`}
+      </div>
+    `;
+    dom.sessionHistoryContent.querySelector("#backToSessionsBtn")?.addEventListener("click", renderSessionHistoryList);
+    dom.sessionHistoryContent.querySelector("#renameSessionForm")?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const input = dom.sessionHistoryContent.querySelector("#sessionNameInput");
+      const nextName = input.value.trim();
+      if (!nextName) {
+        return;
+      }
+      await renameLiveSession(instanceId, nextName);
+      setStatus("Session renamed");
+      renderSessionHistoryDetail(instanceId);
+    });
+    dom.sessionHistoryContent.querySelector("#exportSessionCsvBtn")?.addEventListener("click", () => {
+      const csv = sessionHistoryCsv(detail);
+      downloadBlob(new Blob([csv], { type: "text/csv;charset=utf-8" }), `${safeFilename(name)}.csv`);
+      setStatus("Session CSV exported");
+    });
+  } catch (error) {
+    dom.sessionHistoryContent.innerHTML = `<div class="session-history-empty"><strong>Session could not be loaded</strong><span>${escapeHtml(error.message)}</span><button id="backToSessionsBtn" type="button">Back</button></div>`;
+    dom.sessionHistoryContent.querySelector("#backToSessionsBtn")?.addEventListener("click", renderSessionHistoryList);
+  }
+}
+
+function renderHistoricalSlide(item) {
+  const slide = item.slide || {};
+  const engagement = slide.engagement || {};
+  const results = Object.entries(engagement.results || {});
+  const questions = engagement.qna || [];
+  const reactions = Object.entries(engagement.reactions || {}).filter(([, count]) => Number(count) > 0);
+  return `
+    <section class="session-slide-card">
+      <div class="session-slide-heading">
+        <strong>Slide ${Number(item.slideIndex) + 1}: ${escapeHtml(slide.title || "Untitled slide")}</strong>
+        <span>${escapeHtml(engagement.prompt || (engagement.enabled ? "Engagement" : "Presentation slide"))}</span>
+      </div>
+      ${results.length ? `<div class="session-result-list">${results.map(([label, count]) => `<div><span>${escapeHtml(label)}</span><strong>${Number(count)}</strong></div>`).join("")}</div>` : ""}
+      ${questions.length ? `<div class="session-question-list">${questions.map((question) => `<div>${escapeHtml(question.text)}</div>`).join("")}</div>` : ""}
+      ${reactions.length ? `<div class="session-result-list">${reactions.map(([label, count]) => `<div><span>${escapeHtml(label)}</span><strong>${Number(count)}</strong></div>`).join("")}</div>` : ""}
+      ${!results.length && !questions.length && !reactions.length ? `<span class="session-no-responses">No responses on this slide.</span>` : ""}
+    </section>
+  `;
+}
+
+function sessionHistoryCsv(detail) {
+  const rows = [["session_name", "instance_id", "started_at", "slide_number", "slide_title", "engagement_type", "prompt", "response", "count"]];
+  const session = detail.session || {};
+  for (const item of detail.slides || []) {
+    const slide = item.slide || {};
+    const engagement = slide.engagement || {};
+    for (const [response, count] of Object.entries(engagement.results || {})) {
+      rows.push([session.session_name, session.instance_id, session.started_at, Number(item.slideIndex) + 1, slide.title, engagement.type, engagement.prompt, response, count]);
+    }
+    for (const question of engagement.qna || []) {
+      rows.push([session.session_name, session.instance_id, session.started_at, Number(item.slideIndex) + 1, slide.title, "qna", engagement.prompt, question.text, 1]);
+    }
+    for (const [response, count] of Object.entries(engagement.reactions || {}).filter(([, value]) => Number(value) > 0)) {
+      rows.push([session.session_name, session.instance_id, session.started_at, Number(item.slideIndex) + 1, slide.title, "reaction", engagement.prompt, response, count]);
+    }
+  }
+  return rows.map((row) => row.map(csvCell).join(",")).join("\n");
+}
+
+function csvCell(value) {
+  return `"${String(value ?? "").replace(/"/g, '""')}"`;
+}
+
+function defaultSessionName(session) {
+  return `${session.deck_title || "Untitled deck"} — ${formatSessionDate(session.started_at)}`;
+}
+
+function formatSessionDate(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "Unknown date" : date.toLocaleString();
+}
+
+function safeFilename(value) {
+  return String(value || "hyslides-session").replace(/[^a-z0-9-_]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 100) || "hyslides-session";
+}
+
 async function renderDeckLibrary() {
   const decks = (await loadDecks().catch(() => []))
     .map(normalizeDeck)
@@ -424,7 +592,6 @@ async function renderDeckLibrary() {
       openSlideMenuIndex = null;
       openSectionMenuId = null;
       selectedIds = [];
-      audienceResponses = {};
       closeDeckLibrary();
       setStatus("Deck opened");
       renderAll();
@@ -2335,6 +2502,8 @@ function onKeyDown(event) {
       openSlideMenuIndex = null;
       openSectionMenuId = null;
       renderSlides();
+    } else if (!dom.sessionHistoryOverlay.classList.contains("hidden")) {
+      closeSessionHistory();
     } else if (!dom.deckLibraryOverlay.classList.contains("hidden")) {
       closeDeckLibrary();
     } else if (presenterOpen) {
@@ -2507,6 +2676,7 @@ function startLiveSession() {
   const code = ensureAudienceCode();
   liveSession.code = code;
   liveSession.instanceId = crypto.randomUUID?.() || `session-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  liveSession.sessionName = `${deck.title || "Untitled deck"} — ${new Date().toLocaleString()}`;
   liveSession.lastPublishedSignature = "";
   liveSession.joinUrl = audienceLink();
   liveSession.qrSrc = liveQrImageSrc(liveSession.joinUrl);
@@ -2543,7 +2713,13 @@ async function publishCurrentLiveSession(force = false) {
   if (liveSession.publishing || !liveSession.code) {
     return;
   }
-  const snapshot = liveSnapshotForDeck(deck, currentSlide(), activeSlideIndex, liveSession.instanceId);
+  const snapshot = liveSnapshotForDeck(
+    deck,
+    currentSlide(),
+    activeSlideIndex,
+    liveSession.instanceId,
+    liveSession.sessionName
+  );
   const signature = JSON.stringify(snapshot);
   if (!force && signature === liveSession.lastPublishedSignature) {
     return;
