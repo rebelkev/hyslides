@@ -273,7 +273,6 @@ function bindEvents() {
     currentSlide().notes = dom.presenterNotes.value;
     markChanged("Presenter notes updated");
   });
-  document.querySelector("#deleteBtn").addEventListener("click", deleteSelection);
   document.querySelector("#propertiesTabBtn").addEventListener("click", () => {
     inspectorTab = "properties";
     renderInspector();
@@ -1355,7 +1354,6 @@ function renderInspector() {
   elementsTab.classList.toggle("active", inspectorTab === "elements");
   propertiesTab.setAttribute("aria-selected", String(inspectorTab === "properties"));
   elementsTab.setAttribute("aria-selected", String(inspectorTab === "elements"));
-  document.querySelector("#deleteBtn").classList.toggle("hidden", inspectorTab === "elements");
   if (inspectorTab === "elements") {
     renderElementTree();
     return;
