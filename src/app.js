@@ -1603,7 +1603,6 @@ function renderSlideInspector(slide) {
     <section class="inspector-section">
       <strong>Slide</strong>
       <div class="field-row"><label for="slideTitleInput">Title</label><input id="slideTitleInput" value="${attr(slide.title)}" /></div>
-      <div class="field-row"><label for="slideLayoutInput">Layout</label><input id="slideLayoutInput" value="${attr(slide.layout)}" /></div>
       <div class="field-row"><label for="notesInput">Presenter notes</label><textarea id="notesInput">${escapeHtml(slide.notes || "")}</textarea></div>
     </section>
     <section class="inspector-section">
@@ -1680,7 +1679,6 @@ function renderSlideInspector(slide) {
   `;
 
   bindValue("#slideTitleInput", (value) => (slide.title = value));
-  bindValue("#slideLayoutInput", (value) => (slide.layout = value));
   bindValue("#notesInput", (value) => (slide.notes = value));
   document.querySelector("#backgroundTypeInput")?.addEventListener("change", (event) => {
     slide.backgroundType = event.target.value;
