@@ -1220,6 +1220,49 @@ label {
   padding-top: 12px;
 }
 
+.countdown-control-panel {
+  background: #eef4ff;
+  border: 1px solid #b7cdf7;
+  border-radius: 9px;
+  display: grid;
+  gap: 10px;
+  padding: 11px;
+}
+
+.countdown-control-head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.countdown-control-head span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.countdown-control-row {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 76px minmax(0, 1fr);
+}
+
+.countdown-readout {
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+}
+
+.countdown-control-row > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.countdown-control-row button {
+  min-height: 32px;
+  padding: 5px 8px;
+}
+
 .live-join-panel {
   align-items: start;
   background: #ffffff;
