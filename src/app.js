@@ -2529,11 +2529,10 @@ function onKeyDown(event) {
 function launchPresenterWindow() {
   presenterWindow = window.open(
     `${location.href.split("#")[0]}#presenter`,
-    "hyslides-presenter",
-    "popup=yes,width=1440,height=900"
+    "_blank"
   );
   if (!presenterWindow) {
-    setStatus("Allow pop-ups to open presenter mode in a separate window");
+    setStatus("Allow HySlides to open presenter mode in a new tab");
     return;
   }
   presenterWindow.focus();
