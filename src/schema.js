@@ -168,6 +168,24 @@ export function createElement(type, overrides = {}) {
       accent: "#2454d6",
       name: "Engagement",
     },
+    countdown: {
+      x: 390,
+      y: 240,
+      w: 500,
+      h: 180,
+      durationSeconds: 420,
+      completionMessage: "Break is over",
+      completionBehavior: "message",
+      autoStart: false,
+      autoAdvance: false,
+      fontFamily: "Inter",
+      fontSize: 104,
+      fontWeight: 800,
+      color: "#1d232a",
+      fill: "transparent",
+      align: "center",
+      name: "Countdown timer",
+    },
   };
 
   return {
