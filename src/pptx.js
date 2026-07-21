@@ -71,6 +71,7 @@ function parseSlide(slideXml, rels, entries, slideName, deck, slideSize, inherit
       slide.elements.push(
         createElement("text", {
           ...transform,
+          autoHeight: false,
           text,
           fontSize: parseFontSize(shape) || 28,
           fontWeight: parseBold(shape) ? 800 : 500,
