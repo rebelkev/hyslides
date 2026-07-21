@@ -9,6 +9,21 @@ export async function preloadSlideImages(slide) {
   await Promise.all(images);
 }
 
+export function measureTextElementHeight(ctx, element, deck) {
+  if (!ctx || element?.type !== "text") return Number(element?.h || 0);
+  ctx.save();
+  const fontFamily = element.fontFamily ||
+    (element.fontWeight >= 700 ? deck.theme.fonts.heading : deck.theme.fonts.body);
+  const fontSize = element.fontSize || 28;
+  const fontWeight = element.fontWeight || 500;
+  const fontStyle = element.italic ? "italic " : "";
+  ctx.font = `${fontStyle}${fontWeight} ${fontSize}px ${fontFamily}, Arial, sans-serif`;
+  const lineCount = Math.max(1, layoutTextLines(ctx, element).length);
+  const height = Math.ceil(lineCount * fontSize * (element.lineHeight || 1.18) + 4);
+  ctx.restore();
+  return Math.max(12, height);
+}
+
 export function drawSlide(ctx, slide, deck, options = {}) {
   const {
     selectedIds = [],
