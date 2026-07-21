@@ -269,6 +269,30 @@ label {
   gap: 6px;
 }
 
+.left-rail-tabs {
+  align-items: center;
+  display: flex;
+  gap: 4px;
+}
+
+.left-rail-tab {
+  background: transparent;
+  border-color: transparent;
+  font-weight: 800;
+  height: 32px;
+  padding: 0 10px;
+}
+
+.left-rail-tab.active {
+  background: #e6edff;
+  border-color: #90a9f8;
+  color: #153aa3;
+}
+
+.left-rail-panel {
+  min-height: calc(100% - 49px);
+}
+
 #addSectionBtn {
   height: 28px;
   padding: 0 8px;
@@ -308,6 +332,33 @@ label {
   display: grid;
   gap: 9px;
   padding: 10px;
+}
+
+.template-library-intro {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 12px 10px 0;
+}
+
+.template-card-footer {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.template-card-footer strong {
+  font-size: 12px;
+}
+
+.template-card-footer button {
+  background: #e6edff;
+  border-color: #90a9f8;
+  color: #153aa3;
+  flex: 0 0 auto;
+  height: 30px;
+  padding: 0 9px;
 }
 
 .section-header {

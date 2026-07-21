@@ -64,8 +64,11 @@ const dom = {
   slideSelectionText: document.querySelector("#slideSelectionText"),
   moveSlideInput: document.querySelector("#moveSlideInput"),
   moveSlideBtn: document.querySelector("#moveSlideBtn"),
-  templateSection: document.querySelector("#templateSection"),
-  templateToggleBtn: document.querySelector("#templateToggleBtn"),
+  slidesTabBtn: document.querySelector("#slidesTabBtn"),
+  templatesTabBtn: document.querySelector("#templatesTabBtn"),
+  slidesPanel: document.querySelector("#slidesPanel"),
+  templatesPanel: document.querySelector("#templatesPanel"),
+  slidePanelActions: document.querySelector("#slidePanelActions"),
   templateList: document.querySelector("#templateList"),
   inspector: document.querySelector("#inspector"),
   deckTitle: document.querySelector("#deckTitle"),
@@ -101,7 +104,6 @@ const dom = {
   imageInput: document.querySelector("#imageInput"),
 };
 
-const TEMPLATES_EXPANDED_KEY = "hyslides.templatesExpanded";
 const PARTICIPANT_ID_KEY = "hyslides.participantId";
 const ACTIVE_SESSION_KEY = "hyslides.activeSession";
 
@@ -144,7 +146,7 @@ let countdownTickInterval = 0;
 let presenterQnaTab = "unanswered";
 let audienceOpen = false;
 let participantQnaOpen = false;
-let templatesExpanded = readTemplatesExpandedPreference();
+let leftRailTab = "slides";
 let inspectorTab = "properties";
 let liveSession = {
   code: "",
@@ -256,11 +258,8 @@ function bindEvents() {
     renderAll();
   });
   dom.addSectionBtn?.addEventListener("click", addSectionAtActiveSlide);
-  dom.templateToggleBtn?.addEventListener("click", () => {
-    templatesExpanded = !templatesExpanded;
-    saveTemplatesExpandedPreference();
-    renderTemplates();
-  });
+  dom.slidesTabBtn?.addEventListener("click", () => setLeftRailTab("slides"));
+  dom.templatesTabBtn?.addEventListener("click", () => setLeftRailTab("templates"));
 
   dom.moveSlideBtn?.addEventListener("click", moveSelectedSlidesFromInput);
   dom.moveSlideInput?.addEventListener("keydown", (event) => {
@@ -412,6 +411,7 @@ function bindEvents() {
 
 function renderAll() {
   updateDocumentTitle();
+  updateLeftRailTabs();
   syncAudienceJoinElements();
   deck.slides.forEach(autoSizeTextElements);
   dom.deckTitle.value = deck.title;
@@ -1385,19 +1385,12 @@ function reorderSlides(indexes, insertIndex, message) {
 }
 
 function renderTemplates() {
-  updateTemplateToggle();
-  if (!templatesExpanded) {
-    dom.templateList.innerHTML = "";
-    return;
-  }
-
   dom.templateList.innerHTML = "";
   for (const template of layoutTemplates) {
-    const item = document.createElement("button");
-    item.type = "button";
+    const item = document.createElement("article");
     item.className = "template-thumb";
-    item.innerHTML = `<canvas width="192" height="108" aria-hidden="true"></canvas><span class="slide-meta"><span>${template.name}</span><span>Insert</span></span>`;
-    item.addEventListener("click", () => {
+    item.innerHTML = `<canvas width="192" height="108" aria-hidden="true"></canvas><div class="template-card-footer"><strong>${escapeHtml(template.name)}</strong><button type="button">Add to deck</button></div>`;
+    item.querySelector("button").addEventListener("click", () => {
       const slide = template.apply();
       slide.sectionId = currentSlide()?.sectionId || null;
       deck.slides.splice(activeSlideIndex + 1, 0, slide);
@@ -1407,6 +1400,7 @@ function renderTemplates() {
       openSlideMenuIndex = null;
       openSectionMenuId = null;
       selectedIds = [];
+      leftRailTab = "slides";
       markChanged(`${template.name} slide inserted`);
       renderAll();
     });
@@ -1417,31 +1411,20 @@ function renderTemplates() {
   }
 }
 
-function updateTemplateToggle() {
-  dom.templateSection?.classList.toggle("collapsed", !templatesExpanded);
-  dom.templateList.hidden = !templatesExpanded;
-  if (!dom.templateToggleBtn) {
-    return;
-  }
-  dom.templateToggleBtn.textContent = templatesExpanded ? "v" : ">";
-  dom.templateToggleBtn.title = templatesExpanded ? "Collapse templates" : "Expand templates";
-  dom.templateToggleBtn.setAttribute("aria-expanded", String(templatesExpanded));
+function setLeftRailTab(tab) {
+  leftRailTab = tab === "templates" ? "templates" : "slides";
+  updateLeftRailTabs();
 }
 
-function readTemplatesExpandedPreference() {
-  try {
-    return localStorage.getItem(TEMPLATES_EXPANDED_KEY) !== "false";
-  } catch {
-    return true;
-  }
-}
-
-function saveTemplatesExpandedPreference() {
-  try {
-    localStorage.setItem(TEMPLATES_EXPANDED_KEY, String(templatesExpanded));
-  } catch {
-    // Collapsing templates is a view preference, so storage failures are harmless.
-  }
+function updateLeftRailTabs() {
+  const showingTemplates = leftRailTab === "templates";
+  dom.slidesTabBtn?.classList.toggle("active", !showingTemplates);
+  dom.templatesTabBtn?.classList.toggle("active", showingTemplates);
+  dom.slidesTabBtn?.setAttribute("aria-selected", String(!showingTemplates));
+  dom.templatesTabBtn?.setAttribute("aria-selected", String(showingTemplates));
+  dom.slidesPanel?.classList.toggle("hidden", showingTemplates);
+  dom.templatesPanel?.classList.toggle("hidden", !showingTemplates);
+  dom.slidePanelActions?.classList.toggle("hidden", showingTemplates);
 }
 
 function renderInspector() {
