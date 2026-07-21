@@ -1242,6 +1242,7 @@ label {
   border-radius: 9px;
   display: grid;
   gap: 10px;
+  min-height: 96px;
   padding: 11px;
 }
 
@@ -1269,14 +1270,15 @@ label {
 }
 
 .countdown-control-row > div {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: 5px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .countdown-control-row button {
   min-height: 32px;
   padding: 5px 8px;
+  width: 100%;
 }
 
 .live-join-panel {
