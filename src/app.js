@@ -139,6 +139,7 @@ let countdownRuntime = new Map();
 let countdownTickInterval = 0;
 let presenterQnaTab = "unanswered";
 let audienceOpen = false;
+let participantQnaOpen = false;
 let templatesExpanded = readTemplatesExpandedPreference();
 let inspectorTab = "properties";
 let liveSession = {
@@ -196,6 +197,7 @@ async function init() {
     presenterChannel?.postMessage({ type: "view-ready" });
     openPresenterMode();
   } else if (location.hash.startsWith("#audience")) {
+    document.body.classList.add("audience-window");
     openAudience();
   }
 }
@@ -303,6 +305,7 @@ function bindEvents() {
   document.querySelector("#closeAudienceBtn").addEventListener("click", closeAudience);
   window.addEventListener("hashchange", () => {
     if (location.hash.startsWith("#audience")) {
+      document.body.classList.add("audience-window");
       openAudience();
     }
   });
@@ -3635,8 +3638,13 @@ async function renderLiveAudience() {
 }
 
 function renderSessionQnaForAudience() {
+  const launcher = document.createElement("button");
+  launcher.className = "participant-qna-launcher";
+  launcher.type = "button";
+  launcher.setAttribute("aria-label", "Ask the presenter a question");
+  launcher.innerHTML = `<span aria-hidden="true">?</span>`;
   const panel = document.createElement("section");
-  panel.className = "audience-results session-qna-panel";
+  panel.className = `audience-results session-qna-panel${participantQnaOpen ? "" : " hidden"}`;
   const questions = audienceLive.state?.questions || [];
   panel.innerHTML = `
     <strong>Ask the presenter</strong>
@@ -3663,14 +3671,21 @@ function renderSessionQnaForAudience() {
     }
     renderLiveAudience();
   }));
-  dom.audienceContent.append(panel);
+  launcher.addEventListener("click", () => {
+    participantQnaOpen = !participantQnaOpen;
+    panel.classList.toggle("hidden", !participantQnaOpen);
+    if (participantQnaOpen) panel.querySelector("input")?.focus();
+  });
+  dom.audienceContent.append(panel, launcher);
 }
 
 function renderAudienceLiveStatus() {
+  const stateLabel = audienceLive.state?.status === "paused" ? "Presentation paused" : audienceLive.state?.status === "ended" ? "Presentation ended" : "";
+  const message = audienceLive.error || stateLabel;
+  if (!message) return;
   const status = document.createElement("div");
   status.className = "audience-live-status";
-  const stateLabel = audienceLive.state?.status === "paused" ? "Presentation paused" : audienceLive.state?.status === "ended" ? "Presentation ended" : "Connected to HySlides Live";
-  status.textContent = audienceLive.error || stateLabel;
+  status.textContent = message;
   dom.audienceContent.prepend(status);
 }
 
