@@ -76,3 +76,4 @@
 ### Terminology
 
 - Established Editor View, Presentation View, Participant View, and Presenter View as the canonical product names.
+- Added view-specific browser-tab titles that include the presentation deck name.

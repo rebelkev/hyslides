@@ -411,6 +411,7 @@ function bindEvents() {
 }
 
 function renderAll() {
+  updateDocumentTitle();
   syncAudienceJoinElements();
   deck.slides.forEach(autoSizeTextElements);
   dom.deckTitle.value = deck.title;
@@ -3677,6 +3678,7 @@ async function renderLiveAudience() {
 
   const liveSlide = audienceLive.state.slide;
   dom.audienceDeckTitle.textContent = audienceLive.state.deckTitle || "Untitled presentation";
+  updateDocumentTitle(audienceLive.state.deckTitle);
   syncEngagementElementsFromSlide(liveSlide);
   const liveDeck = normalizeDeck({
     ...liveStateDeck(audienceLive.state),
@@ -4494,11 +4496,24 @@ function bindTextFormatButton(selector, apply) {
 
 function markChanged(message) {
   deck.updatedAt = new Date().toISOString();
+  updateDocumentTitle();
   recordHistory(message);
   setStatus(message);
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => saveDeck(deck).catch(() => {}), 500);
   queueEditorPresenterSync();
+}
+
+function updateDocumentTitle(title = "") {
+  const deckName = String(title || deck?.title || "Untitled presentation").trim();
+  const viewName = presentationWindowMode
+    ? "Presentation"
+    : presenterWindowMode
+      ? "Presenter"
+      : location.hash.startsWith("#audience")
+        ? "Participant"
+        : "Editor";
+  document.title = `${viewName} · ${deckName} | HySlides`;
 }
 
 function queueEditorPresenterSync() {
