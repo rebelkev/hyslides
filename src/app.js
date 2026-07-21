@@ -1397,22 +1397,47 @@ function renderElementTree() {
   dom.inspector.innerHTML = `
     <section class="inspector-section element-tree-section">
       <div class="element-tree-heading"><strong>Slide elements</strong><span>${slide.elements.length}</span></div>
-      <p class="element-tree-help">Top items appear in front. Select an item to edit it.</p>
+      <p class="element-tree-help">Double click an item to edit it.</p>
       <ul class="element-tree">${rows.join("") || '<li class="element-tree-empty">This slide has no elements.</li>'}</ul>
     </section>`;
   window.lucide?.createIcons({ attrs: { "stroke-width": 1.8 } });
   dom.inspector.querySelectorAll("[data-element-id]").forEach((button) => {
     button.addEventListener("click", () => {
       selectedIds = [button.dataset.elementId];
+      refreshElementTreeSelection(button);
+      renderCanvas();
+      updateSelectionLabel();
+    });
+    button.addEventListener("dblclick", () => {
+      selectedIds = [button.dataset.elementId];
+      inspectorTab = "properties";
       renderAll();
     });
   });
   dom.inspector.querySelectorAll("[data-group-id]").forEach((button) => {
     button.addEventListener("click", () => {
       selectedIds = slide.elements.filter((item) => item.groupId === button.dataset.groupId).map((item) => item.id);
+      refreshElementTreeSelection(button, button.dataset.groupId);
+      renderCanvas();
+      updateSelectionLabel();
+    });
+    button.addEventListener("dblclick", () => {
+      selectedIds = slide.elements.filter((item) => item.groupId === button.dataset.groupId).map((item) => item.id);
+      inspectorTab = "properties";
       renderAll();
     });
   });
+}
+
+function refreshElementTreeSelection(activeButton, groupId = "") {
+  dom.inspector.querySelectorAll(".element-tree-row").forEach((row) => row.classList.remove("selected"));
+  activeButton.classList.add("selected");
+  if (groupId) {
+    const groupElementIds = new Set(currentSlide().elements.filter((item) => item.groupId === groupId).map((item) => item.id));
+    dom.inspector.querySelectorAll("[data-element-id]").forEach((row) => {
+      row.classList.toggle("selected", groupElementIds.has(row.dataset.elementId));
+    });
+  }
 }
 
 function elementTreeRow(element) {
