@@ -58,6 +58,7 @@
 - Removed the redundant next-slide preview and enlarged the current slide.
 - Moved speaker notes above a compact Live Session panel and removed duplicate QR/link controls.
 - Added a one-click timer insertion action for unplanned breaks.
+- Stabilized the countdown control card so timer actions no longer shift or jump the right panel.
 - Grouped Previous and Next together on the bottom-right.
 
 ### Participant View Layout
