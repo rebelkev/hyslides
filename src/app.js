@@ -46,6 +46,7 @@ import {
   registerLiveParticipant,
   renameLiveSession,
   submitLiveResponse,
+  submitLiveQuestion,
   voteLiveQuestion,
 } from "./live.js";
 
@@ -87,6 +88,8 @@ const dom = {
   presenterConnectionStatus: document.querySelector("#presenterConnectionStatus"),
   presenterFlowCount: document.querySelector("#presenterFlowCount"),
   presenterSlideList: document.querySelector("#presenterSlideList"),
+  presenterQnaList: document.querySelector("#presenterQnaList"),
+  presenterQnaCount: document.querySelector("#presenterQnaCount"),
   nextSlideTitle: document.querySelector("#nextSlideTitle"),
   presentationBlackout: document.querySelector("#presentationBlackout"),
   liveControls: document.querySelector("#liveControls"),
@@ -134,6 +137,7 @@ let presenterStartedAt = 0;
 let presenterTimerInterval = 0;
 let countdownRuntime = new Map();
 let countdownTickInterval = 0;
+let presenterQnaTab = "unanswered";
 let audienceOpen = false;
 let templatesExpanded = readTemplatesExpandedPreference();
 let inspectorTab = "properties";
@@ -145,6 +149,7 @@ let liveSession = {
   lifecycleStatus: "active",
   participantCount: 0,
   responseCount: 0,
+  questions: [],
   joinUrl: "",
   qrSrc: "",
   backendAvailable: false,
@@ -306,6 +311,14 @@ function bindEvents() {
   document.querySelector("#openPresentationViewBtn").addEventListener("click", openPresentationWindow);
   document.querySelector("#resetPresenterTimerBtn").addEventListener("click", resetPresenterTimer);
   document.querySelector("#blackoutPresentationBtn").addEventListener("click", togglePresentationBlackout);
+  document.querySelector("#qnaUnansweredTab").addEventListener("click", () => {
+    presenterQnaTab = "unanswered";
+    renderPresenterQna();
+  });
+  document.querySelector("#qnaAnsweredTab").addEventListener("click", () => {
+    presenterQnaTab = "answered";
+    renderPresenterQna();
+  });
   document.querySelector("#fullscreenPresenterBtn").addEventListener("click", () => {
     document.documentElement.requestFullscreen?.().catch(() => {});
   });
@@ -522,6 +535,7 @@ async function renderSessionHistoryDetail(instanceId) {
         <span>${escapeHtml(formatSessionDate(session.started_at))} · Access code ${escapeHtml(session.access_code)}</span>
       </div>
       <div class="session-slide-results">
+        ${(detail.questions || []).length ? `<section class="session-slide-card"><div class="session-slide-heading"><strong>Session Q&amp;A</strong><span>${detail.questions.length} submitted question${detail.questions.length === 1 ? "" : "s"}</span></div><div class="session-question-list">${detail.questions.map((question) => `<div>${escapeHtml(question.text)} · ${question.upvotes || 0} upvotes · ${question.answered ? "Answered" : "Unanswered"}</div>`).join("")}</div></section>` : ""}
         ${(detail.slides || []).map(renderHistoricalSlide).join("") || `<div class="session-history-empty">No slide results were recorded.</div>`}
       </div>
     `;
@@ -571,6 +585,9 @@ function renderHistoricalSlide(item) {
 function sessionHistoryCsv(detail) {
   const rows = [["session_name", "instance_id", "started_at", "slide_number", "slide_title", "engagement_type", "prompt", "response", "count"]];
   const session = detail.session || {};
+  for (const question of detail.questions || []) {
+    rows.push([session.session_name, session.instance_id, session.started_at, "", "Session Q&A", "qna", "Ask the presenter", question.text, question.upvotes || 0]);
+  }
   for (const item of detail.slides || []) {
     const slide = item.slide || {};
     const engagement = slide.engagement || {};
@@ -2956,6 +2973,12 @@ function bindPresenterChannel() {
       const slide = deck.slides.find((item) => item.id === message.slideId);
       if (slide) slide.notes = message.notes || "";
     }
+    if (message.type === "deck-updated" && !presenterWindowMode && !presentationWindowMode && message.deck) {
+      deck = normalizeDeck(message.deck);
+      activeSlideIndex = Math.max(0, Math.min(deck.slides.length - 1, Number(message.activeSlideIndex) || 0));
+      saveDeck(deck).catch(() => null);
+      renderAll();
+    }
     if (message.type === "countdown-state") {
       applyCountdownState(message.states || {});
       if (presentationWindowMode) drawPresentationCountdownFrame();
@@ -3024,6 +3047,7 @@ async function renderPresenter() {
     });
     renderLiveJoinPanel(slide);
     renderCountdownControls(slide);
+    renderPresenterQna();
     queueLivePublish();
   }
 }
@@ -3435,11 +3459,13 @@ function applyLiveStateToCurrentSlide(state) {
     return false;
   }
   const priorLive = `${liveSession.participantCount}:${liveSession.responseCount}:${liveSession.lifecycleStatus}`;
+  const priorQuestions = JSON.stringify(liveSession.questions || []);
   liveSession.participantCount = Number(state.participantCount || 0);
   liveSession.responseCount = Number(state.responseCount || 0);
+  liveSession.questions = Array.isArray(state.questions) ? state.questions : liveSession.questions;
   liveSession.lifecycleStatus = state.status || liveSession.lifecycleStatus;
   if (state.slide.id !== currentSlide().id) {
-    return priorLive !== `${liveSession.participantCount}:${liveSession.responseCount}:${liveSession.lifecycleStatus}`;
+    return priorLive !== `${liveSession.participantCount}:${liveSession.responseCount}:${liveSession.lifecycleStatus}` || priorQuestions !== JSON.stringify(liveSession.questions || []);
   }
   const slide = currentSlide();
   ensureEngagement(slide);
@@ -3460,7 +3486,7 @@ function applyLiveStateToCurrentSlide(state) {
     qna: slide.engagement.qna,
     reactions: slide.engagement.reactions,
   });
-  return before !== after || priorLive !== `${liveSession.participantCount}:${liveSession.responseCount}:${liveSession.lifecycleStatus}`;
+  return before !== after || priorLive !== `${liveSession.participantCount}:${liveSession.responseCount}:${liveSession.lifecycleStatus}` || priorQuestions !== JSON.stringify(liveSession.questions || []);
 }
 
 function renderLiveJoinPanel(slide) {
@@ -3475,16 +3501,12 @@ function renderLiveJoinPanel(slide) {
     : `${liveSession.participantCount} participant${liveSession.participantCount === 1 ? "" : "s"} connected.`;
   const paused = liveSession.lifecycleStatus === "paused";
   panel.innerHTML = `
-    <img src="${attr(liveSession.qrSrc || liveQrImageSrc(audienceLink()))}" alt="Audience QR code" />
     <div class="live-join-copy">
-      <strong>Audience join</strong>
       <span>${escapeHtml(participantText)}</span>
-      <input readonly value="${attr(liveSession.joinUrl || audienceLink())}" aria-label="Audience join link" />
       <div class="live-join-actions">
-        <button id="copyLiveLinkBtn" type="button">Copy link</button>
-        <button id="openLiveAudienceBtn" type="button">Open audience</button>
         <button id="toggleLiveSessionBtn" type="button">${paused ? "Resume" : "Pause"}</button>
         <button id="clearLiveSlideBtn" type="button">Clear responses</button>
+        <button id="insertLiveTimerBtn" type="button">Add timer to slide</button>
         <button id="endLiveSessionBtn" type="button">End session</button>
         <button id="newLiveSessionBtn" type="button">New session</button>
       </div>
@@ -3492,15 +3514,8 @@ function renderLiveJoinPanel(slide) {
     </div>
   `;
   dom.liveControls.prepend(panel);
-  panel.querySelector("#copyLiveLinkBtn")?.addEventListener("click", async () => {
-    await navigator.clipboard?.writeText(liveSession.joinUrl || audienceLink()).catch(() => {});
-    setStatus("Audience link copied");
-  });
-  panel.querySelector("#openLiveAudienceBtn")?.addEventListener("click", () => {
-    location.hash = `audience-${ensureAudienceCode()}`;
-    openAudience();
-  });
   panel.querySelector("#toggleLiveSessionBtn")?.addEventListener("click", () => runLiveControl(paused ? "resume" : "pause"));
+  panel.querySelector("#insertLiveTimerBtn")?.addEventListener("click", insertCountdownFromPresenter);
   panel.querySelector("#clearLiveSlideBtn")?.addEventListener("click", () => {
     if (confirm("Clear every response to the current slide? This cannot be undone.")) runLiveControl("clearSlide");
   });
@@ -3516,6 +3531,55 @@ function renderLiveJoinPanel(slide) {
       queueLivePublish(true);
     }
   });
+}
+
+function renderPresenterQna() {
+  if (!dom.presenterQnaList) return;
+  const all = liveSession.questions || [];
+  const filtered = all.filter((question) => presenterQnaTab === "answered" ? question.answered : !question.answered);
+  document.querySelector("#qnaUnansweredTab")?.classList.toggle("active", presenterQnaTab === "unanswered");
+  document.querySelector("#qnaAnsweredTab")?.classList.toggle("active", presenterQnaTab === "answered");
+  dom.presenterQnaCount.textContent = `${all.filter((question) => !question.answered).length} open`;
+  if (!filtered.length) {
+    dom.presenterQnaList.innerHTML = `<div class="presenter-qna-empty">${presenterQnaTab === "answered" ? "No answered questions yet." : "New audience questions will appear here for review."}</div>`;
+    return;
+  }
+  dom.presenterQnaList.innerHTML = filtered
+    .sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0))
+    .map((question) => `<article class="presenter-qna-item ${question.visible ? "displayed" : "pending"}" data-question-id="${attr(question.id)}"><strong>${escapeHtml(question.text)}</strong><span>${question.visible ? "Displayed" : "Pending review"} · ${question.upvotes || 0} upvote${question.upvotes === 1 ? "" : "s"}</span><div class="presenter-qna-item-actions"><button data-action="${question.visible ? "hide" : "show"}" type="button">${question.visible ? "Hide" : "Display"}</button><button data-action="${question.answered ? "unanswered" : "answered"}" type="button">${question.answered ? "Reopen" : "Mark answered"}</button><button data-action="delete" type="button">Delete</button></div></article>`)
+    .join("");
+  dom.presenterQnaList.querySelectorAll("[data-action]").forEach((button) => button.addEventListener("click", async () => {
+    const questionId = button.closest("[data-question-id]").dataset.questionId;
+    try {
+      const state = await moderateLiveQuestion(liveSession.code, questionId, button.dataset.action, liveSession.presenterToken);
+      applyLiveStateToCurrentSlide(state);
+      renderPresenterQna();
+      renderLiveJoinPanel(currentSlide());
+    } catch (error) {
+      liveSession.status = `Could not moderate question: ${error.message}`;
+      renderLiveJoinPanel(currentSlide());
+    }
+  }));
+}
+
+function insertCountdownFromPresenter() {
+  const existing = countdownElements(currentSlide())[0];
+  if (existing) {
+    renderCountdownControls(currentSlide());
+    dom.liveControls.querySelector(".countdown-control-panel")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    return;
+  }
+  const element = createElement("countdown", {
+    x: SLIDE_SIZE.width / 2 - 250,
+    y: SLIDE_SIZE.height / 2 - 90,
+  });
+  currentSlide().elements.push(element);
+  selectedIds = [element.id];
+  ensureSlideCountdowns(currentSlide());
+  presenterChannel?.postMessage({ type: "deck-updated", deck: JSON.parse(JSON.stringify(deck)), activeSlideIndex });
+  sendPresenterSnapshot();
+  queueLivePublish(true);
+  renderPresenter();
 }
 
 async function runLiveControl(action) {
@@ -3563,10 +3627,43 @@ async function renderLiveAudience() {
     (payload) => submitAudienceLiveResponse(liveSlide, payload),
     latestResponse
   );
+  renderSessionQnaForAudience();
   if (audienceLive.state.status !== "active") {
     dom.audienceContent.querySelectorAll("button, input, textarea, select").forEach((control) => { control.disabled = true; });
   }
   renderAudienceLiveStatus();
+}
+
+function renderSessionQnaForAudience() {
+  const panel = document.createElement("section");
+  panel.className = "audience-results session-qna-panel";
+  const questions = audienceLive.state?.questions || [];
+  panel.innerHTML = `
+    <strong>Ask the presenter</strong>
+    <form class="session-qna-form"><input type="text" maxlength="500" required placeholder="Type a question at any time"><button type="submit">Submit question</button></form>
+    <div class="session-qna-public">${questions.length ? questions.map((question) => `<div class="result-row audience-question${question.answered ? " answered" : ""}" data-question-id="${attr(question.id)}"><strong>${escapeHtml(question.text)}</strong><button type="button">▲ ${question.upvotes || 0}</button></div>`).join("") : "<span>No questions have been displayed yet.</span>"}</div>`;
+  panel.querySelector("form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const input = panel.querySelector("input");
+    try {
+      audienceLive.state = await submitLiveQuestion(audienceLive.code, input.value, participantId);
+      audienceLive.error = "Question submitted for presenter review.";
+      input.value = "";
+    } catch (error) {
+      audienceLive.error = `Question was not sent: ${error.message}`;
+    }
+    renderLiveAudience();
+  });
+  panel.querySelectorAll("[data-question-id] button").forEach((button) => button.addEventListener("click", async () => {
+    try {
+      audienceLive.state = await voteLiveQuestion(audienceLive.code, button.closest("[data-question-id]").dataset.questionId, participantId);
+      audienceLive.error = audienceLive.state.duplicate ? "You already upvoted that question." : "Question upvoted.";
+    } catch (error) {
+      audienceLive.error = `Vote was not sent: ${error.message}`;
+    }
+    renderLiveAudience();
+  }));
+  dom.audienceContent.append(panel);
 }
 
 function renderAudienceLiveStatus() {
