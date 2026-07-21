@@ -20,7 +20,21 @@ The phone, tablet, or computer experience opened using a deck’s QR code or six
 
 ### Presenter View
 
-The private presentation control interface. The planned Desktop and Mobile variants will contain the current slide, next-slide preview, notes, navigation, live participant and response counts, engagement results, Q&A moderation, and session controls.
+The private presentation control interface, available in responsive Desktop and Mobile layouts. It contains end-state current/next slide previews, speaker notes, navigation, an elapsed timer, live participant and response counts, engagement controls, and session controls.
+
+Click **Present** in Editor View to open Presenter View in a new tab. Then select **Open Presentation View** to open the clean projected slide show in another tab.
+
+### Controlling Presentation Flow
+
+- Every slide appears in the Presenter View filmstrip with an include checkbox.
+- Uncheck a slide to gray it out and skip it during Previous/Next navigation.
+- Recheck it at any time to restore it to the flow.
+- Skip choices apply only to the current presentation session and do not modify the saved deck.
+- Filmstrip, current-slide, and next-slide previews always show every element in its completed end state, even when the projected slide contains animations.
+- Clicking an included filmstrip slide jumps directly to it.
+- **Black screen** temporarily hides the projected Presentation View without ending the session.
+- **Reset timer** restarts the private elapsed-time clock.
+- Participant and response totals update in the Presenter View header; engagement slides use a response ratio such as `13/25`.
 
 ## Creating and Managing Slides
 
@@ -103,7 +117,7 @@ Ended sessions, participant records, and responses are retained for 14 days and 
 
 ## Current Limitations
 
-- Presenter View is the next major milestone; the current Presentation View is available, but the dedicated Desktop and Mobile control experiences are not complete.
+- Presenter View v1 is complete. Its responsive mobile layout supports the core controls, but touch-focused gestures, pace coaching, and a dedicated Q&A moderation queue are future enhancements.
 - User accounts, server-backed deck libraries, admin template management, and collaboration are planned rather than complete.
 - Live Q&A moderation is planned. The final workflow will support review, display/hide, mark answered, and delete actions.
 - PowerPoint import does not reproduce every master, SmartArt, media, typography, transition, or animation feature.
