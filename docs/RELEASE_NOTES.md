@@ -6,6 +6,7 @@
 
 - Added advanced slide backgrounds with solid colors, adjustable two-color gradients, proportionally fitted images (fill or fit), and a dedicated Animated Effect style with six effects, dedicated effect colors, and static fallbacks. Color overlays now apply consistently on top of every background style.
 - Corrected animated-background frame compositing so the Intensity control now ranges visibly from transparent/subtle to vivid without accumulating to full strength.
+- Simplified animated-background Intensity to a compact 0–100 percentage field beside Speed.
 - Consolidated Quiz into Multiple Choice with an optional “This question has correct answers” setting, and automatically migrates existing Quiz slides without losing their answer keys.
 - Renamed the selected element's inner inspector heading to “Engagement type” to distinguish it from the element name.
 - Holding Shift while dragging any resize handle now preserves the selection's aspect ratio.
