@@ -117,17 +117,13 @@ export function renderLiveControls(container, deck, slide, onChange) {
 export function renderAudienceContent(container, deck, slide, onSubmit, latestResponse = null) {
   const engagement = ensureEngagement(slide);
   container.innerHTML = "";
-  const join = document.createElement("div");
-  join.className = "result-row";
-  join.innerHTML = `
-    <span>Joined with code ${escapeHtml(deck.settings.audienceCode)}</span>
-    <strong>${engagement.enabled ? escapeHtml(engagement.prompt) : "This slide is presentation-only."}</strong>
-  `;
-  container.append(join);
-
   if (!engagement.enabled) {
     return;
   }
+  const join = document.createElement("div");
+  join.className = "result-row";
+  join.innerHTML = `<strong>${escapeHtml(engagement.prompt)}</strong>`;
+  container.append(join);
 
   const feedback = getAnswerFeedback(slide, latestResponse);
   const canRevealAnswer = ["multipleChoice", "quiz"].includes(engagement.type);
