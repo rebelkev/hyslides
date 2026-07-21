@@ -86,3 +86,9 @@ test("all built-in engagement slides and templates start without responses", () 
     }
   }
 });
+
+test("polls default to one response per participant", () => {
+  const slide = createSlide();
+  assert.equal(slide.engagement.responseLimit, 1);
+  assert.equal(createElement("engagement").responseLimit, 1);
+});

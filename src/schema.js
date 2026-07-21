@@ -163,6 +163,7 @@ export function createElement(type, overrides = {}) {
       correctAnswers: [],
       showCorrectAnswer: true,
       correctAnswerRevealed: false,
+      responseLimit: 1,
       fill: "#ffffff",
       stroke: "#cbd5e1",
       accent: "#2454d6",
@@ -225,6 +226,7 @@ export function createSlide(overrides = {}) {
       correctAnswers: [],
       showCorrectAnswer: true,
       correctAnswerRevealed: false,
+      responseLimit: 1,
       results: {},
       qna: [],
       reactions: {
@@ -759,6 +761,7 @@ export function normalizeSlide(raw = {}) {
         : [],
       showCorrectAnswer: raw.engagement?.showCorrectAnswer ?? true,
       correctAnswerRevealed: raw.engagement?.correctAnswerRevealed ?? false,
+      responseLimit: Math.max(1, Number(raw.engagement?.responseLimit) || 1),
       results: raw.engagement?.results || {},
       qna: raw.engagement?.qna || [],
       reactions: {

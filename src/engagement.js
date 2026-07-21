@@ -24,6 +24,7 @@ export function ensureEngagement(slide) {
   slide.engagement.correctAnswers ||= [];
   slide.engagement.showCorrectAnswer ??= true;
   slide.engagement.correctAnswerRevealed ??= false;
+  slide.engagement.responseLimit = Math.max(1, Number(slide.engagement.responseLimit) || 1);
   slide.engagement.results ||= {};
   slide.engagement.qna ||= [];
   slide.engagement.reactions ||= {
@@ -116,6 +117,11 @@ export function renderLiveControls(container, deck, slide, onChange) {
 
 export function renderAudienceContent(container, deck, slide, onSubmit, latestResponse = null) {
   const engagement = ensureEngagement(slide);
+  const latestResponses = Array.isArray(latestResponse)
+    ? latestResponse
+    : latestResponse
+      ? [latestResponse]
+      : [];
   container.innerHTML = "";
   if (!engagement.enabled) {
     return;
@@ -125,7 +131,7 @@ export function renderAudienceContent(container, deck, slide, onSubmit, latestRe
   join.innerHTML = `<strong>${escapeHtml(engagement.prompt)}</strong>`;
   container.append(join);
 
-  const feedback = getAnswerFeedback(slide, latestResponse);
+  const feedback = getAnswerFeedback(slide, latestResponses.at(-1) || null);
   const canRevealAnswer = ["multipleChoice", "quiz"].includes(engagement.type);
   if (feedback?.shouldReveal || (canRevealAnswer && engagement.correctAnswerRevealed)) {
     renderAudienceFeedback(
@@ -141,15 +147,19 @@ export function renderAudienceContent(container, deck, slide, onSubmit, latestRe
   }
 
   if (["poll", "multipleChoice", "quiz"].includes(engagement.type)) {
+    const responseLimit = engagement.type === "poll"
+      ? Math.min(engagement.options.length, Math.max(1, Number(engagement.responseLimit) || 1))
+      : 1;
     const options = document.createElement("div");
     options.className = "audience-options";
     for (const option of engagement.options) {
       const button = document.createElement("button");
       button.type = "button";
       button.textContent = option;
-      if (latestResponse === option) {
+      if (latestResponses.includes(option)) {
         button.setAttribute("aria-pressed", "true");
       }
+      button.disabled = latestResponses.includes(option) || latestResponses.length >= responseLimit;
       button.addEventListener("click", () => onSubmit({ value: option }));
       options.append(button);
     }
@@ -186,7 +196,7 @@ export function renderAudienceContent(container, deck, slide, onSubmit, latestRe
     container.append(row);
   }
 
-  if (latestResponse) {
+  if (latestResponses.length) {
     const results = document.createElement("section");
     results.className = "audience-results";
     const heading = document.createElement("strong");

@@ -96,6 +96,7 @@ const dom = {
   presentationBlackout: document.querySelector("#presentationBlackout"),
   liveControls: document.querySelector("#liveControls"),
   audienceContent: document.querySelector("#audienceContent"),
+  audienceDeckTitle: document.querySelector("#audienceDeckTitle"),
   pptxInput: document.querySelector("#pptxInput"),
   imageInput: document.querySelector("#imageInput"),
 };
@@ -1606,6 +1607,7 @@ function renderSlideInspector(slide) {
       <div class="field-row"><label for="engagementType">Mode</label><select id="engagementType">${engagementTypes.map((type) => `<option value="${type.value}" ${slide.engagement.type === type.value ? "selected" : ""}>${type.label}</option>`).join("")}</select></div>
       <div class="field-row"><label for="engagementPrompt">Prompt</label><input id="engagementPrompt" value="${attr(slide.engagement.prompt)}" /></div>
       <div class="field-row"><label for="engagementOptions">Options</label><textarea id="engagementOptions">${escapeHtml(slide.engagement.options.join("\n"))}</textarea></div>
+      ${slide.engagement.type === "poll" ? `<div class="field-row"><label for="engagementResponseLimit">Selections allowed per participant</label><input id="engagementResponseLimit" type="number" min="1" max="${Math.max(1, slide.engagement.options.length)}" value="${Math.min(Math.max(1, Number(slide.engagement.responseLimit) || 1), Math.max(1, slide.engagement.options.length))}" /></div>` : ""}
       ${correctAnswerFields(slide.engagement)}
       <div class="check-row"><input id="audienceJoinElementsToggle" type="checkbox" ${audienceJoinVisible ? "checked" : ""} /><label for="audienceJoinElementsToggle">Show QR code and access code on this slide</label></div>
       <div class="field-row">
@@ -1653,6 +1655,15 @@ function renderSlideInspector(slide) {
     syncEngagementElementsFromSlide(slide);
   });
   bindEngagementOptions(slide);
+  document.querySelector("#engagementResponseLimit")?.addEventListener("change", (event) => {
+    slide.engagement.responseLimit = Math.min(
+      Math.max(1, slide.engagement.options.length),
+      Math.max(1, Number(event.target.value) || 1)
+    );
+    syncEngagementElementsFromSlide(slide);
+    markChanged("Poll response limit updated");
+    renderAll();
+  });
   bindCorrectAnswerFields(slide);
 }
 
@@ -3650,6 +3661,7 @@ async function runLiveControl(action) {
 
 async function renderLiveAudience() {
   if (!audienceLive.state) {
+    dom.audienceDeckTitle.textContent = deck.title || "Untitled presentation";
     dom.audienceContent.innerHTML = `
       <div class="result-row">
         <span>Joined with code ${escapeHtml(audienceLive.code)}</span>
@@ -3664,6 +3676,7 @@ async function renderLiveAudience() {
   }
 
   const liveSlide = audienceLive.state.slide;
+  dom.audienceDeckTitle.textContent = audienceLive.state.deckTitle || "Untitled presentation";
   syncEngagementElementsFromSlide(liveSlide);
   const liveDeck = normalizeDeck({
     ...liveStateDeck(audienceLive.state),
@@ -3784,7 +3797,12 @@ async function submitAudienceLiveResponse(slide, payload) {
     }
     return;
   }
-  audienceLive.responses[slide.id] = payload.value;
+  const previousResponses = Array.isArray(audienceLive.responses[slide.id])
+    ? [...audienceLive.responses[slide.id]]
+    : audienceLive.responses[slide.id]
+      ? [audienceLive.responses[slide.id]]
+      : [];
+  audienceLive.responses[slide.id] = [...previousResponses, payload.value];
   renderLiveAudience();
   try {
     audienceLive.state = await submitLiveResponse(audienceLive.code, {
@@ -3793,13 +3811,18 @@ async function submitAudienceLiveResponse(slide, payload) {
       participantId,
     });
     audienceLive.backendAvailable = true;
+    if (audienceLive.state.duplicate || audienceLive.state.limitReached || audienceLive.state.accepted === false) {
+      audienceLive.responses[slide.id] = previousResponses;
+    }
     audienceLive.error = audienceLive.state.duplicate
       ? "Your response was already recorded."
+      : audienceLive.state.limitReached
+        ? "You have used all selections for this poll."
       : audienceLive.state.accepted === false
         ? "That slide has moved on. Showing the current live slide."
         : "";
   } catch (error) {
-    delete audienceLive.responses[slide.id];
+    audienceLive.responses[slide.id] = previousResponses;
     audienceLive.backendAvailable = false;
     audienceLive.error = `Response was not sent: ${error.message}`;
   } finally {
@@ -4251,6 +4274,10 @@ function bindEngagementOptions(slide) {
   const input = document.querySelector("#engagementOptions");
   input?.addEventListener("input", () => {
     slide.engagement.options = splitLines(input.value);
+    slide.engagement.responseLimit = Math.min(
+      Math.max(1, slide.engagement.options.length),
+      Math.max(1, Number(slide.engagement.responseLimit) || 1)
+    );
     pruneCorrectAnswers(slide.engagement);
     syncEngagementElementsFromSlide(slide);
     markChanged("Engagement options updated");
@@ -4602,6 +4629,7 @@ function syncSlideEngagementFromElement(element) {
   slide.engagement.showCorrectAnswer = element.showCorrectAnswer ?? true;
   slide.engagement.correctAnswerRevealed =
     element.correctAnswerRevealed ?? slide.engagement.correctAnswerRevealed ?? false;
+  slide.engagement.responseLimit = Math.max(1, Number(element.responseLimit) || Number(slide.engagement.responseLimit) || 1);
   pruneCorrectAnswers(slide.engagement);
 }
 
@@ -4621,6 +4649,7 @@ function syncEngagementElementsFromSlide(slide) {
     element.reactions = { ...(slide.engagement.reactions || {}) };
     element.showCorrectAnswer = slide.engagement.showCorrectAnswer;
     element.correctAnswerRevealed = slide.engagement.correctAnswerRevealed ?? false;
+    element.responseLimit = Math.max(1, Number(slide.engagement.responseLimit) || 1);
     pruneElementCorrectAnswers(element);
   }
 }

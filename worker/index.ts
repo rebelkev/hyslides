@@ -599,7 +599,12 @@ async function recordLiveResponse(db: D1Database, code: string, payload: Record<
   if ((type === "wordCloud" || type === "qna") && containsBlockedLanguage(value)) {
     throw new Error("That response contains language that is not allowed. Please revise it and try again.");
   }
-  const kind = type === "qna" ? "qna" : type === "reactions" ? "reaction" : "response";
+  const responseLimit = type === "poll"
+    ? Math.min(
+        Array.isArray(engagement.options) ? engagement.options.length : 1,
+        Math.max(1, numberValue(engagement.responseLimit) || 1)
+      )
+    : 1;
   const safeValue = value.slice(0, type === "qna" ? 500 : 200);
   if (type === "qna") {
     await db.prepare(
@@ -610,10 +615,32 @@ async function recordLiveResponse(db: D1Database, code: string, payload: Record<
     await recordParticipantPresence(db, code, participantId);
     return { accepted: true, ...(await liveState(db, code, false)) };
   }
+  const kind = type === "reactions"
+    ? "reaction"
+    : type === "poll" && responseLimit > 1
+      ? `response:${safeValue}`
+      : "response";
   const existing = await db.prepare(
     `SELECT value FROM hyslides_live_instance_submissions
       WHERE instance_id = ? AND slide_id = ? AND participant_id = ? AND kind = ?`
   ).bind(session.instance_id, session.active_slide_id, participantId, kind).first<{ value: string }>();
+  if (type === "poll" && responseLimit > 1) {
+    const selectionCount = await db.prepare(
+      `SELECT COUNT(*) AS count FROM hyslides_live_instance_submissions
+        WHERE instance_id = ? AND slide_id = ? AND participant_id = ?
+          AND (kind = 'response' OR kind LIKE 'response:%')`
+    ).bind(session.instance_id, session.active_slide_id, participantId).first<{ count: number }>();
+    const limitReached = Number(selectionCount?.count || 0) >= responseLimit;
+    if (existing || limitReached) {
+      await recordParticipantPresence(db, code, participantId);
+      return {
+        accepted: false,
+        duplicate: Boolean(existing),
+        limitReached: !existing && limitReached,
+        ...(await liveState(db, code)),
+      };
+    }
+  }
   if (!existing) {
     await db.prepare(
       `INSERT INTO hyslides_live_instance_submissions (
@@ -878,6 +905,7 @@ function ensureEngagementShape(slide: Record<string, unknown>) {
   engagement.correctAnswers ||= [];
   engagement.showCorrectAnswer ??= true;
   engagement.correctAnswerRevealed ??= false;
+  engagement.responseLimit = Math.max(1, numberValue(engagement.responseLimit) || 1);
   engagement.results ||= {};
   engagement.qna ||= [];
   engagement.reactions ||= {};

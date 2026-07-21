@@ -33,6 +33,8 @@
 - Added word-cloud aggregation and basic offensive-language filtering.
 - Bound engagement result elements to canonical live-session totals so polls update in real time and clear immediately in Presenter and Presentation Views.
 - Removed template sample responses; engagement visuals now open at zero and reset automatically for each new session.
+- Added creator-configurable poll selection limits, defaulting to one response per participant, with selected choices locked on participant devices.
+- Changed the Participant View header to the presentation deck name.
 
 ### Presenter View v1
 

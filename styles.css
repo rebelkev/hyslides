@@ -1882,6 +1882,10 @@ body.presentation-window .presentation-live-status {
   justify-content: flex-start;
 }
 
+.audience-options button[aria-pressed="true"]:disabled {
+  opacity: 1;
+}
+
 .reaction-row {
   display: grid;
   gap: 8px;
