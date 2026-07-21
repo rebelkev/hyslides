@@ -1309,6 +1309,10 @@ label {
   transform-origin: center;
 }
 
+.presentation-embed-frame.expanded {
+  z-index: 2;
+}
+
 .presentation-embed-frame iframe {
   border: 0;
   display: block;

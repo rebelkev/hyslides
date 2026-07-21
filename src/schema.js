@@ -186,6 +186,7 @@ export function createElement(type, overrides = {}) {
       autoplay: false,
       loop: false,
       showControls: true,
+      fullscreenOnPlay: true,
       fill: "#111827",
       name: "YouTube video",
     },

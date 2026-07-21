@@ -37,4 +37,5 @@ test("embed player settings survive element normalization", () => {
   assert.equal(element.volume, 35);
   assert.equal(element.playbackRate, 1.5);
   assert.equal(element.autoplay, true);
+  assert.equal(element.fullscreenOnPlay, true);
 });

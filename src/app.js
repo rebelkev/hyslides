@@ -53,6 +53,7 @@ import {
   voteLiveQuestion,
 } from "./live.js";
 import { youtubeEmbedUrl, youtubeVideoId } from "./embed.js";
+import { resizeBounds } from "./resize.js";
 
 const dom = {
   app: document.querySelector("#app"),
@@ -221,6 +222,7 @@ function bindEvents() {
   window.addEventListener("resize", () => {
     if (presentationWindowMode && presenterOpen) syncPresentationEmbeds(currentSlide());
   });
+  window.addEventListener("message", handleYouTubePlayerMessage);
   dom.deckTitle.addEventListener("input", () => {
     deck.title = dom.deckTitle.value;
     markChanged("Deck title updated");
@@ -1816,6 +1818,7 @@ function elementInspectorFields(element) {
           <div class="field-row"><label for="embedStartInput">Start at (seconds)</label><input id="embedStartInput" type="number" min="0" value="${Math.max(0, Number(element.startSeconds) || 0)}" /></div>
         </div>
         <div class="check-row"><input id="embedControlsInput" type="checkbox" ${element.showControls !== false ? "checked" : ""} /><label for="embedControlsInput">Show player controls</label></div>
+        <div class="check-row"><input id="embedFullscreenInput" type="checkbox" ${element.fullscreenOnPlay !== false ? "checked" : ""} /><label for="embedFullscreenInput">Expand to full slide while playing</label></div>
         <div class="check-row"><input id="embedAutoplayInput" type="checkbox" ${element.autoplay ? "checked" : ""} /><label for="embedAutoplayInput">Autoplay when slide appears</label></div>
         <div class="check-row"><input id="embedLoopInput" type="checkbox" ${element.loop ? "checked" : ""} /><label for="embedLoopInput">Loop video</label></div>
         <p class="field-help">${validVideo ? "Video ready for Presentation View." : "Paste a valid YouTube, youtu.be, Shorts, or Live URL."} Autoplay with sound may be blocked by the browser.</p>
@@ -1920,6 +1923,7 @@ function bindTypeFields(element) {
     bindValue("#embedSpeedInput", (value) => (element.playbackRate = Number(value) || 1));
     bindNumber("#embedStartInput", (value) => (element.startSeconds = Math.max(0, value)));
     bindToggle("#embedControlsInput", (value) => (element.showControls = value));
+    bindToggle("#embedFullscreenInput", (value) => (element.fullscreenOnPlay = value));
     bindToggle("#embedAutoplayInput", (value) => (element.autoplay = value));
     bindToggle("#embedLoopInput", (value) => (element.loop = value));
   }
@@ -2267,7 +2271,13 @@ function onPointerMove(event) {
   }
 
   if (dragState.type === "resize") {
-    const resized = resizeBounds(dragState.bounds, dragState.handle, point.x - dragState.start.x, point.y - dragState.start.y);
+    const resized = resizeBounds(
+      dragState.bounds,
+      dragState.handle,
+      point.x - dragState.start.x,
+      point.y - dragState.start.y,
+      event.shiftKey
+    );
     const snapped = snapBounds(resized, dragState.originals.map((item) => item.id));
     applyResize(dragState.originals, dragState.bounds, snapped, dragState.handle);
   }
@@ -3245,11 +3255,13 @@ function syncPresentationEmbeds(slide = currentSlide()) {
       frame.dataset.embedId = element.id;
       layer.append(frame);
     }
-    frame.style.left = `${canvasRect.left - parentRect.left + element.x * scaleX}px`;
-    frame.style.top = `${canvasRect.top - parentRect.top + element.y * scaleY}px`;
-    frame.style.width = `${element.w * scaleX}px`;
-    frame.style.height = `${element.h * scaleY}px`;
-    frame.style.transform = `rotate(${Number(element.rotation) || 0}deg)`;
+    const expanded = element.fullscreenOnPlay !== false && frame.dataset.playerState === "playing";
+    frame.classList.toggle("expanded", expanded);
+    frame.style.left = `${canvasRect.left - parentRect.left + (expanded ? 0 : element.x * scaleX)}px`;
+    frame.style.top = `${canvasRect.top - parentRect.top + (expanded ? 0 : element.y * scaleY)}px`;
+    frame.style.width = `${expanded ? canvasRect.width : element.w * scaleX}px`;
+    frame.style.height = `${expanded ? canvasRect.height : element.h * scaleY}px`;
+    frame.style.transform = expanded ? "none" : `rotate(${Number(element.rotation) || 0}deg)`;
     const state = states[element.id];
     frame.style.opacity = String((element.opacity ?? 1) * (state?.opacity ?? 1));
     frame.style.visibility = state?.hidden ? "hidden" : "visible";
@@ -3269,6 +3281,7 @@ function syncPresentationEmbeds(slide = currentSlide()) {
     iframe.allowFullscreen = true;
     iframe.referrerPolicy = "strict-origin-when-cross-origin";
     iframe.addEventListener("load", () => configureYouTubePlayer(iframe, element));
+    frame.dataset.playerState = "idle";
     frame.replaceChildren(iframe);
   }
 }
@@ -3280,13 +3293,30 @@ function configureYouTubePlayer(iframe, element) {
     args,
   }), "https://www.youtube.com");
   iframe.contentWindow?.postMessage(JSON.stringify({ event: "listening", id: element.id }), "https://www.youtube.com");
+  send("addEventListener", ["onStateChange"]);
   const applySettings = () => {
+    send("addEventListener", ["onStateChange"]);
     send("setVolume", [clamp(Number(element.volume) || 0, 0, 100)]);
     send("setPlaybackRate", [Number(element.playbackRate) || 1]);
     if (element.autoplay) send("playVideo");
   };
   window.setTimeout(applySettings, 350);
   window.setTimeout(applySettings, 1000);
+}
+
+function handleYouTubePlayerMessage(event) {
+  if (!presentationWindowMode || !/^(https:\/\/)?([\w-]+\.)?youtube(-nocookie)?\.com$/.test(event.origin)) return;
+  let payload = event.data;
+  if (typeof payload === "string") {
+    try { payload = JSON.parse(payload); } catch { return; }
+  }
+  if (payload?.event !== "onStateChange") return;
+  const iframe = [...(dom.presentationEmbedLayer?.querySelectorAll("iframe") || [])]
+    .find((candidate) => candidate.contentWindow === event.source);
+  const frame = iframe?.closest(".presentation-embed-frame");
+  if (!frame) return;
+  frame.dataset.playerState = Number(payload.info) === 1 ? "playing" : "idle";
+  syncPresentationEmbeds(currentSlide());
 }
 
 function renderCountdownControls(slide) {
@@ -4225,25 +4255,6 @@ function applyResize(originals, oldBounds, newBounds, handle = "") {
       }
     }
   }
-}
-
-function resizeBounds(bounds, handle, dx, dy) {
-  const next = { ...bounds };
-  if (handle.includes("e")) {
-    next.w = Math.max(20, bounds.w + dx);
-  }
-  if (handle.includes("s")) {
-    next.h = Math.max(20, bounds.h + dy);
-  }
-  if (handle.includes("w")) {
-    next.x = bounds.x + dx;
-    next.w = Math.max(20, bounds.w - dx);
-  }
-  if (handle.includes("n")) {
-    next.y = bounds.y + dy;
-    next.h = Math.max(20, bounds.h - dy);
-  }
-  return next;
 }
 
 function snapBounds(bounds, movingIds) {

@@ -4,6 +4,8 @@
 
 ### Editor
 
+- Holding Shift while dragging any resize handle now preserves the selection's aspect ratio.
+- YouTube elements now expand to the full slide when playback begins by default, with an element-level checkbox to disable the behavior.
 - Moved engagement type, prompt, options, and response settings exclusively to the selected Engagement element; the slide-level inspector now focuses on audience-access visibility.
 - Added a safe YouTube Embed element with URL, volume, playback speed, start time, autoplay, loop, native-controls, positioning, resizing, and animation settings.
 - Added an Ungroup toolbar control directly beside Group.
