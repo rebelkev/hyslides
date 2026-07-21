@@ -147,13 +147,13 @@ Participants can submit Q&A at any time during an active session; a dedicated Q&
 
 - Submitted questions enter a private **Pending review** queue in Presenter View.
 - Presenters can Display, Hide, Mark answered/unanswered, or Delete each question.
-- Participant View exposes only questions the presenter has approved for display.
-- Participants can upvote a displayed question once per device; questions are ordered by upvotes.
+- Only one question is placed on screen at a time. On a Q&A slide it fills the Q&A element; on any other slide it appears in a focused Presentation View overlay.
+- Participant View is submission-only: audience members never see the moderation queue or other participants' questions in the Q&A panel.
 - Offensive-language filtering is applied before a question is stored.
 - Questions, votes, and moderation state belong to the current session instance and follow the same 14-day retention policy as responses.
 - Presenter View separates Unanswered and Answered questions into tabs, while Session History and CSV export preserve the complete queue.
 - Participant View keeps Q&A out of the way behind the floating question button at the lower-right corner.
-- On phones, that button opens a responsive bottom sheet with a labeled multi-line question field and submit button. The public portion of the sheet contains only presenter-approved participant questions.
+- On phones, that button opens a responsive bottom sheet with a labeled multi-line question field and submit button.
 
 ## Import and Export
 

@@ -720,10 +720,15 @@ function drawQnaPreview(ctx, element, deck, padding, y) {
   roundedRect(ctx, padding, y, element.w - padding * 2, boxHeight, 10);
   ctx.fill();
   ctx.stroke();
-  ctx.fillStyle = deck.theme.colors.muted;
-  ctx.font = `700 19px ${deck.theme.fonts.body}, Arial, sans-serif`;
+  const featured = (element.qna || []).find((question) => question.visible !== false && !question.answered);
+  ctx.fillStyle = featured ? deck.theme.colors.ink : deck.theme.colors.muted;
+  ctx.font = `${featured ? "800" : "700"} ${featured ? 26 : 19}px ${deck.theme.fonts.body}, Arial, sans-serif`;
   ctx.textBaseline = "top";
-  ctx.fillText("Audience questions appear here", padding + 18, y + 18, element.w - padding * 2 - 36);
+  const content = featured?.text || "Audience questions appear here";
+  const lines = wrapText(ctx, content, element.w - padding * 2 - 36);
+  lines.slice(0, 3).forEach((line, index) => {
+    ctx.fillText(line, padding + 18, y + 18 + index * (featured ? 34 : 26), element.w - padding * 2 - 36);
+  });
 }
 
 function drawReactionPreview(ctx, element, deck, padding, y) {

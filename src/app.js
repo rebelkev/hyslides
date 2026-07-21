@@ -114,6 +114,8 @@ const dom = {
   presenterQnaCount: document.querySelector("#presenterQnaCount"),
   nextSlideTitle: document.querySelector("#nextSlideTitle"),
   presentationBlackout: document.querySelector("#presentationBlackout"),
+  presentationQuestionOverlay: document.querySelector("#presentationQuestionOverlay"),
+  presentationQuestionText: document.querySelector("#presentationQuestionText"),
   liveControls: document.querySelector("#liveControls"),
   audienceContent: document.querySelector("#audienceContent"),
   audienceDeckTitle: document.querySelector("#audienceDeckTitle"),
@@ -178,6 +180,7 @@ let liveSession = {
   participantCount: 0,
   responseCount: 0,
   questions: [],
+  featuredQuestion: null,
   joinUrl: "",
   qrSrc: "",
   backendAvailable: false,
@@ -3654,9 +3657,11 @@ function bindPresenterChannel() {
       applyCountdownState(message.countdownStates || {});
       liveSession.participantCount = Number(message.liveStatus?.participantCount || 0);
       liveSession.responseCount = Number(message.liveStatus?.responseCount || 0);
+      liveSession.featuredQuestion = message.featuredQuestion || null;
       selectedSlideIndexes = new Set([activeSlideIndex]);
       renderAll();
       applyPresentationBlackout();
+      renderPresentationQuestionOverlay();
       queueLivePublish(true);
     }
     if (message.type === "editor-deck-updated" && (presenterWindowMode || presentationWindowMode) && message.deck) {
@@ -3738,11 +3743,28 @@ function sendPresenterSnapshot() {
       participantCount: liveSession.participantCount,
       responseCount: liveSession.responseCount,
     },
+    featuredQuestion: liveSession.featuredQuestion,
   });
+}
+
+function currentSlideShowsFeaturedQuestion() {
+  return currentSlide()?.engagement?.enabled && currentSlide()?.engagement?.type === "qna";
+}
+
+function renderPresentationQuestionOverlay() {
+  if (!dom.presentationQuestionOverlay) return;
+  const question = liveSession.featuredQuestion;
+  const shouldShow = Boolean(presentationWindowMode && question?.text && !currentSlideShowsFeaturedQuestion());
+  dom.presentationQuestionOverlay.classList.toggle("hidden", !shouldShow);
+  if (shouldShow) dom.presentationQuestionText.textContent = question.text;
 }
 
 async function renderPresenter() {
   const slide = currentSlide();
+  if (slide.engagement?.enabled && slide.engagement.type === "qna") {
+    slide.engagement.qna = liveSession.featuredQuestion ? [liveSession.featuredQuestion] : [];
+    syncEngagementElementsFromSlide(slide);
+  }
   ensureSlideCountdowns(slide);
   ensurePresenterAnimationPlayback(slide);
   dom.presenterDeckTitle.textContent = deck.title;
@@ -3765,6 +3787,7 @@ async function renderPresenter() {
     countdownStates: countdownStatesForRenderer(),
   });
   syncPresentationEmbeds(slide);
+  renderPresentationQuestionOverlay();
   const nextIndex = nextIncludedSlideIndex(activeSlideIndex, 1);
   const nextSlide = nextIndex === activeSlideIndex ? slide : deck.slides[nextIndex];
   dom.nextSlideTitle.textContent = nextIndex === activeSlideIndex ? "End of presentation" : `${nextIndex + 1}. ${nextSlide.title}`;
@@ -4443,6 +4466,9 @@ function applyLiveStateToCurrentSlide(state) {
   liveSession.participantCount = Number(state.participantCount || 0);
   liveSession.responseCount = Number(state.responseCount || 0);
   liveSession.questions = Array.isArray(state.questions) ? state.questions : liveSession.questions;
+  if (Object.hasOwn(state, "featuredQuestion")) {
+    liveSession.featuredQuestion = state.featuredQuestion || null;
+  }
   liveSession.lifecycleStatus = state.status || liveSession.lifecycleStatus;
   liveSession.status = liveSession.lifecycleStatus === "active"
     ? "Live session running. Responses sync automatically."
@@ -4462,6 +4488,9 @@ function applyLiveStateToCurrentSlide(state) {
   });
   slide.engagement.results = state.slide.engagement?.results || {};
   slide.engagement.qna = state.slide.engagement?.qna || [];
+  if (slide.engagement.type === "qna") {
+    slide.engagement.qna = liveSession.featuredQuestion ? [liveSession.featuredQuestion] : [];
+  }
   slide.engagement.reactions = {
     ...slide.engagement.reactions,
     ...(state.slide.engagement?.reactions || {}),
@@ -4589,6 +4618,7 @@ async function applyEndSessionOptions() {
       liveSession.participantCount = 0;
       liveSession.responseCount = 0;
       liveSession.questions = [];
+      liveSession.featuredQuestion = null;
     }
     if (returnFirst) {
       activeSlideIndex = 0;
@@ -4603,6 +4633,7 @@ async function applyEndSessionOptions() {
       liveSession.participantCount = 0;
       liveSession.responseCount = 0;
       liveSession.questions = [];
+      liveSession.featuredQuestion = null;
       liveSession.status = "New session ready. Responses sync automatically.";
       queueLivePublish(true);
     } else if (endCurrent) {
@@ -4633,7 +4664,7 @@ function renderPresenterQna() {
   }
   dom.presenterQnaList.innerHTML = filtered
     .sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0))
-    .map((question) => `<article class="presenter-qna-item ${question.visible ? "displayed" : "pending"}" data-question-id="${attr(question.id)}"><strong>${escapeHtml(question.text)}</strong><span>${question.visible ? "Displayed" : "Pending review"} · ${question.upvotes || 0} upvote${question.upvotes === 1 ? "" : "s"}</span><div class="presenter-qna-item-actions"><button data-action="${question.visible ? "hide" : "show"}" type="button">${question.visible ? "Hide" : "Display"}</button><button data-action="${question.answered ? "unanswered" : "answered"}" type="button">${question.answered ? "Reopen" : "Mark answered"}</button><button data-action="delete" type="button">Delete</button></div></article>`)
+    .map((question) => `<article class="presenter-qna-item ${question.visible ? "displayed" : "pending"}" data-question-id="${attr(question.id)}"><strong>${escapeHtml(question.text)}</strong><span>${question.visible ? "On screen" : question.answered ? "Answered" : "Pending review"}</span><div class="presenter-qna-item-actions"><button data-action="${question.visible ? "hide" : "show"}" type="button">${question.visible ? "Hide" : "Display"}</button><button data-action="${question.answered ? "unanswered" : "answered"}" type="button">${question.answered ? "Reopen" : "Mark answered"}</button><button data-action="delete" type="button">Delete</button></div></article>`)
     .join("");
   dom.presenterQnaList.querySelectorAll("[data-action]").forEach((button) => button.addEventListener("click", async () => {
     const questionId = button.closest("[data-question-id]").dataset.questionId;
@@ -4781,15 +4812,13 @@ function renderSessionQnaForAudience() {
   panel.setAttribute("role", "dialog");
   panel.setAttribute("aria-modal", "true");
   panel.setAttribute("aria-label", "Ask the presenter");
-  const questions = audienceLive.state?.questions || [];
   panel.innerHTML = `
-    <div class="session-qna-head"><div><strong>Ask the presenter</strong><span>Questions are reviewed before they appear.</span></div><button class="session-qna-close" type="button" aria-label="Close questions">&times;</button></div>
+    <div class="session-qna-head"><div><strong>Ask the presenter</strong><span>Your question is sent privately for presenter review.</span></div><button class="session-qna-close" type="button" aria-label="Close questions">&times;</button></div>
     <form class="session-qna-form">
       <label for="participantQuestion">Your question</label>
       <textarea id="participantQuestion" maxlength="500" rows="4" required placeholder="Type your question here"></textarea>
       <button type="submit">Submit question</button>
-    </form>
-    <div class="session-qna-public"><strong>Displayed questions</strong>${questions.length ? questions.map((question) => `<div class="result-row audience-question${question.answered ? " answered" : ""}" data-question-id="${attr(question.id)}"><strong>${escapeHtml(question.text)}</strong><button type="button" aria-label="Upvote this question">▲ ${question.upvotes || 0}</button></div>`).join("") : "<span>No questions have been displayed yet.</span>"}</div>`;
+    </form>`;
   panel.querySelector("form").addEventListener("submit", async (event) => {
     event.preventDefault();
     const input = panel.querySelector("textarea");
@@ -4802,15 +4831,6 @@ function renderSessionQnaForAudience() {
     }
     renderLiveAudience();
   });
-  panel.querySelectorAll("[data-question-id] button").forEach((button) => button.addEventListener("click", async () => {
-    try {
-      audienceLive.state = await voteLiveQuestion(audienceLive.code, button.closest("[data-question-id]").dataset.questionId, participantId);
-      audienceLive.error = audienceLive.state.duplicate ? "You already upvoted that question." : "Question upvoted.";
-    } catch (error) {
-      audienceLive.error = `Vote was not sent: ${error.message}`;
-    }
-    renderLiveAudience();
-  }));
   panel.querySelector(".session-qna-close").addEventListener("click", () => {
     participantQnaOpen = false;
     panel.classList.add("hidden");

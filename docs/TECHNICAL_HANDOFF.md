@@ -57,7 +57,7 @@ Ended sessions older than 14 days are purged with their participant records, sub
 
 ## Live API Surface
 
-- `GET /api/live/:code` — current participant-facing session state; a valid presenter token includes pending Q&A
+- `GET /api/live/:code` — current participant-facing session state; participant responses never include the session Q&A queue, while a valid presenter token includes the private queue and current featured question
 - `PUT /api/live/:code` — publish presenter state
 - `POST /api/live/:code/responses` — submit a response
 - `POST /api/live/:code/presence` — participant heartbeat

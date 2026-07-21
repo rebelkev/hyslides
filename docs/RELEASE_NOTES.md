@@ -94,6 +94,9 @@
 
 ### Live Q&A Moderation
 
+- Changed Participant View Q&A to a private, submission-only workflow with no public question list.
+- Made Display place exactly one selected question on screen: inside the Q&A engagement element when that slide is active, or in a synchronized overlay over any other Presentation View slide.
+- Made Hide, Mark answered, and Delete remove the on-screen question immediately.
 - Improved Participant View Q&A with a mobile bottom sheet, a multi-line question field, and a clear separation between private submissions and presenter-approved displayed questions.
 
 - Added persistent, hidden-by-default Q&A submissions with stable question IDs.

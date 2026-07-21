@@ -679,10 +679,21 @@ async function moderateQuestion(db: D1Database, code: string, session: LiveSessi
       db.prepare(`DELETE FROM hyslides_live_instance_question_votes WHERE instance_id = ? AND question_id = ?`).bind(session.instance_id, questionId),
       db.prepare(`DELETE FROM hyslides_live_instance_questions WHERE instance_id = ? AND id = ?`).bind(session.instance_id, questionId),
     ]);
-  } else if (["show", "hide", "answered", "unanswered"].includes(action)) {
-    const updates = action === "show" ? ["visible", 1] : action === "hide" ? ["visible", 0] : ["answered", action === "answered" ? 1 : 0];
-    await db.prepare(`UPDATE hyslides_live_instance_questions SET ${updates[0]} = ? WHERE instance_id = ? AND id = ?`)
-      .bind(updates[1], session.instance_id, questionId).run();
+  } else if (action === "show") {
+    await db.batch([
+      db.prepare(`UPDATE hyslides_live_instance_questions SET visible = 0 WHERE instance_id = ?`).bind(session.instance_id),
+      db.prepare(`UPDATE hyslides_live_instance_questions SET visible = 1, answered = 0 WHERE instance_id = ? AND id = ?`)
+        .bind(session.instance_id, questionId),
+    ]);
+  } else if (action === "hide") {
+    await db.prepare(`UPDATE hyslides_live_instance_questions SET visible = 0 WHERE instance_id = ? AND id = ?`)
+      .bind(session.instance_id, questionId).run();
+  } else if (action === "answered") {
+    await db.prepare(`UPDATE hyslides_live_instance_questions SET answered = 1, visible = 0 WHERE instance_id = ? AND id = ?`)
+      .bind(session.instance_id, questionId).run();
+  } else if (action === "unanswered") {
+    await db.prepare(`UPDATE hyslides_live_instance_questions SET answered = 0 WHERE instance_id = ? AND id = ?`)
+      .bind(session.instance_id, questionId).run();
   } else {
     throw new Error("Unknown question moderation action.");
   }
@@ -762,7 +773,10 @@ async function liveState(db: D1Database, code: string, includeHiddenQuestions = 
       SELECT participant_id FROM hyslides_live_instance_questions WHERE instance_id = ? AND slide_id = ?
     )`
   ).bind(session.instance_id, session.active_slide_id, session.instance_id, session.active_slide_id).first<{ count: number }>();
-  const questions = await sessionQuestions(db, session.instance_id, includeHiddenQuestions);
+  const questions = includeHiddenQuestions ? await sessionQuestions(db, session.instance_id, true) : [];
+  const featuredQuestion = includeHiddenQuestions
+    ? questions.find((question) => question.visible && !question.answered) || null
+    : null;
   return {
     code,
     instanceId: session.instance_id,
@@ -771,6 +785,7 @@ async function liveState(db: D1Database, code: string, includeHiddenQuestions = 
     participantCount,
     responseCount: Number(responseCount?.count || 0),
     questions,
+    featuredQuestion,
     deckId: session.deck_id,
     deckTitle: session.deck_title,
     audienceCode: session.access_code,
@@ -852,11 +867,13 @@ async function applyLiveAggregates(
     ),
   };
 
+  const includeSessionQuestions = stringValue(engagement.type) === "qna";
   const questions = await db
     .prepare(
       `SELECT id, text, upvotes, answered, visible
         FROM hyslides_live_instance_questions
-        WHERE instance_id = ? AND slide_id = ? ${includeHiddenQuestions ? "" : "AND visible = 1"}
+        WHERE instance_id = ? AND ${includeSessionQuestions ? "(slide_id = ? OR slide_id = 'session')" : "slide_id = ?"}
+          ${includeHiddenQuestions ? "" : "AND visible = 1"}
         ORDER BY created_at ASC`
     )
     .bind(instanceId, slideId)
