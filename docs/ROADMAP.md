@@ -2,7 +2,7 @@
 
 ## Current Foundation
 
-- Canvas slide editor and slide navigator
+- Canvas slide editor and slide navigator with Undo and Redo history
 - Element Properties and Elements tree
 - Sections, slide duplication, multi-selection, grouping, locking, layering, alignment, and dynamic zoom
 - PowerPoint import and PDF export
