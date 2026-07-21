@@ -16,7 +16,7 @@ The clean, full-screen slide show displayed to the room or shared during a video
 
 ### Participant View
 
-The phone, tablet, or computer experience opened using a deck’s QR code or six-digit access code. Participants follow the active slide, submit responses on engagement slides, and see aggregated results after responding.
+The standalone phone, tablet, or computer webpage opened using a deck’s QR code or six-digit access code. It fills the browser without exposing Editor View or an overlay Close button. Participants follow the active slide, submit responses on engagement slides, and see aggregated results after responding. Presentation-only slides display without unnecessary status copy.
 
 ### Presenter View
 
@@ -133,6 +133,7 @@ Participants can submit Q&A at any time during an active session; a dedicated Q&
 - Offensive-language filtering is applied before a question is stored.
 - Questions, votes, and moderation state belong to the current session instance and follow the same 14-day retention policy as responses.
 - Presenter View separates Unanswered and Answered questions into tabs, while Session History and CSV export preserve the complete queue.
+- Participant View keeps Q&A out of the way behind the floating question button at the lower-right corner.
 
 ## Import and Export
 
