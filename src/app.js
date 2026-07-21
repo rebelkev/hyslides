@@ -3116,7 +3116,6 @@ function pauseCountdown(elementId) {
   state.running = false;
   state.endsAt = 0;
   broadcastCountdownState();
-  renderCountdownControls(currentSlide());
 }
 
 function resetCountdown(elementId) {
@@ -3125,7 +3124,6 @@ function resetCountdown(elementId) {
   countdownRuntime.set(elementId, { remainingSeconds: element.durationSeconds || 0, running: false, endsAt: 0, completed: false });
   broadcastCountdownState();
   drawPresentationCountdownFrame();
-  renderCountdownControls(currentSlide());
 }
 
 function addCountdownTime(elementId, seconds = 60) {
@@ -3188,16 +3186,22 @@ function drawPresentationCountdownFrame() {
 }
 
 function renderCountdownControls(slide) {
-  dom.liveControls.querySelector(".countdown-control-panel")?.remove();
+  let panel = dom.liveControls.querySelector(".countdown-control-panel");
   const elements = countdownElements(slide);
-  if (!elements.length) return;
-  const panel = document.createElement("section");
-  panel.className = "countdown-control-panel";
+  if (!elements.length) {
+    panel?.remove();
+    return;
+  }
+  const scrollTop = dom.liveControls.scrollTop;
+  if (!panel) {
+    panel = document.createElement("section");
+    panel.className = "countdown-control-panel";
+    dom.liveControls.prepend(panel);
+  }
   panel.innerHTML = `<div class="countdown-control-head"><strong>On-screen countdown</strong><span>Visible to everyone</span></div>${elements.map((element) => {
     const state = countdownRuntime.get(element.id);
     return `<div class="countdown-control-row" data-countdown-id="${attr(element.id)}"><strong class="countdown-readout">${formatCountdown(countdownRemaining(state))}</strong><div><button data-countdown-action="${state?.running ? "pause" : "start"}" type="button">${state?.running ? "Pause" : "Start"}</button><button data-countdown-action="add" type="button">+1 min</button><button data-countdown-action="reset" type="button">Reset</button></div></div>`;
   }).join("")}`;
-  dom.liveControls.prepend(panel);
   panel.querySelectorAll("[data-countdown-action]").forEach((button) => button.addEventListener("click", () => {
     const id = button.closest("[data-countdown-id]").dataset.countdownId;
     if (button.dataset.countdownAction === "start") startCountdown(id);
@@ -3206,6 +3210,7 @@ function renderCountdownControls(slide) {
     if (button.dataset.countdownAction === "reset") resetCountdown(id);
     renderCountdownControls(currentSlide());
   }));
+  dom.liveControls.scrollTop = scrollTop;
 }
 
 function updateCountdownControlReadouts() {
