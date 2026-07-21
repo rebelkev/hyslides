@@ -8,6 +8,13 @@
       "when": 1783800000000,
       "tag": "0000_hyslides_live",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1784595600000,
+      "tag": "0001_live_session_instances",
+      "breakpoints": true
     }
   ]
 }
