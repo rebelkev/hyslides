@@ -19,6 +19,7 @@
 
 ### Design System
 
+- Added a dedicated HySlides favicon based on the dark-square “H” brand mark, with a teal live-status accent.
 - Upgraded saved swatches to named, linked deck color styles.
 - Style edits update linked elements throughout a deck.
 - Deleting or unlinking a style preserves element appearance.
