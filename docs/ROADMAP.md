@@ -40,7 +40,18 @@
 - Q&A enhancements: pinning, presenter spotlight layouts, and CSV export
 - User accounts and authentication
 - Server-backed deck library and media storage
+- Cross-presentation slide transfer:
+  - Copy a slide into another presentation the user can access
+  - Choose the exact destination position before copying
+  - Preserve supported elements, animations, notes, engagement configuration, and linked assets
+  - Respect presentation ownership, team roles, and edit permissions
+  - Resolve deck-specific dependencies such as typography styles, color styles, and uploaded media without changing the source slide
 - Admin access and template management
+- Closing Survey:
+  - Up to five customizable questions presented together after the presentation
+  - Short-text and 1–5 rating question types
+  - One completed survey per participant and session
+  - Completion counts, aggregated scores, response history, and export
 - Expanded animation effects and sequencing
 - Collaboration, analytics, and organization/team features
 
@@ -51,3 +62,4 @@
 - QR and access-code slide elements are protected and hidden rather than permanently deleted.
 - Live response and participant data is retained for 14 days.
 - Accounts should precede admin tools and persistent cross-device deck storage.
+- Cross-presentation slide copying should follow accounts, server-backed deck ownership, and team permissions.
