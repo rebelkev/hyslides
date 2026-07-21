@@ -48,7 +48,7 @@ Opening another deck or importing a PowerPoint starts a new history for that dec
 HySlides supports text, shapes, images, icons, charts, tables, dividers, and engagement elements.
 
 - Drag and resize elements on the canvas.
-- Use the element toolbar for grouping, locking, alignment, centering, and layer order.
+- Use the adjacent Group and Ungroup controls in the element toolbar, along with locking, alignment, centering, and layer-order controls.
 - Open the Elements panel to see the slide’s element tree. Items at the top appear in front.
 - Single-click a tree item to select it. Double-click it to open its Properties.
 - Text boxes automatically fit their height to wrapped text unless automatic height is disabled.
