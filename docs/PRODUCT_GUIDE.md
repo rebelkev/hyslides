@@ -20,6 +20,8 @@ The standalone phone, tablet, or computer webpage opened using a deck’s QR cod
 
 ### Presenter View
 
+- If live sync is unavailable, **Reconnect / Go live** republishes the current session without clearing responses or creating a new session instance.
+
 The private presentation control interface, available in responsive Desktop and Mobile layouts. It contains end-state current/next slide previews, speaker notes, navigation, an elapsed timer, live participant and response counts, engagement controls, and session controls.
 
 Click **Present** in Editor View to open Presenter View in a new tab. Then select **Open Presentation View** to open the clean projected slide show in another tab.

@@ -4374,6 +4374,7 @@ function renderLiveJoinPanel(slide) {
     <div class="live-join-copy">
       <span>${escapeHtml(participantText)}</span>
       <div class="live-join-actions">
+        ${!liveSession.backendAvailable ? '<button id="reconnectLiveSessionBtn" class="primary" type="button">Reconnect / Go live</button>' : ""}
         <button id="toggleLiveSessionBtn" type="button">${paused ? "Resume" : "Pause"}</button>
         <button id="clearLiveSlideBtn" type="button">Clear responses</button>
         <button id="insertLiveTimerBtn" type="button">Add timer to slide</button>
@@ -4384,6 +4385,7 @@ function renderLiveJoinPanel(slide) {
     </div>
   `;
   dom.liveControls.prepend(panel);
+  panel.querySelector("#reconnectLiveSessionBtn")?.addEventListener("click", reconnectLiveSession);
   panel.querySelector("#toggleLiveSessionBtn")?.addEventListener("click", () => runLiveControl(paused ? "resume" : "pause"));
   panel.querySelector("#insertLiveTimerBtn")?.addEventListener("click", insertCountdownFromPresenter);
   panel.querySelector("#clearLiveSlideBtn")?.addEventListener("click", () => {
@@ -4402,6 +4404,21 @@ function renderLiveJoinPanel(slide) {
       queueLivePublish(true);
     }
   });
+}
+
+function reconnectLiveSession() {
+  if (liveSession.lifecycleStatus === "ended") {
+    liveSession.status = "This session has ended. Start a new session to go live again.";
+    renderLiveJoinPanel(currentSlide());
+    return;
+  }
+  liveSession.consecutiveFailures = 0;
+  liveSession.retryAfter = 0;
+  liveSession.lastPublishedSignature = "";
+  liveSession.status = "Reconnecting the current session…";
+  updatePresenterConnectionBadge();
+  renderLiveJoinPanel(currentSlide());
+  queueLivePublish(true);
 }
 
 function openEndSessionDialog() {
