@@ -186,6 +186,9 @@ async function init() {
   upgradeIconButtons();
   const saved = await loadCurrentDeck().catch(() => null);
   deck = normalizeDeck(saved || createSeedDeck());
+  if (!presenterWindowMode && !presentationWindowMode && !location.hash.startsWith("#audience")) {
+    clearDeckEngagementResults();
+  }
   bindEvents();
   renderAll();
   resetHistory();
@@ -4717,10 +4720,27 @@ function clearActiveSession() {
 }
 
 function beginNewLiveSession() {
+  clearDeckEngagementResults();
   liveSession.instanceId = crypto.randomUUID();
   liveSession.sessionName = `${deck.title || "Untitled presentation"} — ${new Date().toLocaleString()}`;
   liveSession.lastPublishedSignature = "";
   writeActiveSession();
+}
+
+function clearDeckEngagementResults() {
+  for (const slide of deck.slides || []) {
+    if (!slide.engagement?.enabled) continue;
+    slide.engagement.results = {};
+    slide.engagement.qna = [];
+    slide.engagement.reactions = {
+      thumbsUp: 0,
+      heart: 0,
+      clap: 0,
+      wow: 0,
+      fire: 0,
+    };
+    syncEngagementElementsFromSlide(slide);
+  }
 }
 
 function isTyping(target) {

@@ -32,6 +32,7 @@
 - Added session history, participant presence, response ratios, and 14-day retention.
 - Added word-cloud aggregation and basic offensive-language filtering.
 - Bound engagement result elements to canonical live-session totals so polls update in real time and clear immediately in Presenter and Presentation Views.
+- Removed template sample responses; engagement visuals now open at zero and reset automatically for each new session.
 
 ### Presenter View v1
 
