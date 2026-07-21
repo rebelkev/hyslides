@@ -2754,7 +2754,7 @@ function renderAudience() {
       <label for="audienceAccessCodeInput">Enter the 6-digit presentation access code</label>
       <input id="audienceAccessCodeInput" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="123456" required />
       <button type="submit">Join presentation</button>
-      <small>HySlides uses an anonymous device identifier to prevent duplicate responses. Session responses are retained for 90 days.</small>
+      <small>HySlides uses an anonymous device identifier to prevent duplicate responses. Responses and participant records are retained for 14 days.</small>
     </form>
   `;
   dom.audienceContent.querySelector("#audienceJoinForm")?.addEventListener("submit", (event) => {
@@ -2964,7 +2964,7 @@ function renderLiveJoinPanel(slide) {
     if (confirm("Clear every response to the current slide? This cannot be undone.")) runLiveControl("clearSlide");
   });
   panel.querySelector("#endLiveSessionBtn")?.addEventListener("click", () => {
-    if (confirm("End this live session? Its results will remain in Session History for 90 days.")) runLiveControl("end");
+    if (confirm("End this live session? Its responses will remain available for 14 days.")) runLiveControl("end");
   });
   panel.querySelector("#newLiveSessionBtn")?.addEventListener("click", () => {
     if (confirm("Start a new session instance for this deck?")) {
