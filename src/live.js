@@ -343,7 +343,7 @@ function supabaseResponseRows(code, slideId, engagement, value) {
     slide_id: slideId,
   };
 
-  if (["poll", "multipleChoice", "quiz"].includes(engagement.type)) {
+  if (["poll", "multipleChoice"].includes(engagement.type)) {
     return [
       {
         ...base,

@@ -5,7 +5,6 @@ export const engagementTypes = [
   { value: "multipleChoice", label: "Multiple choice" },
   { value: "wordCloud", label: "Word cloud" },
   { value: "qna", label: "Q&A" },
-  { value: "quiz", label: "Quiz" },
   { value: "reactions", label: "Emoji reactions" },
 ];
 
@@ -21,10 +20,13 @@ export function ensureEngagement(slide) {
   slide.engagement ||= {};
   slide.engagement.enabled ??= false;
   slide.engagement.type ||= "poll";
+  const legacyQuiz = slide.engagement.type === "quiz";
+  if (legacyQuiz) slide.engagement.type = "multipleChoice";
   slide.engagement.prompt ||= "What should we prioritize next?";
   slide.engagement.options ||= ["Option A", "Option B", "Option C"];
   slide.engagement.options = slide.engagement.options.slice(0, MAX_ENGAGEMENT_OPTIONS);
   slide.engagement.correctAnswers ||= [];
+  slide.engagement.hasCorrectAnswers ??= legacyQuiz || slide.engagement.correctAnswers.length > 0;
   slide.engagement.showCorrectAnswer ??= true;
   slide.engagement.correctAnswerRevealed ??= false;
   slide.engagement.responseLimit = Math.max(1, Number(slide.engagement.responseLimit) || 1);
@@ -42,7 +44,7 @@ export function ensureEngagement(slide) {
 
 export function getAnswerFeedback(slide, response) {
   const engagement = ensureEngagement(slide);
-  if (!["multipleChoice", "quiz"].includes(engagement.type) || !response) {
+  if (engagement.type !== "multipleChoice" || !engagement.hasCorrectAnswers || !response) {
     return null;
   }
 
@@ -60,7 +62,7 @@ export function recordAudienceResponse(slide, payload) {
     return;
   }
 
-  if (["poll", "multipleChoice", "quiz"].includes(engagement.type)) {
+  if (["poll", "multipleChoice"].includes(engagement.type)) {
     engagement.results[payload.value] = (engagement.results[payload.value] || 0) + 1;
   }
 
@@ -104,7 +106,7 @@ export function renderLiveControls(container, deck, slide, onChange) {
   prompt.innerHTML = `<strong>${escapeHtml(engagement.prompt)}</strong>`;
   container.append(prompt);
 
-  if (["poll", "multipleChoice", "quiz"].includes(engagement.type)) {
+  if (["poll", "multipleChoice"].includes(engagement.type)) {
     renderCorrectAnswerControls(container, engagement, onChange);
     renderResults(container, engagement);
   } else if (engagement.type === "wordCloud") {
@@ -132,7 +134,7 @@ export function renderAudienceContent(container, deck, slide, onSubmit, latestRe
   join.innerHTML = `<strong>${escapeHtml(engagement.prompt)}</strong>`;
   container.append(join);
 
-  if (["poll", "multipleChoice", "quiz"].includes(engagement.type)) {
+  if (["poll", "multipleChoice"].includes(engagement.type)) {
     const responseLimit = engagement.type === "poll"
       ? Math.min(engagement.options.length, Math.max(1, Number(engagement.responseLimit) || 1))
       : 1;
@@ -188,7 +190,7 @@ export function renderAudienceContent(container, deck, slide, onSubmit, latestRe
     const heading = document.createElement("strong");
     heading.textContent = engagement.type === "wordCloud" ? "Everyone's responses" : "Live results";
     results.append(heading);
-    if (["poll", "multipleChoice", "quiz"].includes(engagement.type)) {
+    if (["poll", "multipleChoice"].includes(engagement.type)) {
       renderResults(results, engagement);
     } else if (engagement.type === "wordCloud") {
       renderWordCloud(results, engagement);
@@ -218,7 +220,7 @@ function renderResults(container, engagement) {
 }
 
 function renderCorrectAnswerControls(container, engagement, onChange) {
-  if (!["multipleChoice", "quiz"].includes(engagement.type)) {
+  if (engagement.type !== "multipleChoice" || !engagement.hasCorrectAnswers) {
     return;
   }
 
@@ -251,7 +253,7 @@ function renderCorrectAnswerControls(container, engagement, onChange) {
 }
 
 function renderCorrectAnswerSummary(container, engagement) {
-  if (!["multipleChoice", "quiz"].includes(engagement.type)) {
+  if (engagement.type !== "multipleChoice" || !engagement.hasCorrectAnswers) {
     return;
   }
 

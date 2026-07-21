@@ -165,6 +165,7 @@ export function createElement(type, overrides = {}) {
       prompt: "What should we ask the audience?",
       options: ["Option A", "Option B", "Option C"],
       correctAnswers: [],
+      hasCorrectAnswers: false,
       showCorrectAnswer: true,
       correctAnswerRevealed: false,
       responseLimit: 1,
@@ -245,6 +246,7 @@ export function createSlide(overrides = {}) {
       prompt: "What should we prioritize next?",
       options: ["Fidelity", "Speed", "Templates"],
       correctAnswers: [],
+      hasCorrectAnswers: false,
       showCorrectAnswer: true,
       correctAnswerRevealed: false,
       responseLimit: 1,
@@ -517,6 +519,7 @@ function createEngagementTemplateSlide({ type, title, prompt, options = [] }) {
       prompt,
       options: [...options],
       correctAnswers: [],
+      hasCorrectAnswers: false,
       showCorrectAnswer: true,
       correctAnswerRevealed: false,
       responseLimit: 1,
@@ -549,6 +552,7 @@ function createEngagementTemplateSlide({ type, title, prompt, options = [] }) {
         mode: type,
         prompt,
         options: [...options],
+        hasCorrectAnswers: false,
         responseLimit: 1,
         name: `${title} engagement`,
       }),
@@ -748,18 +752,6 @@ export const layoutTemplates = [
     },
   },
   {
-    id: "quiz",
-    name: "Quiz",
-    apply() {
-      return createEngagementTemplateSlide({
-        type: "quiz",
-        title: "Audience quiz",
-        prompt: "What is the correct answer?",
-        options: ["Option A", "Option B", "Option C", "Option D"],
-      });
-    },
-  },
-  {
     id: "word-cloud",
     name: "Word cloud",
     apply() {
@@ -878,18 +870,22 @@ export function normalizeSection(raw) {
 
 export function normalizeSlide(raw = {}) {
   raw ||= {};
+  const legacyQuiz = raw.engagement?.type === "quiz";
+  const correctAnswers = Array.isArray(raw.engagement?.correctAnswers)
+    ? raw.engagement.correctAnswers.slice(0, MAX_ENGAGEMENT_OPTIONS)
+    : [];
   const slide = createSlide({
     ...raw,
     sectionId: typeof raw.sectionId === "string" ? raw.sectionId : null,
     engagement: {
       ...createSlide().engagement,
       ...(raw.engagement || {}),
+      type: legacyQuiz ? "multipleChoice" : raw.engagement?.type || createSlide().engagement.type,
       options: Array.isArray(raw.engagement?.options)
         ? raw.engagement.options.slice(0, MAX_ENGAGEMENT_OPTIONS)
         : createSlide().engagement.options,
-      correctAnswers: Array.isArray(raw.engagement?.correctAnswers)
-        ? raw.engagement.correctAnswers.slice(0, MAX_ENGAGEMENT_OPTIONS)
-        : [],
+      correctAnswers,
+      hasCorrectAnswers: raw.engagement?.hasCorrectAnswers ?? (legacyQuiz || correctAnswers.length > 0),
       showCorrectAnswer: raw.engagement?.showCorrectAnswer ?? true,
       correctAnswerRevealed: raw.engagement?.correctAnswerRevealed ?? false,
       responseLimit: Math.max(1, Number(raw.engagement?.responseLimit) || 1),
@@ -919,10 +915,13 @@ export function normalizeElement(raw) {
     },
   };
   if (element.type === "engagement") {
+    const legacyQuiz = element.mode === "quiz";
+    if (legacyQuiz) element.mode = "multipleChoice";
     element.options = (Array.isArray(element.options) ? element.options : [])
       .slice(0, MAX_ENGAGEMENT_OPTIONS);
     element.correctAnswers = (Array.isArray(element.correctAnswers) ? element.correctAnswers : [])
       .filter((answer) => element.options.includes(answer));
+    element.hasCorrectAnswers = legacyQuiz || (raw.hasCorrectAnswers ?? (element.correctAnswers.length > 0));
   }
   return element;
 }

@@ -899,7 +899,6 @@ function engagementModeLabel(mode) {
     multipleChoice: "Multiple choice",
     wordCloud: "Word cloud",
     qna: "Q&A",
-    quiz: "Quiz",
     reactions: "Reactions",
   };
   return labels[mode] || "Engagement";

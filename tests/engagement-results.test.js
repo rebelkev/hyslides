@@ -106,7 +106,7 @@ test("the template library includes every engagement type", () => {
   );
   assert.deepEqual(
     [...types].sort(),
-    ["multipleChoice", "poll", "qna", "quiz", "reactions", "wordCloud"].sort()
+    ["multipleChoice", "poll", "qna", "reactions", "wordCloud"].sort()
   );
 });
 
@@ -115,12 +115,31 @@ test("engagement choices are capped at ten options", () => {
   const deck = normalizeDeck({
     ...createSeedDeck(),
     slides: [createSlide({
-      engagement: { enabled: true, type: "quiz", options },
-      elements: [createElement("engagement", { mode: "quiz", options })],
+      engagement: { enabled: true, type: "multipleChoice", options },
+      elements: [createElement("engagement", { mode: "multipleChoice", options })],
     })],
   });
   assert.equal(deck.slides[0].engagement.options.length, MAX_ENGAGEMENT_OPTIONS);
   assert.equal(deck.slides[0].elements[0].options.length, MAX_ENGAGEMENT_OPTIONS);
+});
+
+test("legacy quiz slides migrate to multiple choice with correct answers enabled", () => {
+  const deck = normalizeDeck({
+    ...createSeedDeck(),
+    slides: [createSlide({
+      engagement: { enabled: true, type: "quiz", options: ["A", "B"], correctAnswers: ["B"] },
+      elements: [createElement("engagement", { mode: "quiz", options: ["A", "B"], correctAnswers: ["B"] })],
+    })],
+  });
+  assert.equal(deck.slides[0].engagement.type, "multipleChoice");
+  assert.equal(deck.slides[0].engagement.hasCorrectAnswers, true);
+  assert.equal(deck.slides[0].elements[0].mode, "multipleChoice");
+  assert.equal(deck.slides[0].elements[0].hasCorrectAnswers, true);
+});
+
+test("new multiple-choice questions default to no answer key", () => {
+  const element = createElement("engagement", { mode: "multipleChoice" });
+  assert.equal(element.hasCorrectAnswers, false);
 });
 
 test("engagement element height grows with its option list", () => {

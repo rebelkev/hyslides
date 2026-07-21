@@ -901,9 +901,12 @@ function ensureEngagementShape(slide: Record<string, unknown>) {
   const engagement = (slide.engagement || {}) as Record<string, unknown>;
   engagement.enabled ??= false;
   engagement.type ||= "poll";
+  const legacyQuiz = engagement.type === "quiz";
+  if (legacyQuiz) engagement.type = "multipleChoice";
   engagement.prompt ||= "Audience question";
   engagement.options ||= [];
   engagement.correctAnswers ||= [];
+  engagement.hasCorrectAnswers ??= legacyQuiz || (Array.isArray(engagement.correctAnswers) && engagement.correctAnswers.length > 0);
   engagement.showCorrectAnswer ??= true;
   engagement.correctAnswerRevealed ??= false;
   engagement.responseLimit = Math.max(1, numberValue(engagement.responseLimit) || 1);

@@ -27,7 +27,7 @@ export function measureTextElementHeight(ctx, element, deck) {
 }
 
 export function measureEngagementElementHeight(element) {
-  if (element?.type !== "engagement" || !["poll", "multipleChoice", "quiz"].includes(element.mode)) {
+  if (element?.type !== "engagement" || !["poll", "multipleChoice"].includes(element.mode)) {
     return Number(element?.h || 0);
   }
   const optionCount = Math.min(MAX_ENGAGEMENT_OPTIONS, Math.max(1, element.options?.length || 0));
@@ -522,7 +522,7 @@ function drawEngagement(ctx, element, deck, renderOptions = {}) {
 }
 
 function drawChoicePreview(ctx, element, deck, options, padding, y, renderOptions = {}) {
-  const correct = (renderOptions.revealCorrectAnswers ?? true)
+  const correct = element.hasCorrectAnswers && (renderOptions.revealCorrectAnswers ?? true)
     ? new Set(element.correctAnswers || [])
     : new Set();
   const availableHeight = Math.max(48, element.h - y - padding);
@@ -653,7 +653,6 @@ function labelForEngagementMode(mode) {
     multipleChoice: "Multiple choice",
     wordCloud: "Word cloud",
     qna: "Q&A",
-    quiz: "Quiz",
     reactions: "Reactions",
   };
   return labels[mode] || "Engagement";

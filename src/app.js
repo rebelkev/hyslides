@@ -762,7 +762,7 @@ function autoSizeTextElements(slide) {
     if (element.type === "text" && element.autoHeight !== false) {
       element.h = measureTextElementHeight(ctx, element, deck);
     }
-    if (element.type === "engagement" && ["poll", "multipleChoice", "quiz"].includes(element.mode)) {
+    if (element.type === "engagement" && ["poll", "multipleChoice"].includes(element.mode)) {
       const availableHeight = Math.max(160, SLIDE_SIZE.height - element.y - 20);
       const fittedHeight = Math.min(measureEngagementElementHeight(element), availableHeight);
       element.h = Math.max(element.h, fittedHeight);
@@ -1783,9 +1783,10 @@ function elementInspectorFields(element) {
   if (element.type === "engagement") {
     return `
       <section class="inspector-section">
-        <strong>Engagement</strong>
+        <strong>Engagement type</strong>
         <div class="field-row"><label for="engagementElementMode">Mode</label><select id="engagementElementMode">${engagementTypes.map((type) => `<option value="${type.value}" ${element.mode === type.value ? "selected" : ""}>${type.label}</option>`).join("")}</select></div>
         <div class="field-row"><label for="engagementElementPrompt">Prompt</label><input id="engagementElementPrompt" value="${attr(element.prompt)}" /></div>
+        ${element.mode === "multipleChoice" ? `<div class="check-row"><input id="engagementHasCorrectAnswers" type="checkbox" ${element.hasCorrectAnswers ? "checked" : ""} /><label for="engagementHasCorrectAnswers">This question has correct answers</label></div>` : ""}
         ${engagementOptionEditor({ ...element, type: element.mode }, "element")}
       </section>`;
   }
@@ -2169,14 +2170,14 @@ function setElementBrandColor(element, color) {
 }
 
 function engagementOptionEditor(engagement, scope) {
-  if (!["poll", "multipleChoice", "quiz"].includes(engagement.type)) {
+  if (!["poll", "multipleChoice"].includes(engagement.type)) {
     return "";
   }
 
   const options = engagement.options || [];
   const atOptionLimit = options.length >= MAX_ENGAGEMENT_OPTIONS;
   const correctAnswers = new Set(engagement.correctAnswers || []);
-  const supportsAnswers = ["multipleChoice", "quiz"].includes(engagement.type);
+  const supportsAnswers = engagement.type === "multipleChoice" && engagement.hasCorrectAnswers;
   const optionRows = options.length
     ? options
         .map(
@@ -3416,7 +3417,7 @@ function syncPresenterSlideChange() {
 
 function shouldRevealCorrectAnswers(slide) {
   const engagement = slide.engagement;
-  return ["multipleChoice", "quiz"].includes(engagement?.type) &&
+  return engagement?.type === "multipleChoice" && engagement.hasCorrectAnswers &&
     Boolean(engagement?.correctAnswerRevealed);
 }
 
@@ -4549,6 +4550,17 @@ function bindEngagementElementFields(element) {
     }
   });
 
+  document.querySelector("#engagementHasCorrectAnswers")?.addEventListener("change", (event) => {
+    element.hasCorrectAnswers = event.target.checked;
+    if (!element.hasCorrectAnswers) {
+      element.correctAnswers = [];
+      element.correctAnswerRevealed = false;
+    }
+    syncSlideEngagementFromElement(element);
+    markChanged("Correct-answer setting updated");
+    renderAll();
+  });
+
   bindEngagementOptionEditor(element, "element", () => syncSlideEngagementFromElement(element));
 }
 
@@ -4779,6 +4791,7 @@ function syncSlideEngagementFromElement(element) {
   slide.engagement.prompt = element.prompt || "";
   slide.engagement.options = [...(element.options || [])];
   slide.engagement.correctAnswers = [...(element.correctAnswers || [])];
+  slide.engagement.hasCorrectAnswers = Boolean(element.hasCorrectAnswers);
   slide.engagement.showCorrectAnswer = element.showCorrectAnswer ?? true;
   slide.engagement.correctAnswerRevealed =
     element.correctAnswerRevealed ?? slide.engagement.correctAnswerRevealed ?? false;
@@ -4797,6 +4810,7 @@ function syncEngagementElementsFromSlide(slide) {
     element.prompt = slide.engagement.prompt;
     element.options = [...(slide.engagement.options || [])];
     element.correctAnswers = [...(slide.engagement.correctAnswers || [])];
+    element.hasCorrectAnswers = Boolean(slide.engagement.hasCorrectAnswers);
     element.results = { ...(slide.engagement.results || {}) };
     element.qna = [...(slide.engagement.qna || [])];
     element.reactions = { ...(slide.engagement.reactions || {}) };

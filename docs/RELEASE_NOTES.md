@@ -4,6 +4,8 @@
 
 ### Editor
 
+- Consolidated Quiz into Multiple Choice with an optional “This question has correct answers” setting, and automatically migrates existing Quiz slides without losing their answer keys.
+- Renamed the selected element's inner inspector heading to “Engagement type” to distinguish it from the element name.
 - Holding Shift while dragging any resize handle now preserves the selection's aspect ratio.
 - YouTube elements now expand to the full slide when playback begins by default, with an element-level checkbox to disable the behavior.
 - Moved engagement type, prompt, options, and response settings exclusively to the selected Engagement element; the slide-level inspector now focuses on audience-access visibility.
@@ -18,8 +20,8 @@
 - Removed PowerPoint export.
 - Kept organizational slide titles out of the rendered slide footer; optional footers now show only the slide number.
 - Reorganized the left rail into dedicated Slides and Templates tabs, with explicit “Add to deck” actions for every template.
-- Added ready-to-edit templates for Poll, Multiple Choice, Quiz, Word Cloud, Q&A, and Reactions engagement slides.
-- Streamlined Poll, Multiple Choice, and Quiz setup into one inline option list with editing, removal, adding, and correct-answer selection in the same rows.
+- Added ready-to-edit templates for Poll, Multiple Choice, Word Cloud, Q&A, and Reactions engagement slides.
+- Streamlined Poll and Multiple Choice setup into one inline option list with editing, removal, adding, and optional correct-answer selection in the same rows.
 - Capped choice-based engagement slides at 10 options and made their on-slide question elements expand and compact their rows so every option remains visible.
 
 ### Design System
