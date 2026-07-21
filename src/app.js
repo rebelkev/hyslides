@@ -2471,7 +2471,7 @@ function reactionPicker(engagement) {
         ${selected.map((key, index) => `<div class="engagement-option-row reaction-selected-row"><span class="reaction-selected-emoji">${reactionEmoji(key)}</span><span>Emoji ${index + 1}</span><button class="engagement-option-remove" type="button" data-reaction-remove="${index}" ${selected.length === 1 ? "disabled" : ""} aria-label="Remove ${reactionEmoji(key)}">&times;</button></div>`).join("")}
       </div>
       <details class="reaction-picker-menu" ${atLimit ? "data-limit-reached" : ""}>
-        <summary class="button-like" ${atLimit ? "aria-disabled=\"true\"" : ""}>Add emoji (${selected.length}/${MAX_REACTION_OPTIONS})</summary>
+        <summary ${atLimit ? "aria-disabled=\"true\"" : ""}><span class="reaction-picker-plus" aria-hidden="true">+</span><span>Add emoji (${selected.length}/${MAX_REACTION_OPTIONS})</span><span class="reaction-picker-chevron" aria-hidden="true"></span></summary>
         <div class="reaction-picker-popover">
           <div class="reaction-picker-grid">${Object.entries(REACTION_CATALOG).map(([key, emoji]) => `<button type="button" data-reaction-add="${key}" ${atLimit || selectedSet.has(key) ? "disabled" : ""} aria-label="Add ${emoji}">${emoji}</button>`).join("")}</div>
           <div class="reaction-custom-row"><input id="customReactionEmoji" type="text" maxlength="32" placeholder="Paste any emoji" aria-label="Paste any emoji" ${atLimit ? "disabled" : ""} /><button id="addCustomReactionEmoji" type="button" ${atLimit ? "disabled" : ""}>Add</button></div>
@@ -5020,6 +5020,12 @@ function bindEngagementElementFields(element) {
       markChanged("Reaction emojis updated");
       renderAll();
   };
+  document.querySelector(".reaction-picker-menu")?.addEventListener("toggle", (event) => {
+    if (!event.currentTarget.open) return;
+    window.requestAnimationFrame(() => {
+      event.currentTarget.querySelector(".reaction-picker-popover")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+  });
   document.querySelectorAll("[data-reaction-remove]").forEach((button) => {
     button.addEventListener("click", () => {
       const options = [...(element.reactionOptions || DEFAULT_REACTION_OPTIONS)];
