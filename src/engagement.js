@@ -175,6 +175,13 @@ export function renderAudienceContent(container, deck, slide, onSubmit, latestRe
       input.value = "";
     });
     container.append(form);
+    if (engagement.type === "qna") {
+      const questions = document.createElement("section");
+      questions.className = "audience-results";
+      questions.innerHTML = "<strong>Questions selected by the presenter</strong>";
+      renderAudienceQna(questions, engagement, onSubmit);
+      container.append(questions);
+    }
   }
 
   if (engagement.type === "reactions") {
@@ -201,8 +208,7 @@ export function renderAudienceContent(container, deck, slide, onSubmit, latestRe
     } else if (engagement.type === "wordCloud") {
       renderWordCloud(results, engagement);
     } else if (engagement.type === "qna") {
-      renderQna(results, engagement, () => {});
-      results.querySelectorAll("button").forEach((button) => button.remove());
+      return;
     } else if (engagement.type === "reactions") {
       renderReactions(results, engagement);
     }
@@ -307,13 +313,26 @@ function renderQna(container, engagement, onChange) {
   }
   for (const question of engagement.qna) {
     const row = document.createElement("div");
-    row.className = "result-row";
-    const buttonLabel = question.answered ? "Answered" : "Mark answered";
-    row.innerHTML = `<strong>${escapeHtml(question.text)}</strong><button type="button">${buttonLabel}</button>`;
-    row.querySelector("button").addEventListener("click", () => {
-      question.answered = !question.answered;
-      onChange();
-    });
+    row.className = `result-row qna-moderation-row${question.visible ? " visible" : " pending"}`;
+    row.innerHTML = `<div><strong>${escapeHtml(question.text)}</strong><span>${question.visible ? "Displayed" : "Pending review"} · ${question.upvotes || 0} upvote${question.upvotes === 1 ? "" : "s"}</span></div><div class="qna-actions"><button type="button" data-action="${question.visible ? "hide" : "show"}">${question.visible ? "Hide" : "Display"}</button><button type="button" data-action="${question.answered ? "unanswered" : "answered"}">${question.answered ? "Mark unread" : "Mark answered"}</button><button class="danger" type="button" data-action="delete">Delete</button></div>`;
+    row.querySelectorAll("button").forEach((button) => button.addEventListener("click", () => onChange(question, button.dataset.action)));
+    container.append(row);
+  }
+}
+
+function renderAudienceQna(container, engagement, onSubmit) {
+  const questions = (engagement.qna || []).filter((question) => question.visible !== false);
+  if (!questions.length) {
+    const empty = document.createElement("span");
+    empty.textContent = "No questions have been displayed yet.";
+    container.append(empty);
+    return;
+  }
+  for (const question of [...questions].sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0))) {
+    const row = document.createElement("div");
+    row.className = `result-row audience-question${question.answered ? " answered" : ""}`;
+    row.innerHTML = `<strong>${escapeHtml(question.text)}</strong><button type="button">▲ ${question.upvotes || 0}</button>`;
+    row.querySelector("button").addEventListener("click", () => onSubmit({ action: "upvote", questionId: question.id }));
     container.append(row);
   }
 }
