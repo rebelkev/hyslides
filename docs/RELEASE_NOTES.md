@@ -58,6 +58,13 @@
 - Removed the redundant next-slide preview and enlarged the current slide.
 - Moved speaker notes above a compact Live Session panel and removed duplicate QR/link controls.
 - Added a one-click timer insertion action for unplanned breaks.
+- Grouped Previous and Next together on the bottom-right.
+
+### Participant View Layout
+
+- Converted QR/access-code entry into a standalone full-page Participant View with no Editor View behind it and no Close action.
+- Removed presentation-only and generic connected-status messages.
+- Replaced the always-open Q&A form with a floating bottom-right question launcher.
 
 ### Terminology
 
