@@ -82,7 +82,6 @@ export async function exportDeckToPptx(deck) {
 export function pptxCapabilities() {
   return [
     "Imports basic text boxes, text formatting and spacing, layout placeholders, shapes, images, simple chart references, and slide order.",
-    "Exports editable formatted text with line spacing, basic shapes, dividers, image elements, tables as text blocks, and chart previews.",
     "Unsupported PowerPoint features are listed in the deck inspector after import.",
     "Animations, transitions, SmartArt, advanced charts, embedded media, comments, and complex masters are reserved for later phases.",
   ];
