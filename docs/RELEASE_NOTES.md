@@ -45,6 +45,7 @@
 
 ### Presenter View v1
 
+- Word Cloud engagement elements now use a true weighted cloud layout: repeated words and phrases grow larger and results are arranged around the center instead of appearing as a line of tags.
 - Separated the private Presenter View from the clean projected Presentation View.
 - Added responsive desktop/mobile layouts, speaker notes, current and next end-state previews, elapsed timer, live participant/response counts, and session controls.
 - Added a session-only presentation-flow filmstrip. Slides can be unchecked to skip them, visibly gray out, and be restored without changing the saved deck.

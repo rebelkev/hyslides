@@ -1,5 +1,6 @@
 import { MAX_ENGAGEMENT_OPTIONS, SLIDE_SIZE } from "./schema.js";
 import { youtubeVideoId } from "./embed.js";
+import { createWordCloudLayout } from "./word-cloud.js";
 
 const imageCache = new Map();
 
@@ -558,7 +559,7 @@ function drawChoicePreview(ctx, element, deck, options, padding, y, renderOption
 function drawWordCloudPreview(ctx, element, deck, options, padding, y, renderOptions = {}) {
   const words = Object.entries(element.results || {})
     .sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0))
-    .slice(0, 12);
+    .slice(0, 32);
   if (!words.length) {
     if (!renderOptions.showEngagementPlaceholders) return;
     ctx.fillStyle = deck.theme.colors.muted;
@@ -567,24 +568,30 @@ function drawWordCloudPreview(ctx, element, deck, options, padding, y, renderOpt
     ctx.fillText("Audience words will appear here", padding, y + 12, element.w - padding * 2);
     return;
   }
-  const displayWords = words;
-  const maxCount = Math.max(1, ...displayWords.map(([, count]) => Number(count) || 0));
-  let x = padding;
-  ctx.textBaseline = "middle";
-  displayWords.forEach(([word, count], index) => {
-    const fontSize = 16 + Math.round(((Number(count) || 0) / maxCount) * 20);
-    ctx.font = `800 ${fontSize}px ${deck.theme.fonts.body}, Arial, sans-serif`;
-    const width = ctx.measureText(word).width + 24;
-    if (x + width > element.w - padding) {
-      x = padding;
-      y += 44;
-    }
-    ctx.fillStyle = index % 2 === 0 ? "#e8efff" : "#eefbf8";
-    roundedRect(ctx, x, y, width, 34, 17);
-    ctx.fill();
-    ctx.fillStyle = deck.theme.colors.ink;
-    ctx.fillText(word, x + 12, y + 17, width - 24);
-    x += width + 10;
+  const fontFamily = `${deck.theme.fonts.body}, Arial, sans-serif`;
+  const cloud = createWordCloudLayout(words, {
+    x: padding,
+    y,
+    width: Math.max(1, element.w - padding * 2),
+    height: Math.max(1, element.h - y - padding),
+  }, (word, fontSize) => {
+    ctx.font = `800 ${fontSize}px ${fontFamily}`;
+    return ctx.measureText(word).width;
+  });
+  const colors = [
+    element.accent || deck.theme.colors.primary,
+    deck.theme.colors.accent,
+    deck.theme.colors.ink,
+    deck.theme.colors.coral,
+    deck.theme.colors.warning,
+    deck.theme.colors.muted,
+  ].filter(Boolean);
+  ctx.textBaseline = "top";
+  ctx.textAlign = "left";
+  cloud.forEach((item, index) => {
+    ctx.font = `800 ${item.fontSize}px ${fontFamily}`;
+    ctx.fillStyle = colors[index % colors.length];
+    ctx.fillText(item.text, item.x, item.y, item.width);
   });
 }
 
