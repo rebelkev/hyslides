@@ -18,7 +18,7 @@ import {
   preloadSlideImages,
 } from "./renderer.js";
 import { deleteDeck, downloadBlob, loadCurrentDeck, loadDecks, saveDeck } from "./storage.js";
-import { exportDeckToPptx, importPptx, pptxCapabilities } from "./pptx.js";
+import { importPptx, pptxCapabilities } from "./pptx.js";
 import { exportDeckToPdf } from "./pdf.js";
 import {
   engagementTypes,
@@ -105,6 +105,7 @@ const presenterWindowMode = location.hash === "#presenter";
 const presenterChannel = "BroadcastChannel" in window ? new BroadcastChannel("hyslides-presenter") : null;
 let audienceOpen = false;
 let templatesExpanded = readTemplatesExpandedPreference();
+let inspectorTab = "properties";
 let liveSession = {
   code: "",
   instanceId: "",
@@ -242,21 +243,6 @@ function bindEvents() {
     }
   });
 
-  document.querySelector("#exportPptxBtn").addEventListener("click", async () => {
-    setStatus("Exporting PowerPoint...");
-    try {
-      const result = await exportDeckToPptx(deck);
-      downloadBlob(result.blob, result.filename);
-      if (result.unsupported.length) {
-        deck.unsupportedFeatures = [...new Set([...(deck.unsupportedFeatures || []), ...result.unsupported])];
-      }
-      setStatus("PowerPoint exported");
-      renderAll();
-    } catch (error) {
-      setStatus(`Export failed: ${error.message}`);
-    }
-  });
-
   document.querySelector("#exportPdfBtn").addEventListener("click", async () => {
     setStatus("Exporting PDF...");
     try {
@@ -287,6 +273,14 @@ function bindEvents() {
     markChanged("Presenter notes updated");
   });
   document.querySelector("#deleteBtn").addEventListener("click", deleteSelection);
+  document.querySelector("#propertiesTabBtn").addEventListener("click", () => {
+    inspectorTab = "properties";
+    renderInspector();
+  });
+  document.querySelector("#elementsTabBtn").addEventListener("click", () => {
+    inspectorTab = "elements";
+    renderInspector();
+  });
   document.querySelector("#duplicateBtn").addEventListener("click", duplicateSelection);
   document.querySelector("#groupBtn").addEventListener("click", groupSelection);
   document.querySelector("#lockBtn").addEventListener("click", toggleLockSelection);
@@ -367,6 +361,15 @@ function renderAll() {
 }
 
 function upgradeIconButtons() {
+  const lucideNames = {
+    plus: "plus", save: "save", folder: "folder-open", upload: "file-up", "file-text": "file-text",
+    play: "play", users: "users", cursor: "mouse-pointer-2", type: "type", image: "image",
+    shapes: "shapes", star: "star", chart: "bar-chart-3", table: "table-2", minus: "minus",
+    engagement: "message-square", copy: "copy", group: "combine", lock: "lock",
+    "layer-up": "bring-to-front", "layer-down": "send-to-back", "to-front": "chevrons-up",
+    "to-back": "chevrons-down", "align-horizontal": "align-horizontal-space-around",
+    "align-vertical": "align-vertical-space-around", "zoom-out": "zoom-out", "zoom-in": "zoom-in",
+  };
   document.querySelectorAll("[data-icon]").forEach((control) => {
     const label = control.getAttribute("aria-label") || control.getAttribute("title") || control.textContent.trim();
     const icon = control.dataset.icon;
@@ -374,12 +377,14 @@ function upgradeIconButtons() {
     control.setAttribute("aria-label", label);
     control.dataset.tooltip = label;
     control.innerHTML = `
-      <svg class="button-icon" aria-hidden="true" focusable="false">
-        <use href="#icon-${icon}"></use>
-      </svg>
+      <span class="button-icon" data-lucide="${attr(lucideNames[icon] || icon)}" aria-hidden="true">
+        <svg class="button-icon" aria-hidden="true" focusable="false"><use href="#icon-${icon}"></use></svg>
+      </span>
       <span class="sr-only">${escapeHtml(label)}</span>
     `;
   });
+  window.lucide?.createIcons({ attrs: { "stroke-width": 1.8 } });
+  window.addEventListener("load", () => window.lucide?.createIcons({ attrs: { "stroke-width": 1.8 } }), { once: true });
 }
 
 async function openDeckLibrary() {
@@ -1331,6 +1336,17 @@ function saveTemplatesExpandedPreference() {
 }
 
 function renderInspector() {
+  const propertiesTab = document.querySelector("#propertiesTabBtn");
+  const elementsTab = document.querySelector("#elementsTabBtn");
+  propertiesTab.classList.toggle("active", inspectorTab === "properties");
+  elementsTab.classList.toggle("active", inspectorTab === "elements");
+  propertiesTab.setAttribute("aria-selected", String(inspectorTab === "properties"));
+  elementsTab.setAttribute("aria-selected", String(inspectorTab === "elements"));
+  document.querySelector("#deleteBtn").classList.toggle("hidden", inspectorTab === "elements");
+  if (inspectorTab === "elements") {
+    renderElementTree();
+    return;
+  }
   const slide = currentSlide();
   const selected = selectedElements();
   if (selected.length === 1) {
@@ -1340,6 +1356,60 @@ function renderInspector() {
   } else {
     renderSlideInspector(slide);
   }
+}
+
+function renderElementTree() {
+  const slide = currentSlide();
+  const ordered = [...slide.elements].reverse();
+  const renderedGroups = new Set();
+  const rows = [];
+  for (const element of ordered) {
+    if (element.groupId) {
+      if (renderedGroups.has(element.groupId)) continue;
+      renderedGroups.add(element.groupId);
+      const members = ordered.filter((item) => item.groupId === element.groupId);
+      const groupSelected = members.every((item) => selectedIds.includes(item.id));
+      rows.push(`
+        <li class="element-tree-group">
+          <button class="element-tree-row group-row ${groupSelected ? "selected" : ""}" type="button" data-group-id="${attr(element.groupId)}">
+            <span class="element-tree-chevron">⌄</span><strong>Group</strong><span class="element-tree-count">${members.length}</span>
+          </button>
+          <ul>${members.map(elementTreeRow).join("")}</ul>
+        </li>`);
+    } else {
+      rows.push(elementTreeRow(element));
+    }
+  }
+  dom.inspector.innerHTML = `
+    <section class="inspector-section element-tree-section">
+      <div class="element-tree-heading"><strong>Slide elements</strong><span>${slide.elements.length}</span></div>
+      <p class="element-tree-help">Top items appear in front. Select an item to edit it.</p>
+      <ul class="element-tree">${rows.join("") || '<li class="element-tree-empty">This slide has no elements.</li>'}</ul>
+    </section>`;
+  dom.inspector.querySelectorAll("[data-element-id]").forEach((button) => {
+    button.addEventListener("click", () => {
+      selectedIds = [button.dataset.elementId];
+      renderAll();
+    });
+  });
+  dom.inspector.querySelectorAll("[data-group-id]").forEach((button) => {
+    button.addEventListener("click", () => {
+      selectedIds = slide.elements.filter((item) => item.groupId === button.dataset.groupId).map((item) => item.id);
+      renderAll();
+    });
+  });
+}
+
+function elementTreeRow(element) {
+  const selected = selectedIds.includes(element.id);
+  const label = element.name || element.type[0].toUpperCase() + element.type.slice(1);
+  return `<li>
+    <button class="element-tree-row ${selected ? "selected" : ""}" type="button" data-element-id="${attr(element.id)}" title="Select ${attr(label)}">
+      <span class="element-type-badge">${escapeHtml(element.type.slice(0, 1).toUpperCase())}</span>
+      <span class="element-tree-name">${escapeHtml(label)}</span>
+      ${element.locked ? '<span class="element-tree-state" title="Locked">Locked</span>' : ""}
+    </button>
+  </li>`;
 }
 
 function renderSlideInspector(slide) {
