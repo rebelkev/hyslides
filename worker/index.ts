@@ -371,10 +371,17 @@ async function cleanupExpiredSessions(db: D1Database) {
   ).run();
   const expired = await db.prepare(
     `SELECT instance_id FROM hyslides_live_instances
-      WHERE status = 'ended' AND last_active_at < datetime('now', '-90 days')`
+      WHERE status = 'ended' AND last_active_at < datetime('now', '-14 days')`
   ).all<{ instance_id: string }>();
   for (const row of expired.results || []) {
-    await deleteSessionInstance(db, row.instance_id);
+    await db.batch([
+      db.prepare(`DELETE FROM hyslides_live_instance_participants WHERE instance_id = ?`).bind(row.instance_id),
+      db.prepare(`DELETE FROM hyslides_live_instance_submissions WHERE instance_id = ?`).bind(row.instance_id),
+      db.prepare(`DELETE FROM hyslides_live_instance_counts WHERE instance_id = ?`).bind(row.instance_id),
+      db.prepare(`DELETE FROM hyslides_live_instance_questions WHERE instance_id = ?`).bind(row.instance_id),
+      db.prepare(`DELETE FROM hyslides_live_instance_slides WHERE instance_id = ?`).bind(row.instance_id),
+      db.prepare(`DELETE FROM hyslides_live_instance_state WHERE instance_id = ?`).bind(row.instance_id),
+    ]);
   }
 }
 
