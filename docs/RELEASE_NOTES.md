@@ -32,6 +32,13 @@
 - Added session history, participant presence, response ratios, and 14-day retention.
 - Added word-cloud aggregation and basic offensive-language filtering.
 
+### Presenter View v1
+
+- Separated the private Presenter View from the clean projected Presentation View.
+- Added responsive desktop/mobile layouts, speaker notes, current and next end-state previews, elapsed timer, live participant/response counts, and session controls.
+- Added a session-only presentation-flow filmstrip. Slides can be unchecked to skip them, visibly gray out, and be restored without changing the saved deck.
+- Added direct slide jumping, animation-aware next navigation, and a black-screen safety control.
+
 ### Terminology
 
 - Established Editor View, Presentation View, Participant View, and Presenter View as the canonical product names.
