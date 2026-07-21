@@ -1230,6 +1230,19 @@ label {
   padding: 8px;
 }
 
+.audience-join-url-row {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.audience-join-url-row input { min-width: 0; }
+
+.audience-join-url-row button {
+  min-width: 58px;
+  padding-inline: 10px;
+}
+
 .live-link-card img {
   background: #ffffff;
   border: 1px solid var(--line);

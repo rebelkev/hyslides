@@ -1662,7 +1662,10 @@ function renderSlideInspector(slide) {
       <div class="check-row"><input id="audienceJoinElementsToggle" type="checkbox" ${audienceJoinVisible ? "checked" : ""} /><label for="audienceJoinElementsToggle">Show QR code and access code on this slide</label></div>
       <div class="field-row">
         <label>Audience join</label>
-        <input readonly value="${attr(audienceLink())}" />
+        <div class="audience-join-url-row">
+          <input id="audienceJoinUrlInput" readonly value="${attr(audienceLink())}" />
+          <button id="copyAudienceJoinUrlBtn" type="button">Copy</button>
+        </div>
         <div class="live-link-card compact">
           <img src="${attr(liveQrImageSrc(audienceLink()))}" alt="Audience QR code" />
           <span>Scan or enter access code <strong>${escapeHtml(ensureAudienceCode())}</strong></span>
@@ -1680,6 +1683,16 @@ function renderSlideInspector(slide) {
 
   bindValue("#slideTitleInput", (value) => (slide.title = value));
   bindValue("#notesInput", (value) => (slide.notes = value));
+  document.querySelector("#copyAudienceJoinUrlBtn")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    const copied = await copyTextToClipboard(audienceLink());
+    button.textContent = copied ? "Copied" : "Select link";
+    if (!copied) document.querySelector("#audienceJoinUrlInput")?.select();
+    setStatus(copied ? "Audience join link copied" : "Select and copy the audience join link");
+    window.setTimeout(() => {
+      if (button.isConnected) button.textContent = "Copy";
+    }, 1600);
+  });
   document.querySelector("#backgroundTypeInput")?.addEventListener("change", (event) => {
     slide.backgroundType = event.target.value;
     if (slide.backgroundType === "animated" && (!slide.backgroundShader || slide.backgroundShader === "none")) slide.backgroundShader = "aurora";
@@ -5149,6 +5162,27 @@ function syncAudienceJoinElements() {
 
 function setStatus(message) {
   dom.statusText.textContent = message;
+}
+
+async function copyTextToClipboard(text) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+    const input = document.createElement("textarea");
+    input.value = text;
+    input.setAttribute("readonly", "");
+    input.style.position = "fixed";
+    input.style.opacity = "0";
+    document.body.append(input);
+    input.select();
+    const copied = document.execCommand("copy");
+    input.remove();
+    return copied;
+  } catch {
+    return false;
+  }
 }
 
 function updateSelectionLabel() {
