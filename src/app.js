@@ -2,6 +2,7 @@ import {
   GRID_SIZE,
   SLIDE_SIZE,
   cloneElement,
+  cloneSlide,
   createDeck,
   createElement,
   createSection,
@@ -696,6 +697,7 @@ function renderSlides() {
     const menuOpen = openSlideMenuIndex === index;
     const actionIndexes = isSelected ? selectedSlideIndexesSorted() : [index];
     const moveCount = actionIndexes.length;
+    const duplicateLabel = moveCount > 1 ? `Duplicate ${moveCount} selected slides` : "Duplicate slide";
     const deleteLabel = moveCount > 1 ? `Delete ${moveCount} selected slides` : "Delete slide";
     const moveMax = Math.max(1, deck.slides.length - moveCount + 1);
     const item = document.createElement("div");
@@ -715,7 +717,7 @@ function renderSlides() {
       </span>
       ${menuOpen ? `
         <div class="slide-menu" role="dialog" aria-label="Slide ${index + 1} menu">
-          <button class="slide-menu-delete" type="button">${deleteLabel}</button>
+          <button class="slide-menu-duplicate" type="button">${duplicateLabel}</button>
           <div class="slide-menu-field">
             <label>${moveCount > 1 ? "Move selected to #" : "Move to #"}</label>
             <div class="slide-menu-row">
@@ -728,6 +730,7 @@ function renderSlides() {
             <input class="slide-menu-title-input" type="text" value="${attr(slide.title || "")}" />
             <button class="slide-menu-title" type="button">Update title</button>
           </div>
+          <button class="slide-menu-delete" type="button">${deleteLabel}</button>
         </div>
       ` : ""}
     `;
@@ -881,6 +884,10 @@ function bindSlideMenu(item, index) {
   const moveInput = menu.querySelector(".slide-menu-move-input");
   const titleInput = menu.querySelector(".slide-menu-title-input");
 
+  menu.querySelector(".slide-menu-duplicate")?.addEventListener("click", () => {
+    openSlideMenuIndex = null;
+    duplicateSlides(slideActionIndexes(index));
+  });
   menu.querySelector(".slide-menu-delete")?.addEventListener("click", () => {
     openSlideMenuIndex = null;
     deleteSlides(slideActionIndexes(index));
@@ -903,6 +910,20 @@ function bindSlideMenu(item, index) {
       updateSlideTitleFromMenu(index, titleInput);
     }
   });
+}
+
+function duplicateSlides(indexes) {
+  const sourceIndexes = selectedSlideIndexesSorted(new Set(indexes));
+  if (!sourceIndexes.length) return;
+  const duplicates = sourceIndexes.map((slideIndex) => cloneSlide(deck.slides[slideIndex]));
+  const insertAt = sourceIndexes[sourceIndexes.length - 1] + 1;
+  deck.slides.splice(insertAt, 0, ...duplicates);
+  activeSlideIndex = insertAt;
+  selectedSlideIndexes = new Set(duplicates.map((_, offset) => insertAt + offset));
+  slideSelectionAnchor = insertAt;
+  selectedIds = [];
+  markChanged(duplicates.length === 1 ? "Slide duplicated" : `${duplicates.length} slides duplicated`);
+  renderAll();
 }
 
 function addSectionAtActiveSlide() {
