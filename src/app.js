@@ -2079,6 +2079,15 @@ function backgroundColorControlMarkup(inputId, label, value, colorKey, styleKey,
 }
 
 function bindBackgroundColorControls(slide) {
+  const colorPickers = [...document.querySelectorAll(".background-color-picker")];
+  colorPickers.forEach((picker) => {
+    picker.addEventListener("toggle", () => {
+      if (!picker.open) return;
+      colorPickers.forEach((otherPicker) => {
+        if (otherPicker !== picker) otherPicker.open = false;
+      });
+    });
+  });
   document.querySelectorAll("[data-background-color-input]").forEach((input) => {
     input.addEventListener("input", () => {
       slide[input.dataset.backgroundColorInput] = input.value;
