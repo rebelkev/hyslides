@@ -216,13 +216,17 @@ export function createDeck(overrides = {}) {
       grid: GRID_SIZE,
       snapToGrid: true,
       showGuides: true,
-      audienceCode: "HY-2471",
+      audienceCode: createAudienceAccessCode(),
     },
     unsupportedFeatures: [],
     sections: [],
     slides: [],
     ...overrides,
   };
+}
+
+function createAudienceAccessCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
 }
 
 export function createSeedDeck() {
