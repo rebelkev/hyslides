@@ -78,6 +78,15 @@ const dom = {
   sessionHistorySubtitle: document.querySelector("#sessionHistorySubtitle"),
   presenterNotes: document.querySelector("#presenterNotes"),
   presenterSlideTitle: document.querySelector("#presenterSlideTitle"),
+  presenterDeckTitle: document.querySelector("#presenterDeckTitle"),
+  presenterTimer: document.querySelector("#presenterTimer"),
+  presenterParticipantCount: document.querySelector("#presenterParticipantCount"),
+  presenterResponseCount: document.querySelector("#presenterResponseCount"),
+  presenterConnectionStatus: document.querySelector("#presenterConnectionStatus"),
+  presenterFlowCount: document.querySelector("#presenterFlowCount"),
+  presenterSlideList: document.querySelector("#presenterSlideList"),
+  nextSlideTitle: document.querySelector("#nextSlideTitle"),
+  presentationBlackout: document.querySelector("#presentationBlackout"),
   liveControls: document.querySelector("#liveControls"),
   audienceContent: document.querySelector("#audienceContent"),
   pptxInput: document.querySelector("#pptxInput"),
@@ -112,9 +121,15 @@ let lastHistoryAt = 0;
 let restoringHistory = false;
 let presenterOpen = false;
 let presenterWindow = null;
+let presentationWindow = null;
 let presenterAnimation = createAnimationPlaybackState();
 const presenterWindowMode = location.hash === "#presenter";
+const presentationWindowMode = location.hash === "#presentation";
 const presenterChannel = "BroadcastChannel" in window ? new BroadcastChannel("hyslides-presenter") : null;
+let skippedSlideIds = new Set();
+let presentationBlackout = false;
+let presenterStartedAt = 0;
+let presenterTimerInterval = 0;
 let audienceOpen = false;
 let templatesExpanded = readTemplatesExpandedPreference();
 let inspectorTab = "properties";
@@ -166,9 +181,10 @@ async function init() {
   setupCanvasAutoFit();
   setStatus("Ready");
   bindPresenterChannel();
-  if (presenterWindowMode) {
+  if (presenterWindowMode || presentationWindowMode) {
     document.body.classList.add("presenter-window");
-    presenterChannel?.postMessage({ type: "presenter-ready" });
+    if (presentationWindowMode) document.body.classList.add("presentation-window");
+    presenterChannel?.postMessage({ type: "view-ready" });
     openPresenterMode();
   } else if (location.hash.startsWith("#audience")) {
     openAudience();
@@ -283,12 +299,16 @@ function bindEvents() {
   });
   document.querySelector("#prevSlideBtn").addEventListener("click", () => stepSlide(-1));
   document.querySelector("#nextSlideBtn").addEventListener("click", advancePresenter);
+  document.querySelector("#openPresentationViewBtn").addEventListener("click", openPresentationWindow);
+  document.querySelector("#resetPresenterTimerBtn").addEventListener("click", resetPresenterTimer);
+  document.querySelector("#blackoutPresentationBtn").addEventListener("click", togglePresentationBlackout);
   document.querySelector("#fullscreenPresenterBtn").addEventListener("click", () => {
     document.documentElement.requestFullscreen?.().catch(() => {});
   });
   dom.presenterNotes.addEventListener("input", () => {
     currentSlide().notes = dom.presenterNotes.value;
     markChanged("Presenter notes updated");
+    presenterChannel?.postMessage({ type: "notes-updated", slideId: currentSlide().id, notes: dom.presenterNotes.value });
   });
   document.querySelector("#propertiesTabBtn").addEventListener("click", () => {
     inspectorTab = "properties";
@@ -2785,9 +2805,21 @@ function launchPresenterWindow() {
   setTimeout(sendPresenterSnapshot, 500);
 }
 
+function openPresentationWindow() {
+  presentationWindow = window.open(`${location.href.split("#")[0]}#presentation`, "_blank");
+  if (!presentationWindow) {
+    setStatus("Allow HySlides to open Presentation View in a new tab");
+    return;
+  }
+  presentationWindow.focus();
+  sendPresenterSnapshot();
+  setTimeout(sendPresenterSnapshot, 400);
+}
+
 function openPresenterMode() {
   presenterOpen = true;
-  startLiveSession();
+  if (!presentationWindowMode) startLiveSession();
+  if (!presenterStartedAt) resetPresenterTimer();
   dom.presenterOverlay.classList.remove("hidden");
   dom.presenterOverlay.setAttribute("aria-hidden", "false");
   dom.app.dataset.mode = "present";
@@ -2803,9 +2835,37 @@ function closePresenter() {
   if (document.fullscreenElement) {
     document.exitFullscreen?.();
   }
-  if (presenterWindowMode) {
+  clearInterval(presenterTimerInterval);
+  presenterTimerInterval = 0;
+  if (presenterWindowMode || presentationWindowMode) {
     window.close();
   }
+}
+
+function resetPresenterTimer() {
+  presenterStartedAt = Date.now();
+  updatePresenterTimer();
+  clearInterval(presenterTimerInterval);
+  presenterTimerInterval = window.setInterval(updatePresenterTimer, 1000);
+}
+
+function updatePresenterTimer() {
+  if (!dom.presenterTimer || !presenterStartedAt) return;
+  const seconds = Math.max(0, Math.floor((Date.now() - presenterStartedAt) / 1000));
+  dom.presenterTimer.textContent = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+function togglePresentationBlackout() {
+  presentationBlackout = !presentationBlackout;
+  applyPresentationBlackout();
+  presenterChannel?.postMessage({ type: "presentation-blackout", value: presentationBlackout });
+}
+
+function applyPresentationBlackout() {
+  dom.presentationBlackout?.classList.toggle("hidden", !presentationBlackout || !presentationWindowMode);
+  const button = document.querySelector("#blackoutPresentationBtn");
+  button?.setAttribute("aria-pressed", String(presentationBlackout));
+  if (button) button.textContent = presentationBlackout ? "Resume screen" : "Black screen";
 }
 
 function bindPresenterChannel() {
@@ -2814,20 +2874,39 @@ function bindPresenterChannel() {
   }
   presenterChannel.addEventListener("message", (event) => {
     const message = event.data || {};
-    if (message.type === "presenter-ready" && !presenterWindowMode) {
+    if (message.type === "view-ready") {
       sendPresenterSnapshot();
     }
-    if (message.type === "presenter-snapshot" && presenterWindowMode && message.deck) {
+    if (message.type === "presenter-snapshot" && (presenterWindowMode || presentationWindowMode) && message.deck) {
       deck = normalizeDeck(message.deck);
       activeSlideIndex = Math.max(0, Math.min(deck.slides.length - 1, Number(message.activeSlideIndex) || 0));
+      skippedSlideIds = new Set(message.skippedSlideIds || []);
+      presentationBlackout = Boolean(message.presentationBlackout);
       selectedSlideIndexes = new Set([activeSlideIndex]);
       renderAll();
+      applyPresentationBlackout();
       queueLivePublish(true);
     }
-    if (message.type === "active-slide" && !presenterWindowMode) {
+    if (message.type === "active-slide" && message.source !== window.name) {
       activeSlideIndex = Math.max(0, Math.min(deck.slides.length - 1, Number(message.activeSlideIndex) || 0));
       selectedSlideIndexes = new Set([activeSlideIndex]);
       renderAll();
+    }
+    if (message.type === "skip-state") {
+      skippedSlideIds = new Set(message.skippedSlideIds || []);
+      if (presenterOpen) renderPresenter();
+    }
+    if (message.type === "presentation-blackout") {
+      presentationBlackout = Boolean(message.value);
+      applyPresentationBlackout();
+    }
+    if (message.type === "animation-command" && presentationWindowMode) {
+      const element = currentSlide().elements.find((item) => item.id === message.elementId);
+      if (element) startPresenterElementAnimation(element, false);
+    }
+    if (message.type === "notes-updated") {
+      const slide = deck.slides.find((item) => item.id === message.slideId);
+      if (slide) slide.notes = message.notes || "";
     }
   });
 }
@@ -2837,20 +2916,32 @@ function sendPresenterSnapshot() {
     type: "presenter-snapshot",
     deck: JSON.parse(JSON.stringify(deck)),
     activeSlideIndex,
+    skippedSlideIds: [...skippedSlideIds],
+    presentationBlackout,
   });
 }
 
 async function renderPresenter() {
   const slide = currentSlide();
   ensurePresenterAnimationPlayback(slide);
+  dom.presenterDeckTitle.textContent = deck.title;
   dom.presenterSlideTitle.textContent = `${activeSlideIndex + 1}. ${slide.title}`;
   dom.presenterNotes.value = slide.notes || "";
+  dom.presenterParticipantCount.textContent = String(liveSession.participantCount);
+  dom.presenterResponseCount.textContent = slide.engagement?.enabled
+    ? `${liveSession.responseCount}/${liveSession.participantCount}`
+    : `—/${liveSession.participantCount}`;
+  dom.presenterConnectionStatus.textContent = liveSession.backendAvailable ? "Live" : liveSession.status;
   await drawSlideAsync(presenterCtx, slide, deck, {
     footer: true,
     revealCorrectAnswers: shouldRevealCorrectAnswers(slide),
-    elementStates: presenterElementStates(slide),
+    elementStates: presentationWindowMode ? presenterElementStates(slide) : null,
   });
-  const nextSlide = deck.slides[Math.min(deck.slides.length - 1, activeSlideIndex + 1)];
+  const nextIndex = nextIncludedSlideIndex(activeSlideIndex, 1);
+  const nextSlide = nextIndex === activeSlideIndex ? slide : deck.slides[nextIndex];
+  dom.nextSlideTitle.textContent = nextIndex === activeSlideIndex ? "End of presentation" : `${nextIndex + 1}. ${nextSlide.title}`;
+  nextCtx.setTransform(1, 0, 0, 1, 0, 0);
+  nextCtx.clearRect(0, 0, dom.nextCanvas.width, dom.nextCanvas.height);
   nextCtx.save();
   nextCtx.scale(dom.nextCanvas.width / SLIDE_SIZE.width, dom.nextCanvas.height / SLIDE_SIZE.height);
   await drawSlideAsync(nextCtx, nextSlide, deck, {
@@ -2858,13 +2949,64 @@ async function renderPresenter() {
     revealCorrectAnswers: shouldRevealCorrectAnswers(nextSlide),
   });
   nextCtx.restore();
-  renderLiveControls(dom.liveControls, deck, slide, () => {
-    syncEngagementElementsFromSlide(slide);
-    markChanged("Engagement updated");
-    renderAll();
-  });
-  renderLiveJoinPanel(slide);
-  queueLivePublish();
+  if (!presentationWindowMode) await renderPresenterFlow();
+  if (!presentationWindowMode) {
+    renderLiveControls(dom.liveControls, deck, slide, () => {
+      syncEngagementElementsFromSlide(slide);
+      markChanged("Engagement updated");
+      renderAll();
+    });
+    renderLiveJoinPanel(slide);
+    queueLivePublish();
+  }
+}
+
+async function renderPresenterFlow() {
+  if (!dom.presenterSlideList) return;
+  dom.presenterFlowCount.textContent = `${deck.slides.length - skippedSlideIds.size}/${deck.slides.length} included`;
+  dom.presenterSlideList.replaceChildren();
+  for (const [index, slide] of deck.slides.entries()) {
+    const row = document.createElement("div");
+    const skipped = skippedSlideIds.has(slide.id);
+    row.className = `presenter-flow-slide${index === activeSlideIndex ? " active" : ""}${skipped ? " skipped" : ""}`;
+    row.innerHTML = `<input type="checkbox" ${skipped ? "" : "checked"} aria-label="Include slide ${index + 1}"><div><canvas width="160" height="90"></canvas><strong>${index + 1}. ${escapeHtml(slide.title)}</strong></div>`;
+    const canvas = row.querySelector("canvas");
+    const thumbCtx = canvas.getContext("2d");
+    thumbCtx.save();
+    thumbCtx.scale(canvas.width / SLIDE_SIZE.width, canvas.height / SLIDE_SIZE.height);
+    await drawSlideAsync(thumbCtx, slide, deck, { footer: false, revealCorrectAnswers: shouldRevealCorrectAnswers(slide) });
+    thumbCtx.restore();
+    row.querySelector("input").addEventListener("change", (event) => {
+      if (event.target.checked) skippedSlideIds.delete(slide.id);
+      else skippedSlideIds.add(slide.id);
+      presenterChannel?.postMessage({ type: "skip-state", skippedSlideIds: [...skippedSlideIds] });
+      renderPresenter();
+    });
+    row.addEventListener("click", (event) => {
+      if (event.target.matches("input") || skippedSlideIds.has(slide.id)) return;
+      activeSlideIndex = index;
+      syncPresenterSlideChange();
+    });
+    dom.presenterSlideList.append(row);
+  }
+}
+
+function nextIncludedSlideIndex(fromIndex, direction) {
+  let index = fromIndex + direction;
+  while (index >= 0 && index < deck.slides.length) {
+    if (!skippedSlideIds.has(deck.slides[index].id)) return index;
+    index += direction;
+  }
+  return fromIndex;
+}
+
+function syncPresenterSlideChange() {
+  selectedSlideIndexes = new Set([activeSlideIndex]);
+  slideSelectionAnchor = activeSlideIndex;
+  selectedIds = [];
+  renderAll();
+  presenterChannel?.postMessage({ type: "active-slide", activeSlideIndex });
+  sendPresenterSnapshot();
 }
 
 function shouldRevealCorrectAnswers(slide) {
@@ -3248,6 +3390,11 @@ async function submitAudienceLiveResponse(slide, payload) {
 }
 
 function stepSlide(delta) {
+  if (presenterOpen) {
+    activeSlideIndex = nextIncludedSlideIndex(activeSlideIndex, delta < 0 ? -1 : 1);
+    syncPresenterSlideChange();
+    return;
+  }
   activeSlideIndex = Math.max(0, Math.min(deck.slides.length - 1, activeSlideIndex + delta));
   selectedSlideIndexes = new Set([activeSlideIndex]);
   slideSelectionAnchor = activeSlideIndex;
@@ -3255,7 +3402,7 @@ function stepSlide(delta) {
   openSectionMenuId = null;
   selectedIds = [];
   renderAll();
-  if (presenterWindowMode) {
+  if (presenterWindowMode || presentationWindowMode) {
     presenterChannel?.postMessage({ type: "active-slide", activeSlideIndex });
   } else if (presenterWindow && !presenterWindow.closed) {
     sendPresenterSnapshot();
@@ -3340,7 +3487,8 @@ function schedulePresenterAnimation(element) {
   presenterAnimation.timers.push(timer);
 }
 
-function startPresenterElementAnimation(element) {
+function startPresenterElementAnimation(element, broadcast = presenterWindowMode) {
+  if (broadcast) presenterChannel?.postMessage({ type: "animation-command", elementId: element.id });
   const animation = normalizedAnimation(element);
   if (animation.effect === "appear") {
     presenterAnimation.revealed.add(element.id);
@@ -3385,11 +3533,13 @@ function drawPresenterAnimationFrame() {
       hasActiveAnimations = true;
     }
   }
-  drawSlide(presenterCtx, currentSlide(), deck, {
-    footer: true,
-    revealCorrectAnswers: shouldRevealCorrectAnswers(currentSlide()),
-    elementStates: presenterElementStates(currentSlide(), now),
-  });
+  if (presentationWindowMode) {
+    drawSlide(presenterCtx, currentSlide(), deck, {
+      footer: true,
+      revealCorrectAnswers: shouldRevealCorrectAnswers(currentSlide()),
+      elementStates: presenterElementStates(currentSlide(), now),
+    });
+  }
   if (hasActiveAnimations || presenterAnimation.active.size) {
     presenterAnimation.frameId = requestAnimationFrame(drawPresenterAnimationFrame);
   }
