@@ -51,6 +51,13 @@
 - Added Presenter View moderation actions: Display, Hide, Mark answered/unanswered, and Delete.
 - Added participant upvoting with one vote per device and private filtering of unapproved questions.
 - Included questions, votes, and moderation status in session history and 14-day cleanup.
+- Made Q&A session-wide so participants can ask at any point, with Unanswered and Answered Presenter View tabs.
+
+### Presenter View Layout
+
+- Removed the redundant next-slide preview and enlarged the current slide.
+- Moved speaker notes above a compact Live Session panel and removed duplicate QR/link controls.
+- Added a one-click timer insertion action for unplanned breaks.
 
 ### Terminology
 
