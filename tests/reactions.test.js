@@ -8,6 +8,7 @@ import {
   createElement,
   createSlide,
   normalizeElement,
+  normalizeReactionOption,
   normalizeSlide,
 } from "../src/schema.js";
 import { selectedReactionKeys } from "../src/engagement.js";
@@ -25,4 +26,13 @@ test("custom reaction choices persist and are capped at five", () => {
   const element = normalizeElement(createElement("engagement", { mode: "reactions", reactionOptions: [...choices, "fire", "heart", "clap"] }));
   assert.deepEqual(slide.engagement.reactionOptions, choices);
   assert.deepEqual(element.reactionOptions, [...choices, "fire", "heart"]);
+});
+
+test("any unicode emoji can be used as a reaction", () => {
+  assert.equal(normalizeReactionOption("🦄"), "🦄");
+  assert.equal(normalizeReactionOption("🇺🇸"), "🇺🇸");
+  assert.equal(normalizeReactionOption("not an emoji"), "");
+  assert.equal(normalizeReactionOption("🦄🧠"), "");
+  const slide = normalizeSlide({ engagement: { type: "reactions", reactionOptions: ["🦄", "🧠"] } });
+  assert.deepEqual(slide.engagement.reactionOptions, ["🦄", "🧠"]);
 });

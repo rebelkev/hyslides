@@ -3,6 +3,7 @@ import {
   MAX_ENGAGEMENT_OPTIONS,
   MAX_REACTION_OPTIONS,
   REACTION_CATALOG,
+  normalizeReactionOption,
 } from "./schema.js";
 
 export const engagementTypes = [
@@ -17,7 +18,7 @@ export const reactionLabels = REACTION_CATALOG;
 
 export function selectedReactionKeys(engagement) {
   const selected = Array.isArray(engagement?.reactionOptions)
-    ? engagement.reactionOptions.filter((key) => reactionLabels[key]).slice(0, MAX_REACTION_OPTIONS)
+    ? engagement.reactionOptions.map(normalizeReactionOption).filter(Boolean).slice(0, MAX_REACTION_OPTIONS)
     : [];
   return selected.length ? selected : [...DEFAULT_REACTION_OPTIONS];
 }
@@ -182,7 +183,7 @@ export function renderAudienceContent(container, deck, slide, onSubmit, latestRe
     const row = document.createElement("div");
     row.className = "reaction-row";
     for (const key of selectedReactionKeys(engagement)) {
-      const label = reactionLabels[key];
+      const label = reactionLabels[key] || key;
       const button = document.createElement("button");
       button.type = "button";
       button.textContent = label;
@@ -328,7 +329,7 @@ function renderReactions(container, engagement) {
   const row = document.createElement("div");
   row.className = "reaction-row";
   for (const key of selectedReactionKeys(engagement)) {
-    const label = reactionLabels[key];
+    const label = reactionLabels[key] || key;
     const cell = document.createElement("div");
     cell.className = "result-row";
     cell.innerHTML = `<strong>${label}</strong><span>${engagement.reactions[key] || 0}</span>`;

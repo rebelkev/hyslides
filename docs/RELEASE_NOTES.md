@@ -4,7 +4,7 @@
 
 ### Editor
 
-- Reaction slides now render emojis instead of text labels, and editors can select up to five emojis from an expanded reaction palette.
+- Reaction slides now render emojis instead of text labels. Editors can build a removable list of up to five choices using an expanded picker or any emoji entered from their device’s full emoji keyboard.
 - Kept YouTube elements as static placeholders in Participant View so audience phones never start duplicate playback or audio; the projected Presentation View remains the sole playback surface.
 - Added Global Deck Settings with reusable Display, Slide title, Subtitle, Heading, Body, and Caption typography styles plus audience access. Text elements can remain globally linked or switch to custom font formatting; legacy text preserves its existing appearance.
 - Added a one-click Copy button beside the Audience Join URL in slide properties, with clipboard confirmation and a selection fallback.

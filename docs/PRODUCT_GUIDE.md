@@ -111,7 +111,7 @@ Add **Countdown** from the Editor View element toolbar to place a customizable t
 
 ## Live Participation
 
-Emoji Reaction engagement elements display the emoji itself with its live response count. Editors can choose between one and five emojis from the reaction palette for each reaction slide.
+Emoji Reaction engagement elements display the emoji itself with its live response count. Editors can choose between one and five emojis for each reaction slide using the broad built-in picker or by entering any emoji from their device’s complete emoji keyboard. Selected emojis appear in a removable option list.
 
 Each deck has a six-digit access code. Participants can join by scanning a QR code or entering the access code.
 

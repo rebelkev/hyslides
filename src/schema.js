@@ -18,8 +18,70 @@ export const REACTION_CATALOG = {
   rocket: "🚀",
   eyes: "👀",
   sad: "😢",
+  grin: "😀",
+  smile: "😊",
+  wink: "😉",
+  cool: "😎",
+  starEyes: "🤩",
+  mindBlown: "🤯",
+  confused: "😕",
+  worried: "😟",
+  angry: "😠",
+  cry: "😭",
+  party: "🥳",
+  handshake: "🤝",
+  muscle: "💪",
+  pray: "🙏",
+  ok: "👌",
+  victory: "✌️",
+  raisedHands: "🙌",
+  wave: "👋",
+  pointingUp: "☝️",
+  check: "✅",
+  cross: "❌",
+  warning: "⚠️",
+  question: "❓",
+  lightbulb: "💡",
+  star: "⭐",
+  sparkle: "✨",
+  boom: "💥",
+  target: "🎯",
+  trophy: "🏆",
+  medal: "🏅",
+  gift: "🎁",
+  balloon: "🎈",
+  music: "🎵",
+  coffee: "☕",
+  pizza: "🍕",
+  cake: "🎂",
+  globe: "🌍",
+  sun: "☀️",
+  moon: "🌙",
+  rainbow: "🌈",
+  lightning: "⚡",
+  snowflake: "❄️",
+  computer: "💻",
+  chart: "📈",
+  pin: "📌",
+  bell: "🔔",
+  megaphone: "📣",
 };
 export const DEFAULT_REACTION_OPTIONS = ["thumbsUp", "heart", "clap", "wow", "fire"];
+
+export function normalizeReactionOption(value) {
+  const option = String(value || "").trim();
+  if (REACTION_CATALOG[option]) return option;
+  const emojiLike = /\p{Extended_Pictographic}|\p{Regional_Indicator}|\u20e3/u.test(option);
+  const segments = typeof Intl?.Segmenter === "function"
+    ? [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(option)]
+    : [{ segment: option }];
+  return option.length <= 32 && emojiLike && segments.length === 1 ? option : "";
+}
+
+export function reactionEmoji(value) {
+  const option = normalizeReactionOption(value);
+  return REACTION_CATALOG[option] || option;
+}
 
 export const GRID_SIZE = 8;
 
@@ -952,7 +1014,7 @@ export function normalizeSlide(raw = {}) {
       correctAnswerRevealed: raw.engagement?.correctAnswerRevealed ?? false,
       responseLimit: Math.max(1, Number(raw.engagement?.responseLimit) || 1),
       reactionOptions: Array.isArray(raw.engagement?.reactionOptions)
-        ? raw.engagement.reactionOptions.filter((key) => REACTION_CATALOG[key]).slice(0, MAX_REACTION_OPTIONS)
+        ? raw.engagement.reactionOptions.map(normalizeReactionOption).filter(Boolean).slice(0, MAX_REACTION_OPTIONS)
         : [...DEFAULT_REACTION_OPTIONS],
       results: raw.engagement?.results || {},
       qna: raw.engagement?.qna || [],
@@ -981,7 +1043,7 @@ export function normalizeElement(raw) {
   };
   if (element.type === "engagement") {
     element.reactionOptions = Array.isArray(raw.reactionOptions)
-      ? raw.reactionOptions.filter((key) => REACTION_CATALOG[key]).slice(0, MAX_REACTION_OPTIONS)
+      ? raw.reactionOptions.map(normalizeReactionOption).filter(Boolean).slice(0, MAX_REACTION_OPTIONS)
       : [...DEFAULT_REACTION_OPTIONS];
   }
   if (element.type === "engagement") {
