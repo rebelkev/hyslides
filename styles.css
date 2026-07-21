@@ -2324,6 +2324,12 @@ body.presentation-window .presentation-live-status {
   font-size: 18px;
 }
 
+.reaction-picker-grid { display: grid; gap: 8px; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.reaction-picker-option { align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; display: grid; gap: 4px; justify-items: center; padding: 8px 4px; }
+.reaction-picker-option:has(input:checked) { background: #e9f0ff; border-color: #7ea2ff; }
+.reaction-picker-option input { height: 16px; margin: 0; width: 16px; }
+.reaction-picker-option span { font-size: 24px; line-height: 1; }
+
 @media (max-width: 980px) {
   body {
     min-width: 0;

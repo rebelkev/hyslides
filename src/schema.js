@@ -4,6 +4,22 @@ export const SLIDE_SIZE = {
 };
 
 export const MAX_ENGAGEMENT_OPTIONS = 10;
+export const MAX_REACTION_OPTIONS = 5;
+export const REACTION_CATALOG = {
+  thumbsUp: "👍",
+  heart: "❤️",
+  clap: "👏",
+  wow: "😮",
+  fire: "🔥",
+  laugh: "😂",
+  celebrate: "🎉",
+  thinking: "🤔",
+  hundred: "💯",
+  rocket: "🚀",
+  eyes: "👀",
+  sad: "😢",
+};
+export const DEFAULT_REACTION_OPTIONS = ["thumbsUp", "heart", "clap", "wow", "fire"];
 
 export const GRID_SIZE = 8;
 
@@ -179,6 +195,7 @@ export function createElement(type, overrides = {}) {
       showCorrectAnswer: true,
       correctAnswerRevealed: false,
       responseLimit: 1,
+      reactionOptions: [...DEFAULT_REACTION_OPTIONS],
       fill: "#ffffff",
       stroke: "#cbd5e1",
       accent: "#2454d6",
@@ -285,6 +302,7 @@ export function createSlide(overrides = {}) {
       showCorrectAnswer: true,
       correctAnswerRevealed: false,
       responseLimit: 1,
+      reactionOptions: [...DEFAULT_REACTION_OPTIONS],
       results: {},
       qna: [],
       reactions: {
@@ -558,6 +576,7 @@ function createEngagementTemplateSlide({ type, title, prompt, options = [] }) {
       showCorrectAnswer: true,
       correctAnswerRevealed: false,
       responseLimit: 1,
+      reactionOptions: [...DEFAULT_REACTION_OPTIONS],
       results: {},
       qna: [],
       reactions: {
@@ -932,6 +951,9 @@ export function normalizeSlide(raw = {}) {
       showCorrectAnswer: raw.engagement?.showCorrectAnswer ?? true,
       correctAnswerRevealed: raw.engagement?.correctAnswerRevealed ?? false,
       responseLimit: Math.max(1, Number(raw.engagement?.responseLimit) || 1),
+      reactionOptions: Array.isArray(raw.engagement?.reactionOptions)
+        ? raw.engagement.reactionOptions.filter((key) => REACTION_CATALOG[key]).slice(0, MAX_REACTION_OPTIONS)
+        : [...DEFAULT_REACTION_OPTIONS],
       results: raw.engagement?.results || {},
       qna: raw.engagement?.qna || [],
       reactions: {
@@ -957,6 +979,11 @@ export function normalizeElement(raw) {
       ...(raw.animation || {}),
     },
   };
+  if (element.type === "engagement") {
+    element.reactionOptions = Array.isArray(raw.reactionOptions)
+      ? raw.reactionOptions.filter((key) => REACTION_CATALOG[key]).slice(0, MAX_REACTION_OPTIONS)
+      : [...DEFAULT_REACTION_OPTIONS];
+  }
   if (element.type === "engagement") {
     const legacyQuiz = element.mode === "quiz";
     if (legacyQuiz) element.mode = "multipleChoice";
@@ -1034,13 +1061,7 @@ export function cloneSlide(slide) {
     ...duplicate.engagement,
     results: {},
     qna: [],
-    reactions: {
-      thumbsUp: 0,
-      heart: 0,
-      clap: 0,
-      wow: 0,
-      fire: 0,
-    },
+    reactions: Object.fromEntries((duplicate.engagement.reactionOptions || DEFAULT_REACTION_OPTIONS).map((key) => [key, 0])),
   };
   return duplicate;
 }

@@ -1,4 +1,9 @@
-import { MAX_ENGAGEMENT_OPTIONS } from "./schema.js";
+import {
+  DEFAULT_REACTION_OPTIONS,
+  MAX_ENGAGEMENT_OPTIONS,
+  MAX_REACTION_OPTIONS,
+  REACTION_CATALOG,
+} from "./schema.js";
 
 export const engagementTypes = [
   { value: "poll", label: "Live poll" },
@@ -8,13 +13,14 @@ export const engagementTypes = [
   { value: "reactions", label: "Emoji reactions" },
 ];
 
-export const reactionLabels = {
-  thumbsUp: "👍",
-  heart: "❤️",
-  clap: "👏",
-  wow: "😮",
-  fire: "🔥",
-};
+export const reactionLabels = REACTION_CATALOG;
+
+export function selectedReactionKeys(engagement) {
+  const selected = Array.isArray(engagement?.reactionOptions)
+    ? engagement.reactionOptions.filter((key) => reactionLabels[key]).slice(0, MAX_REACTION_OPTIONS)
+    : [];
+  return selected.length ? selected : [...DEFAULT_REACTION_OPTIONS];
+}
 
 export function ensureEngagement(slide) {
   slide.engagement ||= {};
@@ -32,6 +38,7 @@ export function ensureEngagement(slide) {
   slide.engagement.responseLimit = Math.max(1, Number(slide.engagement.responseLimit) || 1);
   slide.engagement.results ||= {};
   slide.engagement.qna ||= [];
+  slide.engagement.reactionOptions = selectedReactionKeys(slide.engagement);
   slide.engagement.reactions ||= {
     thumbsUp: 0,
     heart: 0,
@@ -174,7 +181,8 @@ export function renderAudienceContent(container, deck, slide, onSubmit, latestRe
   if (engagement.type === "reactions") {
     const row = document.createElement("div");
     row.className = "reaction-row";
-    for (const [key, label] of Object.entries(reactionLabels)) {
+    for (const key of selectedReactionKeys(engagement)) {
+      const label = reactionLabels[key];
       const button = document.createElement("button");
       button.type = "button";
       button.textContent = label;
@@ -319,7 +327,8 @@ function renderAudienceQna(container, engagement, onSubmit) {
 function renderReactions(container, engagement) {
   const row = document.createElement("div");
   row.className = "reaction-row";
-  for (const [key, label] of Object.entries(reactionLabels)) {
+  for (const key of selectedReactionKeys(engagement)) {
+    const label = reactionLabels[key];
     const cell = document.createElement("div");
     cell.className = "result-row";
     cell.innerHTML = `<strong>${label}</strong><span>${engagement.reactions[key] || 0}</span>`;

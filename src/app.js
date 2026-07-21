@@ -1,6 +1,9 @@
 import {
   GRID_SIZE,
+  DEFAULT_REACTION_OPTIONS,
   MAX_ENGAGEMENT_OPTIONS,
+  MAX_REACTION_OPTIONS,
+  REACTION_CATALOG,
   SLIDE_SIZE,
   cloneElement,
   cloneSlide,
@@ -681,7 +684,7 @@ function renderHistoricalSlide(item) {
       </div>
       ${results.length ? `<div class="session-result-list">${results.map(([label, count]) => `<div><span>${escapeHtml(label)}</span><strong>${Number(count)}</strong></div>`).join("")}</div>` : ""}
       ${questions.length ? `<div class="session-question-list">${questions.map((question) => `<div>${escapeHtml(question.text)}</div>`).join("")}</div>` : ""}
-      ${reactions.length ? `<div class="session-result-list">${reactions.map(([label, count]) => `<div><span>${escapeHtml(label)}</span><strong>${Number(count)}</strong></div>`).join("")}</div>` : ""}
+      ${reactions.length ? `<div class="session-result-list">${reactions.map(([label, count]) => `<div><span>${REACTION_CATALOG[label] || escapeHtml(label)}</span><strong>${Number(count)}</strong></div>`).join("")}</div>` : ""}
       ${!results.length && !questions.length && !reactions.length ? `<span class="session-no-responses">No responses on this slide.</span>` : ""}
     </section>
   `;
@@ -1953,6 +1956,7 @@ function elementInspectorFields(element) {
         <div class="field-row"><label for="engagementElementMode">Mode</label><select id="engagementElementMode">${engagementTypes.map((type) => `<option value="${type.value}" ${element.mode === type.value ? "selected" : ""}>${type.label}</option>`).join("")}</select></div>
         <div class="field-row"><label for="engagementElementPrompt">Prompt</label><input id="engagementElementPrompt" value="${attr(element.prompt)}" /></div>
         ${element.mode === "multipleChoice" ? `<div class="check-row"><input id="engagementHasCorrectAnswers" type="checkbox" ${element.hasCorrectAnswers ? "checked" : ""} /><label for="engagementHasCorrectAnswers">This question has correct answers</label></div>` : ""}
+        ${element.mode === "reactions" ? reactionPicker(element) : ""}
         ${engagementOptionEditor({ ...element, type: element.mode }, "element")}
       </section>`;
   }
@@ -2453,6 +2457,18 @@ function engagementOptionEditor(engagement, scope) {
   `;
 }
 
+function reactionPicker(engagement) {
+  const selected = new Set(engagement.reactionOptions || DEFAULT_REACTION_OPTIONS);
+  return `
+    <div class="field-row reaction-picker">
+      <label>Displayed emojis</label>
+      <span class="field-help">Choose up to ${MAX_REACTION_OPTIONS}.</span>
+      <div class="reaction-picker-grid">
+        ${Object.entries(REACTION_CATALOG).map(([key, emoji]) => `<label class="reaction-picker-option"><input type="checkbox" data-reaction-option="${key}" ${selected.has(key) ? "checked" : ""} /><span>${emoji}</span></label>`).join("")}
+      </div>
+    </div>`;
+}
+
 function onPointerDown(event) {
   dom.canvas.setPointerCapture(event.pointerId);
   dom.canvas.focus();
@@ -2758,6 +2774,8 @@ function addElement(type) {
       options: [...slide.engagement.options],
       correctAnswers: [...(slide.engagement.correctAnswers || [])],
       showCorrectAnswer: slide.engagement.showCorrectAnswer,
+      reactionOptions: [...(slide.engagement.reactionOptions || DEFAULT_REACTION_OPTIONS)],
+      reactions: { ...(slide.engagement.reactions || {}) },
     });
     slide.elements.push(element);
     syncSlideEngagementFromElement(element);
@@ -4983,6 +5001,21 @@ function bindEngagementElementFields(element) {
     renderAll();
   });
 
+  document.querySelectorAll("[data-reaction-option]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const selected = [...document.querySelectorAll("[data-reaction-option]:checked")].map((item) => item.dataset.reactionOption);
+      if (!selected.length || selected.length > MAX_REACTION_OPTIONS) {
+        input.checked = !input.checked;
+        return;
+      }
+      element.reactionOptions = selected;
+      for (const key of selected) element.reactions[key] ??= 0;
+      syncSlideEngagementFromElement(element);
+      markChanged("Reaction emojis updated");
+      renderAll();
+    });
+  });
+
   bindEngagementOptionEditor(element, "element", () => syncSlideEngagementFromElement(element));
 }
 
@@ -5218,6 +5251,7 @@ function syncSlideEngagementFromElement(element) {
   slide.engagement.correctAnswerRevealed =
     element.correctAnswerRevealed ?? slide.engagement.correctAnswerRevealed ?? false;
   slide.engagement.responseLimit = Math.max(1, Number(element.responseLimit) || Number(slide.engagement.responseLimit) || 1);
+  slide.engagement.reactionOptions = [...(element.reactionOptions || DEFAULT_REACTION_OPTIONS)].slice(0, MAX_REACTION_OPTIONS);
   pruneCorrectAnswers(slide.engagement);
 }
 
@@ -5236,6 +5270,7 @@ function syncEngagementElementsFromSlide(slide) {
     element.results = { ...(slide.engagement.results || {}) };
     element.qna = [...(slide.engagement.qna || [])];
     element.reactions = { ...(slide.engagement.reactions || {}) };
+    element.reactionOptions = [...(slide.engagement.reactionOptions || DEFAULT_REACTION_OPTIONS)].slice(0, MAX_REACTION_OPTIONS);
     element.showCorrectAnswer = slide.engagement.showCorrectAnswer;
     element.correctAnswerRevealed = slide.engagement.correctAnswerRevealed ?? false;
     element.responseLimit = Math.max(1, Number(slide.engagement.responseLimit) || 1);
@@ -5423,11 +5458,7 @@ function clearDeckEngagementResults(targetDeck = deck) {
     slide.engagement.results = {};
     slide.engagement.qna = [];
     slide.engagement.reactions = {
-      thumbsUp: 0,
-      heart: 0,
-      clap: 0,
-      wow: 0,
-      fire: 0,
+      ...Object.fromEntries((slide.engagement.reactionOptions || DEFAULT_REACTION_OPTIONS).map((key) => [key, 0])),
     };
     syncEngagementElementsFromSlide(slide);
   }

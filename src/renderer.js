@@ -1,4 +1,4 @@
-import { MAX_ENGAGEMENT_OPTIONS, SLIDE_SIZE } from "./schema.js";
+import { DEFAULT_REACTION_OPTIONS, MAX_ENGAGEMENT_OPTIONS, REACTION_CATALOG, SLIDE_SIZE } from "./schema.js";
 import { youtubeVideoId } from "./embed.js";
 import { createWordCloudLayout } from "./word-cloud.js";
 import { renderShaderOverlay } from "./backgrounds.js";
@@ -700,20 +700,14 @@ function drawQnaPreview(ctx, element, deck, padding, y) {
 }
 
 function drawReactionPreview(ctx, element, deck, padding, y) {
-  const labels = [
-    ["Like", "thumbsUp"],
-    ["Love", "heart"],
-    ["Clap", "clap"],
-    ["Wow", "wow"],
-    ["Fire", "fire"],
-  ];
+  const keys = (element.reactionOptions || DEFAULT_REACTION_OPTIONS).filter((key) => REACTION_CATALOG[key]).slice(0, 5);
   const itemGap = 10;
-  const itemWidth = Math.max(70, (element.w - padding * 2 - itemGap * 4) / 5);
+  const itemWidth = Math.max(70, (element.w - padding * 2 - itemGap * Math.max(0, keys.length - 1)) / Math.max(1, keys.length));
   const itemHeight = Math.max(46, Math.min(74, element.h - y - padding));
   ctx.font = `800 16px ${deck.theme.fonts.body}, Arial, sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  labels.forEach(([label, key], index) => {
+  keys.forEach((key, index) => {
     const x = padding + index * (itemWidth + itemGap);
     ctx.fillStyle = "#f8fafc";
     ctx.strokeStyle = "#d7dde6";
@@ -721,7 +715,7 @@ function drawReactionPreview(ctx, element, deck, padding, y) {
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = deck.theme.colors.ink;
-    ctx.fillText(`${label} · ${Math.max(0, Number(element.reactions?.[key]) || 0)}`, x + itemWidth / 2, y + itemHeight / 2, itemWidth - 10);
+    ctx.fillText(`${REACTION_CATALOG[key]}  ${Math.max(0, Number(element.reactions?.[key]) || 0)}`, x + itemWidth / 2, y + itemHeight / 2, itemWidth - 10);
   });
   ctx.textAlign = "left";
 }

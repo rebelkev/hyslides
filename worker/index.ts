@@ -597,6 +597,14 @@ async function recordLiveResponse(db: D1Database, code: string, payload: Record<
   }
 
   const type = stringValue(engagement.type) || "poll";
+  if (type === "reactions") {
+    const allowedReactions = Array.isArray(engagement.reactionOptions)
+      ? engagement.reactionOptions.map((item) => stringValue(item)).filter(Boolean).slice(0, 5)
+      : ["thumbsUp", "heart", "clap", "wow", "fire"];
+    if (!allowedReactions.includes(value)) {
+      return { accepted: false, ...(await liveState(db, code)) };
+    }
+  }
   if ((type === "wordCloud" || type === "qna") && containsBlockedLanguage(value)) {
     throw new Error("That response contains language that is not allowed. Please revise it and try again.");
   }

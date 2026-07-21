@@ -306,13 +306,7 @@ function applySupabaseResponsesToSlide(slide, rows) {
   const engagement = slide.engagement;
   engagement.results = {};
   engagement.qna = [];
-  engagement.reactions = {
-    thumbsUp: 0,
-    heart: 0,
-    clap: 0,
-    wow: 0,
-    fire: 0,
-  };
+  engagement.reactions = Object.fromEntries((engagement.reactionOptions || ["thumbsUp", "heart", "clap", "wow", "fire"]).map((key) => [key, 0]));
 
   for (const row of rows) {
     const value = String(row.value || "");
