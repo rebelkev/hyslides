@@ -331,7 +331,8 @@ async function publishLiveSession(db: D1Database, code: string, payload: Record<
         status
       ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'active')
       ON CONFLICT(instance_id) DO UPDATE SET
-        last_active_at = CURRENT_TIMESTAMP`
+        last_active_at = CURRENT_TIMESTAMP,
+        status = CASE WHEN status = 'ended' THEN 'active' ELSE status END`
     ).bind(instanceId, code, deckId, deckTitle),
     db.prepare(
       `INSERT INTO hyslides_live_instance_state (

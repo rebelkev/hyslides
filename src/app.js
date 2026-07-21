@@ -40,6 +40,7 @@ import {
   getLiveSession,
   isLocalJoinUrl,
   liveQrImageSrc,
+  liveSessionIndicator,
   liveSnapshotForDeck,
   liveStateDeck,
   listLiveSessions,
@@ -3196,7 +3197,7 @@ async function renderPresenter() {
       ? `${liveSession.responseCount} response${liveSession.responseCount === 1 ? "" : "s"} · ${liveSession.participantCount} connected`
       : `${liveSession.participantCount} connected`;
   }
-  dom.presenterConnectionStatus.textContent = liveSession.backendAvailable ? "Live" : liveSession.status;
+  updatePresenterConnectionBadge();
   await drawSlideAsync(presenterCtx, slide, deck, {
     footer: true,
     revealCorrectAnswers: shouldRevealCorrectAnswers(slide),
@@ -3629,6 +3630,7 @@ function startLiveSession() {
     beginNewLiveSession();
   }
   liveSession.lifecycleStatus = "active";
+  liveSession.backendAvailable = false;
   writeActiveSession();
   liveSession.lastPublishedSignature = "";
   liveSession.joinUrl = audienceLink();
@@ -3655,7 +3657,7 @@ function startLivePolling() {
 }
 
 function queueLivePublish(force = false) {
-  if (!presenterOpen || !liveSession.code) {
+  if (!presenterOpen || !liveSession.code || liveSession.lifecycleStatus === "ended") {
     return;
   }
   clearTimeout(liveSession.publishTimer);
@@ -3679,12 +3681,17 @@ async function publishCurrentLiveSession(force = false) {
   }
 
   liveSession.publishing = true;
+  updatePresenterConnectionBadge();
   try {
     const state = await publishLiveSession(liveSession.code, snapshot, liveSession.presenterToken);
     liveSession.backendAvailable = true;
     liveSession.lifecycleStatus = state.status || "active";
     writeActiveSession();
-    liveSession.status = "Live session running. Responses sync automatically.";
+    liveSession.status = state.status === "paused"
+      ? "Live session paused. Participants cannot respond."
+      : state.status === "ended"
+        ? "Session ended. Responses are available in Session History."
+        : "Live session running. Responses sync automatically.";
     liveSession.lastPublishedSignature = signature;
     applyLiveStateToCurrentSlide(state);
   } catch (error) {
@@ -3706,8 +3713,21 @@ async function publishCurrentLiveSession(force = false) {
       : `Live sync unavailable: ${error.message}`;
   } finally {
     liveSession.publishing = false;
+    updatePresenterConnectionBadge();
     renderLiveJoinPanel(currentSlide());
   }
+}
+
+function updatePresenterConnectionBadge() {
+  if (!dom.presenterConnectionStatus) return;
+  const indicator = liveSessionIndicator(
+    liveSession.lifecycleStatus,
+    liveSession.backendAvailable,
+    liveSession.publishing
+  );
+  dom.presenterConnectionStatus.textContent = indicator.label;
+  dom.presenterConnectionStatus.dataset.state = indicator.tone;
+  dom.presenterConnectionStatus.title = liveSession.status;
 }
 
 function liveSlideWithCountdownState() {
@@ -3755,6 +3775,12 @@ function applyLiveStateToCurrentSlide(state) {
   liveSession.responseCount = Number(state.responseCount || 0);
   liveSession.questions = Array.isArray(state.questions) ? state.questions : liveSession.questions;
   liveSession.lifecycleStatus = state.status || liveSession.lifecycleStatus;
+  liveSession.status = liveSession.lifecycleStatus === "active"
+    ? "Live session running. Responses sync automatically."
+    : liveSession.lifecycleStatus === "paused"
+      ? "Live session paused. Participants cannot respond."
+      : "Session ended. Responses are available in Session History.";
+  updatePresenterConnectionBadge();
   if (state.slide.id !== currentSlide().id) {
     return priorLive !== `${liveSession.participantCount}:${liveSession.responseCount}:${liveSession.lifecycleStatus}` || priorQuestions !== JSON.stringify(liveSession.questions || []);
   }
@@ -3821,6 +3847,7 @@ function renderLiveJoinPanel(slide) {
     if (confirm("Start a new session instance for this deck?")) {
       beginNewLiveSession();
       liveSession.lifecycleStatus = "active";
+      liveSession.backendAvailable = false;
       liveSession.participantCount = 0;
       liveSession.responseCount = 0;
       queueLivePublish(true);
@@ -3886,6 +3913,7 @@ async function applyEndSessionOptions() {
     if (startNew) {
       beginNewLiveSession({ clearResponses });
       liveSession.lifecycleStatus = "active";
+      liveSession.backendAvailable = false;
       liveSession.participantCount = 0;
       liveSession.responseCount = 0;
       liveSession.questions = [];

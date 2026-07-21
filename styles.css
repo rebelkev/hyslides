@@ -1358,6 +1358,20 @@ label {
 .presenter-card-head { align-items: center; display: flex; justify-content: space-between; margin-bottom: 8px; }
 .presenter-card-head span { color: var(--muted); font-size: 11px; }
 
+#presenterConnectionStatus {
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  padding: 5px 9px;
+}
+
+#presenterConnectionStatus[data-state="live"] { background: #d9f8e8; color: #087443; }
+#presenterConnectionStatus[data-state="connecting"] { background: #e7efff; color: #2454d6; }
+#presenterConnectionStatus[data-state="paused"] { background: #fff1cc; color: #8a5700; }
+#presenterConnectionStatus[data-state="ended"],
+#presenterConnectionStatus[data-state="offline"] { background: #ffe1e1; color: #a52828; }
+
 .presenter-main {
   align-items: center;
   display: flex;

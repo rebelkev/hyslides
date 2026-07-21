@@ -44,6 +44,7 @@
 
 ### Live Sessions
 
+- Fixed ended session instances so reopening Presenter View reactivates them on the server, and replaced the ambiguous connectivity label with prominent server-confirmed LIVE, CONNECTING, PAUSED, ENDED, and NOT LIVE badges.
 - Replaced the one-click End Session confirmation with a default-checked action checklist for ending, clearing the live display, starting a new session instance, and returning to slide 1; presenters can resume without making changes.
 - Added QR and six-digit access-code joining.
 - Added session instances with default deck/date/time names.

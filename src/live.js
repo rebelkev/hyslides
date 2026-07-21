@@ -37,6 +37,14 @@ export function normalizeLiveCode(value) {
   return code || "HY-2471";
 }
 
+export function liveSessionIndicator(status, backendAvailable, publishing = false) {
+  if (publishing) return { label: "CONNECTING", tone: "connecting" };
+  if (!backendAvailable) return { label: "NOT LIVE", tone: "offline" };
+  if (status === "paused") return { label: "PAUSED", tone: "paused" };
+  if (status === "ended") return { label: "ENDED", tone: "ended" };
+  return { label: "LIVE", tone: "live" };
+}
+
 export function audienceCodeFromHash(hash = location.hash) {
   const match = String(hash || "").match(/^#audience-?(.+)$/i);
   return match ? normalizeLiveCode(decodeURIComponent(match[1])) : null;
