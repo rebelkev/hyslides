@@ -15,6 +15,7 @@ import {
   drawSlideAsync,
   hitTest,
   hitTestHandle,
+  measureTextElementHeight,
   preloadSlideImages,
 } from "./renderer.js";
 import { deleteDeck, downloadBlob, loadCurrentDeck, loadDecks, saveDeck } from "./storage.js";
@@ -346,6 +347,7 @@ function bindEvents() {
 
 function renderAll() {
   syncAudienceJoinElements();
+  deck.slides.forEach(autoSizeTextElements);
   dom.deckTitle.value = deck.title;
   renderCanvas();
   renderSlides();
@@ -641,6 +643,7 @@ async function renderDeckLibrary() {
 }
 
 function renderCanvas() {
+  autoSizeTextElements(currentSlide());
   dom.canvas.style.width = `${SLIDE_SIZE.width * zoom}px`;
   dom.canvas.style.height = `${SLIDE_SIZE.height * zoom}px`;
   dom.zoomRange.value = Math.round(zoom * 100);
@@ -659,6 +662,14 @@ function renderCanvas() {
       scale: zoom,
     });
   });
+}
+
+function autoSizeTextElements(slide) {
+  for (const element of slide.elements || []) {
+    if (element.type === "text" && element.autoHeight !== false) {
+      element.h = measureTextElementHeight(ctx, element, deck);
+    }
+  }
 }
 
 function renderSlides() {
@@ -1304,7 +1315,9 @@ function renderTemplates() {
       renderAll();
     });
     dom.templateList.append(item);
-    drawThumb(item.querySelector("canvas"), template.apply());
+    const previewSlide = template.apply();
+    autoSizeTextElements(previewSlide);
+    drawThumb(item.querySelector("canvas"), previewSlide);
   }
 }
 
@@ -1525,6 +1538,7 @@ function renderElementInspector(element) {
         </div>
       </div>
       <div class="check-row"><input id="lockedInput" type="checkbox" ${element.locked ? "checked" : ""} /><label for="lockedInput">Locked</label></div>
+      ${element.type === "text" ? `<div class="check-row"><input id="autoHeightInput" type="checkbox" ${element.autoHeight !== false ? "checked" : ""} /><label for="autoHeightInput">Automatically fit height to text</label></div>` : ""}
     </section>
     ${brandColorElementSection([element])}
     ${elementInspectorFields(element)}
@@ -1534,10 +1548,17 @@ function renderElementInspector(element) {
   bindNumber("#xInput", (value) => (element.x = value));
   bindNumber("#yInput", (value) => (element.y = value));
   bindNumber("#wInput", (value) => (element.w = Math.max(8, value)));
-  bindNumber("#hInput", (value) => (element.h = Math.max(8, value)));
+  bindNumber("#hInput", (value) => {
+    element.autoHeight = false;
+    element.h = Math.max(8, value);
+  });
   bindNumber("#rotationInput", (value) => (element.rotation = value));
   bindOpacityControls([element]);
   bindToggle("#lockedInput", (value) => (element.locked = value));
+  bindToggle("#autoHeightInput", (value) => {
+    element.autoHeight = value;
+    if (value) element.h = measureTextElementHeight(ctx, element, deck);
+  });
   bindBrandColorApplication([element]);
   bindTypeFields(element);
 }
@@ -2023,7 +2044,7 @@ function onPointerMove(event) {
   if (dragState.type === "resize") {
     const resized = resizeBounds(dragState.bounds, dragState.handle, point.x - dragState.start.x, point.y - dragState.start.y);
     const snapped = snapBounds(resized, dragState.originals.map((item) => item.id));
-    applyResize(dragState.originals, dragState.bounds, snapped);
+    applyResize(dragState.originals, dragState.bounds, snapped, dragState.handle);
   }
 
   renderCanvas();
@@ -3131,7 +3152,7 @@ function applyMove(originals, dx, dy) {
   }
 }
 
-function applyResize(originals, oldBounds, newBounds) {
+function applyResize(originals, oldBounds, newBounds, handle = "") {
   const sx = newBounds.w / oldBounds.w;
   const sy = newBounds.h / oldBounds.h;
   for (const original of originals) {
@@ -3141,6 +3162,9 @@ function applyResize(originals, oldBounds, newBounds) {
       element.y = newBounds.y + (original.y - oldBounds.y) * sy;
       element.w = Math.max(12, original.w * sx);
       element.h = Math.max(12, original.h * sy);
+      if (element.type === "text" && (handle.includes("n") || handle.includes("s"))) {
+        element.autoHeight = false;
+      }
     }
   }
 }
