@@ -42,6 +42,13 @@ export function createTheme(overrides = {}) {
       surface: "#f6f8fb",
     },
     brandPalette: ["#2454d6", "#0c8b7f", "#1d232a", "#637083", "#ffffff"],
+    brandColorStyles: [
+      { id: "brand-primary", name: "Primary", color: "#2454d6" },
+      { id: "brand-accent", name: "Accent", color: "#0c8b7f" },
+      { id: "brand-ink", name: "Ink", color: "#1d232a" },
+      { id: "brand-muted", name: "Muted", color: "#637083" },
+      { id: "brand-white", name: "White", color: "#ffffff" },
+    ],
     spacing: 24,
     master: {
       title: {
@@ -71,6 +78,7 @@ export function createElement(type, overrides = {}) {
     opacity: 1,
     locked: false,
     groupId: null,
+    brandColorStyleId: null,
     name: titleCase(type),
     animation: {
       effect: "none",
@@ -646,6 +654,10 @@ export function normalizeDeck(raw) {
     }
   });
 
+  const brandColorStyles = normalizeBrandColorStyles(
+    raw.theme?.brandColorStyles,
+    raw.theme?.brandPalette || seed.theme.brandPalette
+  );
   const deck = createDeck({
     ...seed,
     ...raw,
@@ -660,9 +672,8 @@ export function normalizeDeck(raw) {
         ...seed.theme.colors,
         ...(raw.theme?.colors || {}),
       },
-      brandPalette: Array.isArray(raw.theme?.brandPalette)
-        ? raw.theme.brandPalette
-        : seed.theme.brandPalette,
+      brandPalette: brandColorStyles.map((style) => style.color),
+      brandColorStyles,
     },
     settings: {
       ...seed.settings,
@@ -675,6 +686,30 @@ export function normalizeDeck(raw) {
     slides,
   });
   return deck;
+}
+
+export function normalizeBrandColorStyles(styles, fallbackColors = []) {
+  const seenIds = new Set();
+  const seenColors = new Set();
+  const source = Array.isArray(styles) && styles.length
+    ? styles
+    : (Array.isArray(fallbackColors) ? fallbackColors : []).map((color, index) => ({
+        id: `brand-${String(color).replace("#", "").toLowerCase()}-${index + 1}`,
+        name: `Brand ${index + 1}`,
+        color,
+      }));
+  return source.flatMap((style, index) => {
+    const color = /^#[0-9a-f]{6}$/i.test(String(style?.color || ""))
+      ? String(style.color).toLowerCase()
+      : null;
+    if (!color) return [];
+    let id = String(style?.id || `brand-${color.slice(1)}-${index + 1}`);
+    while (seenIds.has(id)) id = `${id}-${index + 1}`;
+    if (seenColors.has(color) && !Array.isArray(styles)) return [];
+    seenIds.add(id);
+    seenColors.add(color);
+    return [{ id, name: String(style?.name || `Brand ${index + 1}`), color }];
+  }).slice(0, 24);
 }
 
 export function normalizeSection(raw) {
