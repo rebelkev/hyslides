@@ -186,6 +186,8 @@ let liveSession = {
   pollTimer: null,
   publishing: false,
   polling: false,
+  consecutiveFailures: 0,
+  retryAfter: 0,
   lastPublishedSignature: "",
 };
 let audienceLive = {
@@ -4158,6 +4160,8 @@ function startLiveSession() {
   }
   liveSession.lifecycleStatus = "active";
   liveSession.backendAvailable = false;
+  liveSession.consecutiveFailures = 0;
+  liveSession.retryAfter = 0;
   writeActiveSession();
   liveSession.lastPublishedSignature = "";
   liveSession.joinUrl = audienceLink();
@@ -4212,6 +4216,8 @@ async function publishCurrentLiveSession(force = false) {
   try {
     const state = await publishLiveSession(liveSession.code, snapshot, liveSession.presenterToken);
     liveSession.backendAvailable = true;
+    liveSession.consecutiveFailures = 0;
+    liveSession.retryAfter = 0;
     liveSession.lifecycleStatus = state.status || "active";
     writeActiveSession();
     liveSession.status = state.status === "paused"
@@ -4234,7 +4240,9 @@ async function publishCurrentLiveSession(force = false) {
       setTimeout(() => queueLivePublish(true), 0);
       return;
     }
-    liveSession.backendAvailable = false;
+    liveSession.consecutiveFailures += 1;
+    liveSession.retryAfter = Date.now() + liveRetryDelay(liveSession.consecutiveFailures);
+    if (liveSession.consecutiveFailures >= 3) liveSession.backendAvailable = false;
     liveSession.status = isLocalJoinUrl(liveSession.joinUrl)
       ? "Local QR only. Host HySlides or use a network URL for phones."
       : `Live sync unavailable: ${error.message}`;
@@ -4250,7 +4258,7 @@ function updatePresenterConnectionBadge() {
   const indicator = liveSessionIndicator(
     liveSession.lifecycleStatus,
     liveSession.backendAvailable,
-    liveSession.publishing
+    !liveSession.backendAvailable && liveSession.consecutiveFailures < 3
   );
   dom.presenterConnectionStatus.textContent = indicator.label;
   dom.presenterConnectionStatus.dataset.state = indicator.tone;
@@ -4278,23 +4286,32 @@ async function refreshLiveSession() {
     return;
   }
   if (!liveSession.backendAvailable) {
-    queueLivePublish(true);
+    if (!liveSession.publishing && Date.now() >= liveSession.retryAfter) queueLivePublish(true);
     return;
   }
   liveSession.polling = true;
   try {
     const state = await getLiveSession(liveSession.code, liveSession.presenterToken);
+    liveSession.consecutiveFailures = 0;
+    liveSession.retryAfter = 0;
     if (applyLiveStateToCurrentSlide(state)) {
       renderPresenter();
       renderCanvas();
     }
   } catch (error) {
+    liveSession.consecutiveFailures += 1;
+    liveSession.retryAfter = Date.now() + liveRetryDelay(liveSession.consecutiveFailures);
     liveSession.status = `Live sync paused: ${error.message}`;
-    liveSession.backendAvailable = false;
+    if (liveSession.consecutiveFailures >= 3) liveSession.backendAvailable = false;
+    updatePresenterConnectionBadge();
     renderLiveJoinPanel(currentSlide());
   } finally {
     liveSession.polling = false;
   }
+}
+
+function liveRetryDelay(failureCount) {
+  return Math.min(30000, 1500 * (2 ** Math.max(0, Math.min(4, failureCount - 1))));
 }
 
 function applyLiveStateToCurrentSlide(state) {

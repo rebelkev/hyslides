@@ -4,6 +4,7 @@
 
 ### Editor
 
+- Stabilized Presenter View live-session status: brief polling failures no longer force an immediate disconnect, failed retries use backoff, and “Not Live” appears only after repeated confirmed failures.
 - Improved PowerPoint import fidelity by extracting theme fonts and colors, creating matching global styles, linking consistent placeholder text, preserving one-off formatting as custom, and reporting possible font substitutions plus unsupported features.
 - Moved Global Settings typography and default-background colors into a shared modal picker with a hex-first workflow, full visual color control, and named global swatches.
 - Added protected deck-logo branding with global upload, default corner, visibility, and size controls plus per-slide corner and visibility overrides.
