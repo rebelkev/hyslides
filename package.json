@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "vinext dev",
     "build": "vinext build",
+    "test": "node --test tests/moderation.test.js",
     "start": "vinext start",
     "db:generate": "drizzle-kit generate"
   },
