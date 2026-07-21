@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { backgroundImageRect } from "../src/renderer.js";
+import { backgroundImageRect, slideLogoVisible } from "../src/renderer.js";
 import { createSlide, normalizeDeck, createDeck } from "../src/schema.js";
 import { normalizeBackgroundIntensity } from "../src/backgrounds.js";
 
@@ -76,4 +76,16 @@ test("deck default background settings survive normalization", () => {
     gradientEnd: "#aabbcc",
     gradientAngle: 72,
   });
+});
+
+test("deck logo settings and per-slide overrides survive normalization", () => {
+  const normalized = normalizeDeck(createDeck({
+    theme: { logo: { src: "data:image/png;base64,logo", corner: "top-left", showOnSlides: true, width: 144, margin: 24 } },
+    slides: [createSlide(), createSlide({ logoVisible: false, logoCorner: "bottom-left" })],
+  }));
+  assert.equal(normalized.theme.logo.corner, "top-left");
+  assert.equal(normalized.theme.logo.width, 144);
+  assert.equal(slideLogoVisible(normalized.slides[0], normalized), true);
+  assert.equal(slideLogoVisible(normalized.slides[1], normalized), false);
+  assert.equal(normalized.slides[1].logoCorner, "bottom-left");
 });

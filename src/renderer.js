@@ -18,11 +18,12 @@ export function resolveTextTypography(element, deck) {
   };
 }
 
-export async function preloadSlideImages(slide) {
+export async function preloadSlideImages(slide, deck = null) {
   const images = slide.elements
     .filter((element) => element.type === "image" && element.src)
     .map((element) => loadImage(element.src).catch(() => null));
   if (slide.backgroundImage) images.push(loadImage(slide.backgroundImage).catch(() => null));
+  if (deck?.theme?.logo?.src && slideLogoVisible(slide, deck)) images.push(loadImage(deck.theme.logo.src).catch(() => null));
   await Promise.all(images);
 }
 
@@ -78,6 +79,8 @@ export function drawSlide(ctx, slide, deck, options = {}) {
       countdownStates,
     });
   }
+
+  drawDeckLogo(ctx, slide, deck);
 
   if (footer && deck.theme.master.footer.showSlideNumber) {
     drawFooter(ctx, slide, deck);
@@ -181,8 +184,32 @@ function drawShaderFallback(ctx, slide, deck) {
 }
 
 export async function drawSlideAsync(ctx, slide, deck, options = {}) {
-  await preloadSlideImages(slide);
+  await preloadSlideImages(slide, deck);
   drawSlide(ctx, slide, deck, options);
+}
+
+export function slideLogoVisible(slide, deck) {
+  if (!deck?.theme?.logo?.src) return false;
+  return slide?.logoVisible == null ? deck.theme.logo.showOnSlides !== false : Boolean(slide.logoVisible);
+}
+
+function drawDeckLogo(ctx, slide, deck) {
+  const logo = deck?.theme?.logo;
+  if (!logo?.src || !slideLogoVisible(slide, deck)) return;
+  const image = imageCache.get(logo.src)?.image;
+  if (!image) {
+    loadImage(logo.src).catch(() => {});
+    return;
+  }
+  const width = Math.max(32, Math.min(320, Number(logo.width) || 120));
+  const height = width * Math.max(1, Number(image.height) || 1) / Math.max(1, Number(image.width) || 1);
+  const margin = Math.max(0, Math.min(120, Number(logo.margin) || 28));
+  const corner = slide.logoCorner || logo.corner || "bottom-right";
+  const x = corner.endsWith("right") ? SLIDE_SIZE.width - width - margin : margin;
+  const y = corner.startsWith("bottom") ? SLIDE_SIZE.height - height - margin : margin;
+  ctx.save();
+  ctx.drawImage(image, x, y, width, height);
+  ctx.restore();
 }
 
 export function drawElement(ctx, element, deck, options = {}) {

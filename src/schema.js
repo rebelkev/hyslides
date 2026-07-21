@@ -146,6 +146,13 @@ export function createTheme(overrides = {}) {
       gradientEnd: "#0c8b7f",
       gradientAngle: 135,
     },
+    logo: {
+      src: "",
+      corner: "bottom-right",
+      showOnSlides: true,
+      width: 120,
+      margin: 28,
+    },
     spacing: 24,
     master: {
       title: {
@@ -355,6 +362,8 @@ export function createSlide(overrides = {}) {
     backgroundEffectColorBStyleId: null,
     backgroundShaderIntensity: 0.5,
     backgroundShaderSpeed: 1,
+    logoVisible: null,
+    logoCorner: null,
     notes: "",
     transition: {
       type: "none",
@@ -949,6 +958,10 @@ export function normalizeDeck(raw) {
       defaultBackground: {
         ...seed.theme.defaultBackground,
         ...(raw.theme?.defaultBackground || {}),
+      },
+      logo: {
+        ...seed.theme.logo,
+        ...(raw.theme?.logo || {}),
       },
       brandPalette: brandColorStyles.map((style) => style.color),
       brandColorStyles,

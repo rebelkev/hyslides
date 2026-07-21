@@ -586,12 +586,31 @@ function renderGlobalSettings() {
   const joinUrl = audienceLink();
   const styles = deck.theme.typographyStyles || {};
   deck.theme.defaultBackground ||= { type: "color", color: "#ffffff", gradientStart: deck.theme.colors.primary, gradientEnd: deck.theme.colors.accent, gradientAngle: 135 };
+  deck.theme.logo ||= { src: "", corner: "bottom-right", showOnSlides: true, width: 120, margin: 28 };
   const defaultBackground = deck.theme.defaultBackground;
+  const deckLogo = deck.theme.logo;
   dom.globalSettingsContent.innerHTML = `
     ${globalSettingsSectionMarkup("audience", "Audience access", "Share the current link or six-digit code.", `
       <div class="global-audience-card">
         <img src="${attr(liveQrImageSrc(joinUrl))}" alt="Audience join QR code" />
         <div><strong>Access code ${escapeHtml(ensureAudienceCode())}</strong><div class="audience-join-url-row"><input id="globalAudienceUrl" readonly value="${attr(joinUrl)}" /><button id="copyGlobalAudienceUrl" type="button">Copy</button></div></div>
+      </div>`)}
+    ${globalSettingsSectionMarkup("branding", "Brand logo", "Upload once and control its default placement across the deck.", `
+      <div class="global-logo-settings">
+        <div class="global-logo-preview ${deckLogo.src ? "" : "empty"}">
+          ${deckLogo.src ? `<img src="${attr(deckLogo.src)}" alt="Current deck logo" />` : `<span>No logo uploaded</span>`}
+        </div>
+        <div class="global-logo-actions">
+          <label class="button-like" for="globalLogoUpload">${deckLogo.src ? "Replace logo" : "Upload logo"}</label>
+          <input id="globalLogoUpload" class="visually-hidden" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" />
+          ${deckLogo.src ? `<button id="removeGlobalLogo" type="button">Remove logo</button>` : ""}
+        </div>
+        <div class="check-row"><input id="globalLogoDefaultVisible" type="checkbox" ${deckLogo.showOnSlides !== false ? "checked" : ""} /><label for="globalLogoDefaultVisible">Show on every slide by default</label></div>
+        <div class="field-grid">
+          <div class="field-row"><label for="globalLogoCorner">Default corner</label><select id="globalLogoCorner">${animationOptionList([["top-left", "Top left"], ["top-right", "Top right"], ["bottom-left", "Bottom left"], ["bottom-right", "Bottom right"]], deckLogo.corner || "bottom-right")}</select></div>
+          <div class="field-row"><label for="globalLogoWidth">Width</label><input id="globalLogoWidth" type="number" min="32" max="320" step="4" value="${Number(deckLogo.width) || 120}" /></div>
+        </div>
+        <small>Individual slides can inherit this placement, choose another corner, or hide the logo.</small>
       </div>`)}
     ${globalSettingsSectionMarkup("colors", "Color styles", "Named global swatches available in every HySlides color picker.", globalColorStylesMarkup())}
     ${globalSettingsSectionMarkup("background", "Default background", "Applied automatically to newly created blank slides.", `
@@ -625,6 +644,51 @@ function renderGlobalSettings() {
       if (section.open) globalSettingsOpenSections.add(section.dataset.globalSettingsSection);
       else globalSettingsOpenSections.delete(section.dataset.globalSettingsSection);
     });
+  });
+  dom.globalSettingsContent.querySelector("#globalLogoUpload")?.addEventListener("change", (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      deckLogo.src = String(reader.result || "");
+      deckLogo.showOnSlides = true;
+      markChanged("Deck logo uploaded");
+      globalSettingsOpenSections.add("branding");
+      renderGlobalSettings();
+      renderCanvas();
+      renderSlides();
+      if (presenterOpen) renderPresenter();
+    });
+    reader.readAsDataURL(file);
+  });
+  dom.globalSettingsContent.querySelector("#removeGlobalLogo")?.addEventListener("click", () => {
+    deckLogo.src = "";
+    markChanged("Deck logo removed");
+    renderGlobalSettings();
+    renderCanvas();
+    renderSlides();
+    if (presenterOpen) renderPresenter();
+  });
+  dom.globalSettingsContent.querySelector("#globalLogoDefaultVisible")?.addEventListener("change", (event) => {
+    deckLogo.showOnSlides = event.target.checked;
+    markChanged("Deck logo visibility updated");
+    renderCanvas();
+    renderSlides();
+    if (presenterOpen) renderPresenter();
+  });
+  dom.globalSettingsContent.querySelector("#globalLogoCorner")?.addEventListener("change", (event) => {
+    deckLogo.corner = event.target.value;
+    markChanged("Deck logo position updated");
+    renderCanvas();
+    renderSlides();
+    if (presenterOpen) renderPresenter();
+  });
+  dom.globalSettingsContent.querySelector("#globalLogoWidth")?.addEventListener("change", (event) => {
+    deckLogo.width = clamp(Number(event.target.value), 32, 320);
+    markChanged("Deck logo size updated");
+    renderCanvas();
+    renderSlides();
+    if (presenterOpen) renderPresenter();
   });
   const colorPickers = [...dom.globalSettingsContent.querySelectorAll(".global-color-picker")];
   colorPickers.forEach((picker) => picker.addEventListener("toggle", () => {
@@ -972,7 +1036,7 @@ function renderCanvas() {
     showEngagementPlaceholders: true,
     elementStates: editorAnimationStates,
   });
-  preloadSlideImages(currentSlide()).then(() => {
+  preloadSlideImages(currentSlide(), deck).then(() => {
     drawSlide(ctx, currentSlide(), deck, {
       selectedIds,
       guides,
@@ -1818,12 +1882,22 @@ function elementTreeIcon(lucideName, fallbackName) {
 function renderSlideInspector(slide) {
   ensureEngagement(slide);
   const audienceJoinVisible = shouldShowAudienceJoin(slide, activeSlideIndex);
+  const deckLogo = deck.theme.logo || {};
+  const slideLogoVisible = slide.logoVisible == null ? deckLogo.showOnSlides !== false : Boolean(slide.logoVisible);
+  const slideLogoCorner = slide.logoCorner || deckLogo.corner || "bottom-right";
   dom.inspector.innerHTML = `
     <section class="inspector-section">
       <strong>Slide</strong>
       <div class="field-row"><label for="slideTitleInput">Title</label><input id="slideTitleInput" value="${attr(slide.title)}" /></div>
       <div class="field-row"><label for="notesInput">Presenter notes</label><textarea id="notesInput">${escapeHtml(slide.notes || "")}</textarea></div>
     </section>
+    ${deckLogo.src ? `<section class="inspector-section">
+      <strong>Brand logo</strong>
+      <div class="check-row"><input id="slideLogoVisibleInput" type="checkbox" ${slideLogoVisible ? "checked" : ""} /><label for="slideLogoVisibleInput">Show logo on this slide</label></div>
+      <div class="field-row"><label for="slideLogoCornerInput">Corner</label><select id="slideLogoCornerInput">${animationOptionList([["top-left", "Top left"], ["top-right", "Top right"], ["bottom-left", "Bottom left"], ["bottom-right", "Bottom right"]], slideLogoCorner)}</select></div>
+      <button id="resetSlideLogoBtn" type="button">Use deck defaults</button>
+      <small>${slide.logoVisible == null && !slide.logoCorner ? "Using deck defaults" : "This slide has a logo override"}</small>
+    </section>` : ""}
     <section class="inspector-section">
       <strong>Background</strong>
       <div class="field-row"><label for="backgroundTypeInput">Style</label><select id="backgroundTypeInput">
@@ -1898,6 +1972,26 @@ function renderSlideInspector(slide) {
 
   bindValue("#slideTitleInput", (value) => (slide.title = value));
   bindValue("#notesInput", (value) => (slide.notes = value));
+  document.querySelector("#slideLogoVisibleInput")?.addEventListener("change", (event) => {
+    slide.logoVisible = event.target.checked;
+    markChanged("Slide logo visibility updated");
+    renderCanvas();
+    renderSlides();
+    if (presenterOpen) renderPresenter();
+  });
+  document.querySelector("#slideLogoCornerInput")?.addEventListener("change", (event) => {
+    slide.logoCorner = event.target.value;
+    markChanged("Slide logo position updated");
+    renderCanvas();
+    renderSlides();
+    if (presenterOpen) renderPresenter();
+  });
+  document.querySelector("#resetSlideLogoBtn")?.addEventListener("click", () => {
+    slide.logoVisible = null;
+    slide.logoCorner = null;
+    markChanged("Slide logo reset to deck defaults");
+    renderAll();
+  });
   document.querySelector("#copyAudienceJoinUrlBtn")?.addEventListener("click", async (event) => {
     const button = event.currentTarget;
     const copied = await copyTextToClipboard(audienceLink());

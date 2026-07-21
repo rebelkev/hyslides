@@ -4,6 +4,7 @@
 
 ### Editor
 
+- Added protected deck-logo branding with global upload, default corner, visibility, and size controls plus per-slide corner and visibility overrides.
 - Reorganized Global Deck Settings into collapsible Audience access, Color styles, Default background, and Typography sections; global color controls now use hex values and expose the deck’s named swatches.
 - Added a deck-wide default solid or gradient background for newly created blank slides without changing existing or template slides.
 - Improved the emoji picker’s Add control with a clear button treatment, hover/open feedback, a chevron, and automatic scrolling to the expanded picker.

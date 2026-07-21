@@ -2151,6 +2151,43 @@ body.presentation-window .presentation-live-status {
 .global-color-style-add { display: grid; gap: 8px; grid-template-columns: 1fr 150px auto; }
 .global-default-background { display: grid; gap: 12px; }
 .global-default-background > small { color: var(--muted); }
+.global-logo-settings { display: grid; gap: 12px; }
+.global-logo-preview {
+  align-items: center;
+  background: #f6f8fb;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  display: flex;
+  justify-content: center;
+  min-height: 110px;
+  padding: 14px;
+}
+.global-logo-preview img { max-height: 96px; max-width: 260px; object-fit: contain; }
+.global-logo-preview.empty { color: var(--muted); }
+.global-logo-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.button-like {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  cursor: pointer;
+  display: inline-flex;
+  font-weight: 700;
+  min-height: 38px;
+  padding: 8px 12px;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+.button-like:hover { background: #edf3ff; border-color: #85a4ff; color: var(--primary); }
+.visually-hidden {
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  width: 1px;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
 
 @media (max-width: 700px) {
   .typography-style-list { grid-template-columns: 1fr; }

@@ -85,6 +85,10 @@ Open **Global Deck Settings** from the Editor toolbar to manage Display, Slide t
 
 The Default background section defines the solid color or gradient used when a new blank slide is created. It does not overwrite existing or template slide backgrounds.
 
+## Deck Logo
+
+Open **Global Deck Settings → Brand logo** to upload a PNG, JPEG, WebP, or SVG logo. Choose its default corner and display width; new and existing slides inherit the deck setting and show the logo by default. In an individual slide’s Properties, the logo can be hidden, moved to another corner, or reset to the deck defaults. The logo is protected deck branding rather than a deletable slide element.
+
 When a text element is selected, choose its **Typography style** in Properties. Keep **Use global style** enabled so future global changes update that element automatically. Disable it to reveal custom font formatting for that one element. Existing decks retain their current custom typography, while newly added text uses the global Body style by default.
 
 ## Element Animations
