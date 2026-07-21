@@ -114,6 +114,10 @@ async function handleLiveApi(request: Request, env: Env, url: URL): Promise<Resp
       await authorizePresenter(env.DB, request, session.deck_id);
       return json(await controlLiveSession(env.DB, code, session, stringValue(payload.action)));
     }
+    if (parts.length === 4 && parts[3] === "questions" && request.method === "POST") {
+      const payload = await readJson(request);
+      return json(await submitSessionQuestion(env.DB, code, payload));
+    }
     if (parts.length === 6 && parts[3] === "questions" && parts[5] === "vote" && request.method === "POST") {
       const payload = await readJson(request);
       return json(await voteForQuestion(env.DB, code, parts[4], stringValue(payload.participantId)));
@@ -441,7 +445,8 @@ async function sessionInstanceDetail(db: D1Database, instanceId: string) {
     await applyLiveAggregates(db, instanceId, row.slide_id, slide);
     slides.push({ slideId: row.slide_id, slideIndex: row.slide_index, slide });
   }
-  return { session: instance, slides };
+  const questions = await sessionQuestions(db, instanceId, true);
+  return { session: instance, slides, questions };
 }
 
 async function renameSessionInstance(db: D1Database, instanceId: string, requestedName: string) {
@@ -646,6 +651,25 @@ async function moderateQuestion(db: D1Database, code: string, session: LiveSessi
   return liveState(db, code, true);
 }
 
+async function submitSessionQuestion(db: D1Database, code: string, payload: Record<string, unknown>) {
+  const session = await getLiveSessionRow(db, code);
+  const participantId = normalizeParticipantId(payload.participantId);
+  const text = stringValue(payload.text).trim().slice(0, 500);
+  if (!participantId || !text || session.status !== "active") {
+    return { accepted: false, ...(await liveState(db, code, false)) };
+  }
+  if (containsBlockedLanguage(text)) {
+    throw new Error("That question contains language that is not allowed. Please revise it and try again.");
+  }
+  await db.prepare(
+    `INSERT INTO hyslides_live_instance_questions (
+      id, instance_id, slide_id, text, participant_id, upvotes, answered, visible, created_at
+    ) VALUES (?, ?, 'session', ?, ?, 0, 0, 0, CURRENT_TIMESTAMP)`
+  ).bind(crypto.randomUUID(), session.instance_id, text, participantId).run();
+  await recordParticipantPresence(db, code, participantId);
+  return { accepted: true, ...(await liveState(db, code, false)) };
+}
+
 async function voteForQuestion(db: D1Database, code: string, questionId: string, participantIdValue: string) {
   const session = await getLiveSessionRow(db, code);
   const participantId = normalizeParticipantId(participantIdValue);
@@ -700,6 +724,7 @@ async function liveState(db: D1Database, code: string, includeHiddenQuestions = 
       SELECT participant_id FROM hyslides_live_instance_questions WHERE instance_id = ? AND slide_id = ?
     )`
   ).bind(session.instance_id, session.active_slide_id, session.instance_id, session.active_slide_id).first<{ count: number }>();
+  const questions = await sessionQuestions(db, session.instance_id, includeHiddenQuestions);
   return {
     code,
     instanceId: session.instance_id,
@@ -707,6 +732,7 @@ async function liveState(db: D1Database, code: string, includeHiddenQuestions = 
     status: session.status,
     participantCount,
     responseCount: Number(responseCount?.count || 0),
+    questions,
     deckId: session.deck_id,
     deckTitle: session.deck_title,
     audienceCode: session.access_code,
@@ -715,6 +741,23 @@ async function liveState(db: D1Database, code: string, includeHiddenQuestions = 
     slide,
     updatedAt: session.updated_at,
   };
+}
+
+async function sessionQuestions(db: D1Database, instanceId: string, includeHidden: boolean) {
+  const rows = await db.prepare(
+    `SELECT id, text, upvotes, answered, visible, created_at
+      FROM hyslides_live_instance_questions
+      WHERE instance_id = ? ${includeHidden ? "" : "AND visible = 1"}
+      ORDER BY upvotes DESC, created_at ASC`
+  ).bind(instanceId).all<LiveQuestionRow & { created_at: string }>();
+  return (rows.results || []).map((question) => ({
+    id: question.id,
+    text: question.text,
+    upvotes: Number(question.upvotes || 0),
+    answered: Boolean(question.answered),
+    visible: Boolean(question.visible),
+    createdAt: question.created_at,
+  }));
 }
 
 async function applyLiveAggregates(
