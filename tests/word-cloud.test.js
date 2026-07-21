@@ -17,6 +17,20 @@ test("word cloud sizes repeated responses more prominently", () => {
   assert.ok(sizes.Analytics > sizes["Q&A"]);
 });
 
+test("word cloud merges capitalization and spacing variants before weighting", () => {
+  const layout = createWordCloudLayout([
+    ["Team work", 2],
+    [" team   WORK ", 3],
+    ["Analytics", 4],
+  ], bounds, measure);
+  const team = layout.find((word) => word.text === "Team work");
+  const analytics = layout.find((word) => word.text === "Analytics");
+
+  assert.equal(layout.length, 2);
+  assert.equal(team.count, 5);
+  assert.ok(team.fontSize > analytics.fontSize);
+});
+
 test("word cloud uses non-overlapping positions inside its element", () => {
   const layout = createWordCloudLayout([
     ["One", 10], ["Two", 8], ["Three", 6], ["Four", 4], ["Five", 2], ["Six", 1],

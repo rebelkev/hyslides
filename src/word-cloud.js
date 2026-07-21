@@ -28,9 +28,20 @@ export function createWordCloudLayout(entries, bounds, measure, options = {}) {
 }
 
 function normalizeEntries(entries) {
-  return [...(entries || [])]
-    .map(([text, count]) => [String(text || "").trim(), Math.max(0, Number(count) || 0)])
-    .filter(([text, count]) => text && count > 0)
+  const merged = new Map();
+  for (const [rawText, rawCount] of entries || []) {
+    const text = String(rawText || "").trim().replace(/\s+/g, " ");
+    const count = Math.max(0, Number(rawCount) || 0);
+    if (!text || count <= 0) continue;
+    const key = text.toLocaleLowerCase();
+    const current = merged.get(key);
+    merged.set(key, {
+      text: current?.text || text,
+      count: (current?.count || 0) + count,
+    });
+  }
+  return [...merged.values()]
+    .map(({ text, count }) => [text, count])
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 }
 
