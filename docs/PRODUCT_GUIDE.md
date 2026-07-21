@@ -90,6 +90,18 @@ Available triggers:
 
 Properties include animation order, delay, duration, and Linear, Ease, Ease In, Ease Out, or Ease In/Out timing. Use **Preview animation** in element Properties or **Preview animations** above the canvas. Presenter navigation plays queued click animations before advancing to the next slide. Participant View and exported PDFs show the completed, fully visible slide.
 
+## Countdown Timers
+
+Add **Countdown** from the Editor View element toolbar to place a customizable timer on any slide. The timer can be moved, resized, animated, and styled like other slide content.
+
+- Set minutes and seconds, text size, color, background, and alignment in Properties.
+- Choose whether it starts automatically when the slide appears.
+- At zero, keep `00:00`, show a custom message, or optionally advance to the next included slide.
+- Presenter View provides Start, Pause, Reset, and **+1 minute** controls.
+- Presentation View and Participant View remain synchronized with the presenter-controlled time.
+- Editor, next-slide, and filmstrip previews show the configured starting duration instead of a partially elapsed live value.
+- Live countdown state is session-only; saving the deck preserves the configured duration, not the remaining time.
+
 ## Live Participation
 
 Each deck has a six-digit access code. Participants can join by scanning a QR code or entering the access code.
