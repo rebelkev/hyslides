@@ -1387,12 +1387,13 @@ label {
   display: flex;
   gap: 8px;
   grid-area: actions;
-  justify-content: center;
+  justify-content: flex-start;
   padding: 9px;
 }
 
 .presenter-actions button { min-width: 104px; }
-.presenter-actions #nextSlideBtn { margin-left: auto; min-width: 150px; }
+.presenter-actions #prevSlideBtn { margin-left: auto; }
+.presenter-actions #nextSlideBtn { min-width: 150px; }
 
 .presentation-blackout { align-items: center; background: #000; color: #fff; display: flex; inset: 0; justify-content: center; position: fixed; z-index: 100; }
 .presentation-blackout span { opacity: .18; font-size: 20px; font-weight: 800; }
@@ -1479,6 +1480,56 @@ label {
 
 .session-qna-form { display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr) auto; }
 .session-qna-public { display: grid; gap: 8px; }
+
+body.audience-window { background: #f8fafc; min-width: 0; overflow: hidden; }
+body.audience-window .app-shell { display: none !important; }
+body.audience-window .audience { background: #f8fafc; padding: 0; }
+body.audience-window .audience-card { border-radius: 0; height: 100vh; max-height: none; max-width: none; padding: 16px; width: 100vw; }
+body.audience-window .audience-card > .presenter-head { justify-content: flex-start; }
+body.audience-window #closeAudienceBtn { display: none; }
+body.audience-window .audience-slide-frame { margin-top: 12px; }
+
+.participant-qna-launcher {
+  align-items: center;
+  background: #1769e8;
+  border: 0;
+  border-radius: 14px;
+  bottom: 20px;
+  box-shadow: 0 10px 30px rgba(23, 105, 232, .3);
+  color: #fff;
+  display: flex;
+  height: 54px;
+  justify-content: center;
+  padding: 0;
+  position: fixed;
+  right: 20px;
+  width: 54px;
+  z-index: 35;
+}
+
+.participant-qna-launcher::before {
+  border: 2px solid currentColor;
+  border-radius: 7px;
+  content: "";
+  height: 25px;
+  position: absolute;
+  width: 30px;
+}
+
+.participant-qna-launcher::after {
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  bottom: 12px;
+  content: "";
+  height: 7px;
+  position: absolute;
+  right: 11px;
+  transform: skewY(-35deg);
+  width: 7px;
+}
+
+.participant-qna-launcher span { font-size: 18px; font-weight: 900; position: relative; z-index: 1; }
+.session-qna-panel { bottom: 86px; box-shadow: 0 18px 50px rgba(15, 23, 42, .2); max-height: min(520px, calc(100vh - 120px)); overflow: auto; position: fixed; right: 20px; width: min(420px, calc(100vw - 40px)); z-index: 34; }
 
 .audience-join-form {
   display: grid;
