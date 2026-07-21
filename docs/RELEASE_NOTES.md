@@ -75,6 +75,7 @@
 
 ### Participant View Layout
 
+- Stabilized word-cloud and Q&A text entry by avoiding unchanged polling rerenders, preserving drafts, and deferring visible refreshes while a participant is actively typing.
 - Removed automatic right/wrong feedback cards; correct answers now appear only after the presenter explicitly selects Display correct answers.
 - Converted QR/access-code entry into a standalone full-page Participant View with no Editor View behind it and no Close action.
 - Removed presentation-only and generic connected-status messages.

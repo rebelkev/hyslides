@@ -173,10 +173,12 @@ let audienceLive = {
   code: "",
   state: null,
   responses: {},
+  drafts: {},
   loading: false,
   backendAvailable: false,
   error: "",
   pollTimer: null,
+  lastRenderSignature: "",
 };
 const participantId = readOrCreateParticipantId();
 
@@ -3297,7 +3299,9 @@ function openAudience() {
   if (nextCode !== audienceLive.code) {
     audienceLive.state = null;
     audienceLive.responses = {};
+    audienceLive.drafts = {};
     audienceLive.error = "";
+    audienceLive.lastRenderSignature = "";
   }
   audienceLive.code = nextCode;
   if (audienceLive.code) {
@@ -3635,6 +3639,10 @@ async function renderLiveAudience() {
   }
 
   const liveSlide = audienceLive.state.slide;
+  const existingWordInput = dom.audienceContent.querySelector("#audienceInput");
+  if (existingWordInput) {
+    audienceLive.drafts[liveSlide.id] = existingWordInput.value;
+  }
   dom.audienceDeckTitle.textContent = audienceLive.state.deckTitle || "Untitled presentation";
   updateDocumentTitle(audienceLive.state.deckTitle);
   syncEngagementElementsFromSlide(liveSlide);
@@ -3654,11 +3662,42 @@ async function renderLiveAudience() {
     (payload) => submitAudienceLiveResponse(liveSlide, payload),
     latestResponse
   );
+  const wordInput = dom.audienceContent.querySelector("#audienceInput");
+  if (wordInput) {
+    wordInput.value = audienceLive.drafts[liveSlide.id] || "";
+    wordInput.addEventListener("input", () => {
+      audienceLive.drafts[liveSlide.id] = wordInput.value;
+    });
+  }
   renderSessionQnaForAudience();
   if (audienceLive.state.status !== "active") {
     dom.audienceContent.querySelectorAll("button, input, textarea, select").forEach((control) => { control.disabled = true; });
   }
   renderAudienceLiveStatus();
+  audienceLive.lastRenderSignature = audienceRenderSignature();
+}
+
+function participantTextEntryActive() {
+  const active = document.activeElement;
+  return Boolean(
+    audienceOpen &&
+    active &&
+    dom.audienceContent.contains(active) &&
+    (active.matches("input[type='text'], textarea") || active.isContentEditable)
+  );
+}
+
+function audienceRenderSignature() {
+  const state = audienceLive.state;
+  return JSON.stringify({
+    code: audienceLive.code,
+    error: audienceLive.error,
+    status: state?.status,
+    deckTitle: state?.deckTitle,
+    activeSlideIndex: state?.activeSlideIndex,
+    slide: state?.slide,
+    questions: state?.questions,
+  });
 }
 
 function renderSessionQnaForAudience() {
@@ -3739,7 +3778,8 @@ async function refreshAudienceLiveState() {
     audienceLive.error = `Waiting for live session: ${error.message}`;
   } finally {
     audienceLive.loading = false;
-    if (audienceOpen && audienceLive.code) {
+    const contentChanged = audienceRenderSignature() !== audienceLive.lastRenderSignature;
+    if (audienceOpen && audienceLive.code && contentChanged && !participantTextEntryActive()) {
       renderLiveAudience();
     }
   }
@@ -3762,6 +3802,11 @@ async function submitAudienceLiveResponse(slide, payload) {
     : audienceLive.responses[slide.id]
       ? [audienceLive.responses[slide.id]]
       : [];
+  if (slide.engagement?.type === "wordCloud") {
+    const wordInput = dom.audienceContent.querySelector("#audienceInput");
+    if (wordInput) wordInput.value = "";
+    audienceLive.drafts[slide.id] = "";
+  }
   audienceLive.responses[slide.id] = [...previousResponses, payload.value];
   renderLiveAudience();
   try {
