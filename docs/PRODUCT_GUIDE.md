@@ -31,6 +31,18 @@ The private presentation control interface. The planned Desktop and Mobile varia
 - Duplicated slides appear immediately after the originals and receive independent slide and element identities.
 - Slide deletion is available only from the left slide panel.
 
+## Undo and Redo
+
+Use the Undo and Redo buttons in the Editor View toolbar to move backward or forward through deck changes. HySlides retains up to 100 recent edit states and groups rapid changes in the same field into a single useful undo step.
+
+Keyboard shortcuts:
+
+- Undo: `Command+Z` on macOS or `Ctrl+Z` on Windows
+- Redo: `Command+Shift+Z` on macOS or `Ctrl+Shift+Z` on Windows
+- `Ctrl+Y` is also supported for Redo
+
+Opening another deck or importing a PowerPoint starts a new history for that deck. Undo history is maintained for the current editing session and is not restored after closing the browser.
+
 ## Editing Elements
 
 HySlides supports text, shapes, images, icons, charts, tables, dividers, and engagement elements.
