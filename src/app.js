@@ -1628,10 +1628,11 @@ function renderSlideInspector(slide) {
           <div class="field-row"><label for="backgroundShaderSpeedInput">Speed</label><input id="backgroundShaderSpeedInput" type="number" min="0.1" max="3" step="0.1" value="${Number(slide.backgroundShaderSpeed) || 1}" /></div>
         </div>
       ` : `<div class="field-row"><label for="slideBgInput">Color</label><input id="slideBgInput" type="color" value="${slide.background || "#ffffff"}" /></div>`}
-      <div class="field-grid">
-        <div class="field-row"><label for="backgroundOverlayColorInput">Overlay</label><input id="backgroundOverlayColorInput" type="color" value="${slide.backgroundOverlayColor || "#000000"}" /></div>
-        <div class="field-row"><label for="backgroundOverlayOpacityInput">Opacity</label><input id="backgroundOverlayOpacityInput" type="range" min="0" max="100" step="1" value="${Math.round((Number(slide.backgroundOverlayOpacity) || 0) * 100)}" /></div>
-      </div>
+      <div class="check-row"><input id="backgroundOverlayEnabledInput" type="checkbox" ${slide.backgroundOverlayEnabled ? "checked" : ""} /><label for="backgroundOverlayEnabledInput">Overlay</label></div>
+      ${slide.backgroundOverlayEnabled ? `<div class="field-grid">
+        <div class="field-row"><label for="backgroundOverlayColorInput">Color</label><input id="backgroundOverlayColorInput" type="color" value="${slide.backgroundOverlayColor || "#000000"}" /></div>
+        <div class="field-row"><label for="backgroundOverlayOpacityInput">Opacity (%)</label><input id="backgroundOverlayOpacityInput" type="number" min="0" max="100" step="1" value="${Math.round((Number(slide.backgroundOverlayOpacity) || 0) * 100)}" /></div>
+      </div>` : ""}
     </section>
     <section class="inspector-section">
       <strong>Theme</strong>
@@ -1690,6 +1691,10 @@ function renderSlideInspector(slide) {
   bindValue("#gradientEndInput", (value) => (slide.backgroundGradientEnd = value));
   bindNumber("#gradientAngleInput", (value) => (slide.backgroundGradientAngle = value));
   bindValue("#backgroundImageFitInput", (value) => (slide.backgroundImageFit = value));
+  bindToggle("#backgroundOverlayEnabledInput", (value) => {
+    slide.backgroundOverlayEnabled = value;
+    if (value && !Number(slide.backgroundOverlayOpacity)) slide.backgroundOverlayOpacity = 0.2;
+  });
   bindValue("#backgroundOverlayColorInput", (value) => (slide.backgroundOverlayColor = value));
   bindNumber("#backgroundOverlayOpacityInput", (value) => (slide.backgroundOverlayOpacity = clamp(value / 100, 0, 1)));
   document.querySelector("#backgroundShaderInput")?.addEventListener("change", (event) => {

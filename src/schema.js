@@ -240,6 +240,7 @@ export function createSlide(overrides = {}) {
     backgroundGradientStart: "#2454d6",
     backgroundGradientEnd: "#0c8b7f",
     backgroundGradientAngle: 135,
+    backgroundOverlayEnabled: false,
     backgroundOverlayColor: "#000000",
     backgroundOverlayOpacity: 0,
     backgroundShader: "none",
@@ -884,6 +885,7 @@ export function normalizeSection(raw) {
 export function normalizeSlide(raw = {}) {
   raw ||= {};
   const legacyAnimatedBackground = raw.backgroundShader && raw.backgroundShader !== "none" && raw.backgroundType !== "animated";
+  const backgroundOverlayEnabled = raw.backgroundOverlayEnabled ?? Number(raw.backgroundOverlayOpacity) > 0;
   const legacyQuiz = raw.engagement?.type === "quiz";
   const correctAnswers = Array.isArray(raw.engagement?.correctAnswers)
     ? raw.engagement.correctAnswers.slice(0, MAX_ENGAGEMENT_OPTIONS)
@@ -891,6 +893,7 @@ export function normalizeSlide(raw = {}) {
   const slide = createSlide({
     ...raw,
     backgroundType: legacyAnimatedBackground ? "animated" : raw.backgroundType || "color",
+    backgroundOverlayEnabled,
     sectionId: typeof raw.sectionId === "string" ? raw.sectionId : null,
     engagement: {
       ...createSlide().engagement,

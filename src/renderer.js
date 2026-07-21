@@ -125,7 +125,9 @@ function drawSlideBackground(ctx, slide, deck) {
     else drawShaderFallback(ctx, slide, deck);
   }
 
-  const overlayOpacity = Math.max(0, Math.min(1, Number(slide.backgroundOverlayOpacity) || 0));
+  const overlayOpacity = slide.backgroundOverlayEnabled
+    ? Math.max(0, Math.min(1, Number(slide.backgroundOverlayOpacity) || 0))
+    : 0;
   if (overlayOpacity > 0) {
     ctx.save();
     ctx.globalAlpha = overlayOpacity;

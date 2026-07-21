@@ -84,7 +84,7 @@ function createRuntime() {
         value = clamp(glow + 0.22 * sin(uv.x * 7.0 - time * 0.35), 0.0, 1.0);
       }
       vec3 color = mix(colorA, colorB, clamp(value, 0.0, 1.0));
-      float alpha = clamp((0.18 + value * 0.62) * intensity, 0.0, 0.88);
+      float alpha = intensity;
       gl_FragColor = vec4(color * alpha, alpha);
     }
   `);
