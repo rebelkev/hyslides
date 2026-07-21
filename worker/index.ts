@@ -45,6 +45,10 @@ const worker = {
       return handleLiveApi(request, env, url);
     }
 
+    if (url.pathname === "/api/sessions" || url.pathname.startsWith("/api/sessions/")) {
+      return handleSessionApi(request, env, url);
+    }
+
     if (url.pathname === "/_vinext/image") {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
       return handleImageOptimization(request, {
@@ -102,6 +106,35 @@ async function handleLiveApi(request: Request, env: Env, url: URL): Promise<Resp
   return json({ error: "Live route not found." }, 404);
 }
 
+async function handleSessionApi(request: Request, env: Env, url: URL): Promise<Response> {
+  if (!env.DB) {
+    return json({ error: "Session history needs the D1 binding named DB." }, 503);
+  }
+  await ensureLiveSchema(env.DB);
+  const parts = url.pathname.split("/").filter(Boolean);
+  const instanceId = parts[2] || "";
+  try {
+    if (parts.length === 2 && request.method === "GET") {
+      return json(await listSessionInstances(env.DB, url.searchParams.get("deckId") || ""));
+    }
+    if (parts.length === 3 && request.method === "GET") {
+      return json(await sessionInstanceDetail(env.DB, instanceId));
+    }
+    if (parts.length === 3 && request.method === "PATCH") {
+      const payload = await readJson(request);
+      return json(await renameSessionInstance(env.DB, instanceId, stringValue(payload.sessionName)));
+    }
+    if (parts.length === 3 && request.method === "DELETE") {
+      await deleteSessionInstance(env.DB, instanceId);
+      return json({ deleted: true });
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Session history failed.";
+    return json({ error: message }, message.includes("not found") ? 404 : 500);
+  }
+  return json({ error: "Session history route not found." }, 404);
+}
+
 async function ensureLiveSchema(db: D1Database): Promise<void> {
   await db.batch([
     db.prepare(
@@ -154,6 +187,22 @@ async function ensureLiveSchema(db: D1Database): Promise<void> {
       `CREATE INDEX IF NOT EXISTS hyslides_live_instance_questions_instance_slide_idx
         ON hyslides_live_instance_questions (instance_id, slide_id, created_at)`
     ),
+    db.prepare(
+      `CREATE TABLE IF NOT EXISTS hyslides_live_instance_metadata (
+        instance_id TEXT PRIMARY KEY,
+        session_name TEXT NOT NULL
+      )`
+    ),
+    db.prepare(
+      `CREATE TABLE IF NOT EXISTS hyslides_live_instance_slides (
+        instance_id TEXT NOT NULL,
+        slide_id TEXT NOT NULL,
+        slide_index INTEGER NOT NULL DEFAULT 0,
+        slide_json TEXT NOT NULL,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (instance_id, slide_id)
+      )`
+    ),
   ]);
 }
 
@@ -167,6 +216,7 @@ async function publishLiveSession(db: D1Database, code: string, payload: Record<
   const deckId = stringValue(payload.deckId) || "deck";
   const deckTitle = stringValue(payload.deckTitle) || "HySlides deck";
   const instanceId = stringValue(payload.instanceId) || crypto.randomUUID();
+  const sessionName = stringValue(payload.sessionName).trim() || `${deckTitle} — ${new Date().toISOString()}`;
   const activeSlideIndex = numberValue(payload.activeSlideIndex);
   const slideJson = JSON.stringify(slide);
 
@@ -206,6 +256,20 @@ async function publishLiveSession(db: D1Database, code: string, payload: Record<
         slide_json = excluded.slide_json,
         updated_at = CURRENT_TIMESTAMP`
     ).bind(code, instanceId, slideId, activeSlideIndex, slideJson),
+    db.prepare(
+      `INSERT INTO hyslides_live_instance_metadata (instance_id, session_name)
+        VALUES (?, ?)
+        ON CONFLICT(instance_id) DO NOTHING`
+    ).bind(instanceId, sessionName.slice(0, 180)),
+    db.prepare(
+      `INSERT INTO hyslides_live_instance_slides (
+        instance_id, slide_id, slide_index, slide_json, updated_at
+      ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(instance_id, slide_id) DO UPDATE SET
+        slide_index = excluded.slide_index,
+        slide_json = excluded.slide_json,
+        updated_at = CURRENT_TIMESTAMP`
+    ).bind(instanceId, slideId, activeSlideIndex, slideJson),
   ];
   if (previous?.instance_id && previous.instance_id !== instanceId) {
     statements.push(
@@ -216,6 +280,78 @@ async function publishLiveSession(db: D1Database, code: string, payload: Record<
   await db.batch(statements);
 
   return liveState(db, code);
+}
+
+async function listSessionInstances(db: D1Database, deckId: string) {
+  const where = deckId ? "WHERE instance.deck_id = ?" : "";
+  const statement = db.prepare(
+    `SELECT
+      instance.instance_id,
+      instance.access_code,
+      instance.deck_id,
+      instance.deck_title,
+      instance.started_at,
+      instance.last_active_at,
+      instance.status,
+      metadata.session_name,
+      COALESCE((SELECT SUM(count) FROM hyslides_live_instance_counts WHERE instance_id = instance.instance_id), 0) AS response_count,
+      COALESCE((SELECT COUNT(*) FROM hyslides_live_instance_questions WHERE instance_id = instance.instance_id), 0) AS question_count
+    FROM hyslides_live_instances AS instance
+    LEFT JOIN hyslides_live_instance_metadata AS metadata ON metadata.instance_id = instance.instance_id
+    ${where}
+    ORDER BY instance.started_at DESC`
+  );
+  const rows = deckId ? await statement.bind(deckId).all() : await statement.all();
+  return { sessions: rows.results || [] };
+}
+
+async function sessionInstanceDetail(db: D1Database, instanceId: string) {
+  const instance = await db.prepare(
+    `SELECT instance.*, metadata.session_name
+      FROM hyslides_live_instances AS instance
+      LEFT JOIN hyslides_live_instance_metadata AS metadata ON metadata.instance_id = instance.instance_id
+      WHERE instance.instance_id = ?`
+  ).bind(instanceId).first<Record<string, unknown>>();
+  if (!instance) {
+    throw new Error("Session not found.");
+  }
+  const slideRows = await db.prepare(
+    `SELECT slide_id, slide_index, slide_json
+      FROM hyslides_live_instance_slides
+      WHERE instance_id = ?
+      ORDER BY slide_index ASC`
+  ).bind(instanceId).all<{ slide_id: string; slide_index: number; slide_json: string }>();
+  const slides = [];
+  for (const row of slideRows.results || []) {
+    const slide = parseSlide(row.slide_json);
+    await applyLiveAggregates(db, instanceId, row.slide_id, slide);
+    slides.push({ slideId: row.slide_id, slideIndex: row.slide_index, slide });
+  }
+  return { session: instance, slides };
+}
+
+async function renameSessionInstance(db: D1Database, instanceId: string, requestedName: string) {
+  const sessionName = requestedName.trim().slice(0, 180);
+  if (!sessionName) {
+    throw new Error("A session name is required.");
+  }
+  await db.prepare(
+    `INSERT INTO hyslides_live_instance_metadata (instance_id, session_name)
+      VALUES (?, ?)
+      ON CONFLICT(instance_id) DO UPDATE SET session_name = excluded.session_name`
+  ).bind(instanceId, sessionName).run();
+  return sessionInstanceDetail(db, instanceId);
+}
+
+async function deleteSessionInstance(db: D1Database, instanceId: string) {
+  await db.batch([
+    db.prepare(`DELETE FROM hyslides_live_instance_counts WHERE instance_id = ?`).bind(instanceId),
+    db.prepare(`DELETE FROM hyslides_live_instance_questions WHERE instance_id = ?`).bind(instanceId),
+    db.prepare(`DELETE FROM hyslides_live_instance_slides WHERE instance_id = ?`).bind(instanceId),
+    db.prepare(`DELETE FROM hyslides_live_instance_metadata WHERE instance_id = ?`).bind(instanceId),
+    db.prepare(`DELETE FROM hyslides_live_instance_state WHERE instance_id = ?`).bind(instanceId),
+    db.prepare(`DELETE FROM hyslides_live_instances WHERE instance_id = ?`).bind(instanceId),
+  ]);
 }
 
 async function recordLiveResponse(db: D1Database, code: string, payload: Record<string, unknown>) {
