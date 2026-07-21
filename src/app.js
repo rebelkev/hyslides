@@ -23,7 +23,6 @@ import { exportDeckToPdf } from "./pdf.js";
 import {
   engagementTypes,
   ensureEngagement,
-  recordAudienceResponse,
   renderAudienceContent,
   renderLiveControls,
 } from "./engagement.js";
@@ -94,7 +93,6 @@ let presenterWindow = null;
 const presenterWindowMode = location.hash === "#presenter";
 const presenterChannel = "BroadcastChannel" in window ? new BroadcastChannel("hyslides-presenter") : null;
 let audienceOpen = false;
-let audienceResponses = {};
 let templatesExpanded = readTemplatesExpandedPreference();
 let liveSession = {
   code: "",
@@ -335,6 +333,7 @@ function bindEvents() {
 }
 
 function renderAll() {
+  syncAudienceJoinElements();
   dom.deckTitle.value = deck.title;
   renderCanvas();
   renderSlides();
@@ -1168,6 +1167,7 @@ function renderInspector() {
 
 function renderSlideInspector(slide) {
   ensureEngagement(slide);
+  const audienceJoinVisible = shouldShowAudienceJoin(slide, activeSlideIndex);
   dom.inspector.innerHTML = `
     <section class="inspector-section">
       <strong>Slide</strong>
@@ -1206,12 +1206,13 @@ function renderSlideInspector(slide) {
       <div class="field-row"><label for="engagementPrompt">Prompt</label><input id="engagementPrompt" value="${attr(slide.engagement.prompt)}" /></div>
       <div class="field-row"><label for="engagementOptions">Options</label><textarea id="engagementOptions">${escapeHtml(slide.engagement.options.join("\n"))}</textarea></div>
       ${correctAnswerFields(slide.engagement)}
+      <div class="check-row"><input id="audienceJoinElementsToggle" type="checkbox" ${audienceJoinVisible ? "checked" : ""} /><label for="audienceJoinElementsToggle">Show QR code and access code on this slide</label></div>
       <div class="field-row">
-        <label>Audience link</label>
+        <label>Audience join</label>
         <input readonly value="${attr(audienceLink())}" />
         <div class="live-link-card compact">
           <img src="${attr(liveQrImageSrc(audienceLink()))}" alt="Audience QR code" />
-          <span>${isLocalJoinUrl(audienceLink()) ? "Phones need a hosted or network URL." : "Participants scan to join."}</span>
+          <span>Scan or enter access code <strong>${escapeHtml(ensureAudienceCode())}</strong></span>
         </div>
       </div>
     </section>
@@ -1235,7 +1236,16 @@ function renderSlideInspector(slide) {
   bindValue("#bodyFont", (value) => (deck.theme.fonts.body = value));
   bindToggle("#snapToggle", (value) => (deck.settings.snapToGrid = value));
   bindToggle("#guideToggle", (value) => (deck.settings.showGuides = value));
-  bindToggle("#engagementToggle", (value) => (slide.engagement.enabled = value));
+  bindToggle("#engagementToggle", (value) => {
+    slide.engagement.enabled = value;
+    syncAudienceJoinElements();
+  });
+  bindToggle("#audienceJoinElementsToggle", (value) => {
+    const defaultVisible = activeSlideIndex === 0 || slide.engagement.enabled;
+    slide.audienceJoinForced = value && !defaultVisible;
+    slide.audienceJoinHidden = !value && defaultVisible;
+    syncAudienceJoinElements();
+  });
   bindEngagementType(slide);
   bindValue("#engagementPrompt", (value) => {
     slide.engagement.prompt = value;
@@ -2465,12 +2475,26 @@ function renderAudience() {
     renderLiveAudience();
     return;
   }
-  renderAudienceContent(dom.audienceContent, deck, currentSlide(), (payload) => {
-    audienceResponses[currentSlide().id] = payload.value;
-    recordAudienceResponse(currentSlide(), payload);
-    markChanged("Audience response received");
-    renderAll();
-  }, audienceResponses[currentSlide().id]);
+  dom.audienceContent.innerHTML = `
+    <form id="audienceJoinForm" class="audience-join-form">
+      <label for="audienceAccessCodeInput">Enter the 6-digit presentation access code</label>
+      <input id="audienceAccessCodeInput" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="123456" required />
+      <button type="submit">Join presentation</button>
+    </form>
+  `;
+  dom.audienceContent.querySelector("#audienceJoinForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const input = dom.audienceContent.querySelector("#audienceAccessCodeInput");
+    const code = String(input?.value || "").replace(/\D/g, "").slice(0, 6);
+    if (code.length !== 6) {
+      input?.setCustomValidity("Enter all 6 digits");
+      input?.reportValidity();
+      return;
+    }
+    input.setCustomValidity("");
+    location.hash = `audience-${code}`;
+    openAudience();
+  });
 }
 
 function startLiveSession() {
@@ -3182,6 +3206,67 @@ function syncEngagementElementsFromSlide(slide) {
   }
 }
 
+function shouldShowAudienceJoin(slide, slideIndex) {
+  if (slide.audienceJoinForced) {
+    return true;
+  }
+  if (slide.audienceJoinHidden) {
+    return false;
+  }
+  return slideIndex === 0 || Boolean(slide.engagement?.enabled);
+}
+
+function syncAudienceJoinElements() {
+  const accessCode = ensureAudienceCode();
+  const joinUrl = audienceLink();
+  const qrSrc = liveQrImageSrc(joinUrl);
+
+  deck.slides.forEach((slide, slideIndex) => {
+    slide.elements ||= [];
+    const qr = slide.elements.find((element) => element.audienceJoinRole === "qr");
+    const code = slide.elements.find((element) => element.audienceJoinRole === "code");
+    if (!shouldShowAudienceJoin(slide, slideIndex)) {
+      slide.elements = slide.elements.filter((element) => !element.audienceJoinRole);
+      return;
+    }
+
+    if (qr) {
+      qr.src = qrSrc;
+      qr.alt = `Scan to join with access code ${accessCode}`;
+    } else {
+      slide.elements.push(createElement("image", {
+        x: 1050,
+        y: 430,
+        w: 170,
+        h: 170,
+        src: qrSrc,
+        fit: "contain",
+        alt: `Scan to join with access code ${accessCode}`,
+        name: "Audience QR code",
+        audienceJoinRole: "qr",
+      }));
+    }
+
+    if (code) {
+      code.text = `Access code: ${accessCode}`;
+    } else {
+      slide.elements.push(createElement("text", {
+        x: 980,
+        y: 615,
+        w: 300,
+        h: 54,
+        text: `Access code: ${accessCode}`,
+        fontSize: 26,
+        fontWeight: 700,
+        align: "center",
+        verticalAlign: "middle",
+        name: "Audience access code",
+        audienceJoinRole: "code",
+      }));
+    }
+  });
+}
+
 function setStatus(message) {
   dom.statusText.textContent = message;
 }
@@ -3208,7 +3293,10 @@ function audienceLink() {
 
 function ensureAudienceCode() {
   deck.settings ||= {};
-  deck.settings.audienceCode = normalizeLiveCode(deck.settings.audienceCode);
+  const current = String(deck.settings.audienceCode || "").replace(/\D/g, "").slice(0, 6);
+  deck.settings.audienceCode = current
+    ? current.padStart(6, "0")
+    : String(Math.floor(100000 + Math.random() * 900000));
   return deck.settings.audienceCode;
 }
 
