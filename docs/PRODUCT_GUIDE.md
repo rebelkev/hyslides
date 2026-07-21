@@ -98,6 +98,7 @@ Add **Countdown** from the Editor View element toolbar to place a customizable t
 - Choose whether it starts automatically when the slide appears.
 - At zero, keep `00:00`, show a custom message, or optionally advance to the next included slide.
 - Presenter View provides Start, Pause, Reset, and **+1 minute** controls.
+- Use **Add timer to slide** in Presenter View for an unplanned break. HySlides inserts a seven-minute timer on the current slide, after which its normal live controls appear.
 - Presentation View and Participant View remain synchronized with the presenter-controlled time.
 - Editor, next-slide, and filmstrip previews show the configured starting duration instead of a partially elapsed live value.
 - Live countdown state is session-only; saving the deck preserves the configured duration, not the remaining time.
@@ -123,7 +124,7 @@ Ended sessions, participant records, and responses are retained for 14 days and 
 
 ## Live Q&A
 
-Set an engagement slide’s mode to **Q&A** to collect audience questions.
+Participants can submit Q&A at any time during an active session; a dedicated Q&A engagement slide is not required.
 
 - Submitted questions enter a private **Pending review** queue in Presenter View.
 - Presenters can Display, Hide, Mark answered/unanswered, or Delete each question.
@@ -131,6 +132,7 @@ Set an engagement slide’s mode to **Q&A** to collect audience questions.
 - Participants can upvote a displayed question once per device; questions are ordered by upvotes.
 - Offensive-language filtering is applied before a question is stored.
 - Questions, votes, and moderation state belong to the current session instance and follow the same 14-day retention policy as responses.
+- Presenter View separates Unanswered and Answered questions into tabs, while Session History and CSV export preserve the complete queue.
 
 ## Import and Export
 
