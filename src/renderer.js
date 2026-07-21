@@ -32,6 +32,7 @@ export function drawSlide(ctx, slide, deck, options = {}) {
     scale = 1,
     footer = true,
     revealCorrectAnswers = true,
+    elementStates = null,
   } = options;
 
   ctx.save();
@@ -40,7 +41,12 @@ export function drawSlide(ctx, slide, deck, options = {}) {
   ctx.fillRect(0, 0, SLIDE_SIZE.width, SLIDE_SIZE.height);
 
   for (const element of slide.elements) {
-    drawElement(ctx, element, deck, { revealCorrectAnswers });
+    const state = elementStates?.[element.id];
+    if (state?.hidden) continue;
+    drawElement(ctx, element, deck, {
+      revealCorrectAnswers,
+      opacityMultiplier: state?.opacity ?? 1,
+    });
   }
 
   if (footer && deck.theme.master.footer.showSlideNumber) {
@@ -68,7 +74,7 @@ export async function drawSlideAsync(ctx, slide, deck, options = {}) {
 
 export function drawElement(ctx, element, deck, options = {}) {
   ctx.save();
-  ctx.globalAlpha = element.opacity ?? 1;
+  ctx.globalAlpha = (element.opacity ?? 1) * (options.opacityMultiplier ?? 1);
   ctx.translate(element.x + element.w / 2, element.y + element.h / 2);
   ctx.rotate(((element.rotation || 0) * Math.PI) / 180);
   ctx.translate(-element.w / 2, -element.h / 2);
