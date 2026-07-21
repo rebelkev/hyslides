@@ -63,7 +63,11 @@ export function isLocalJoinUrl(value) {
   }
 }
 
-export function liveSnapshotForDeck(deck, slide, activeSlideIndex, instanceId = "", sessionName = "") {
+const MAX_LIVE_SLIDE_JSON_LENGTH = 700000;
+
+export async function liveSnapshotForDeck(deck, slide, activeSlideIndex, instanceId = "", sessionName = "") {
+  const liveSlide = JSON.parse(JSON.stringify(slide));
+  await compactLiveSlideImages(liveSlide);
   return {
     instanceId,
     sessionName,
@@ -72,8 +76,73 @@ export function liveSnapshotForDeck(deck, slide, activeSlideIndex, instanceId = 
     audienceCode: normalizeLiveCode(deck.settings?.audienceCode),
     activeSlideIndex,
     activeSlideId: slide.id,
-    slide: JSON.parse(JSON.stringify(slide)),
+    slide: liveSlide,
   };
+}
+
+async function compactLiveSlideImages(slide) {
+  const references = liveImageReferences(slide);
+  if (!references.length || JSON.stringify(slide).length <= MAX_LIVE_SLIDE_JSON_LENGTH) return slide;
+  const targetPerImage = Math.max(45000, Math.floor(500000 / references.length));
+  for (const reference of references) {
+    if (reference.value().length < targetPerImage) continue;
+    const compacted = await compactDataImage(reference.value(), targetPerImage).catch(() => reference.value());
+    reference.update(compacted);
+  }
+  if (JSON.stringify(slide).length <= MAX_LIVE_SLIDE_JSON_LENGTH) return slide;
+  const largestFirst = references.sort((a, b) => b.value().length - a.value().length);
+  for (const reference of largestFirst) {
+    const compacted = await compactDataImage(reference.value(), 40000, 720).catch(() => "");
+    reference.update(compacted || liveImagePlaceholder());
+    if (JSON.stringify(slide).length <= MAX_LIVE_SLIDE_JSON_LENGTH) break;
+  }
+  if (JSON.stringify(slide).length > MAX_LIVE_SLIDE_JSON_LENGTH) {
+    throw new Error("This slide still contains too much embedded data for live delivery. Remove or replace its largest embedded asset.");
+  }
+  return slide;
+}
+
+function liveImageReferences(slide) {
+  const references = [];
+  if (String(slide.backgroundImage || "").startsWith("data:image/")) {
+    references.push({ value: () => slide.backgroundImage, update: (value) => { slide.backgroundImage = value; } });
+  }
+  for (const element of slide.elements || []) {
+    if (element.type === "image" && String(element.src || "").startsWith("data:image/")) {
+      references.push({ value: () => element.src, update: (value) => { element.src = value; } });
+    }
+  }
+  return references;
+}
+
+async function compactDataImage(source, targetLength, maxDimension = 1280) {
+  if (typeof Image === "undefined" || typeof document === "undefined") return source;
+  const image = new Image();
+  await new Promise((resolve, reject) => {
+    image.onload = resolve;
+    image.onerror = reject;
+    image.src = source;
+  });
+  let scale = Math.min(1, maxDimension / Math.max(image.naturalWidth || 1, image.naturalHeight || 1));
+  let best = source;
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const context = canvas.getContext("2d");
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const quality = Math.max(0.42, 0.82 - attempt * 0.08);
+    const candidate = canvas.toDataURL("image/webp", quality);
+    if (candidate.length < best.length) best = candidate;
+    if (best.length <= targetLength) break;
+    scale *= 0.72;
+  }
+  return best;
+}
+
+function liveImagePlaceholder() {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><rect width="100%" height="100%" fill="#eef2f7"/><text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" fill="#637083" font-family="Arial" font-size="24">Image optimized for live view</text></svg>';
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
 export function liveStateDeck(state) {

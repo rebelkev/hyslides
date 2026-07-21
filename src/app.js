@@ -4322,21 +4322,18 @@ async function publishCurrentLiveSession(force = false) {
   if (liveSession.publishing || !liveSession.code) {
     return;
   }
-  const snapshot = liveSnapshotForDeck(
-    deck,
-    liveSlideWithCountdownState(),
-    activeSlideIndex,
-    liveSession.instanceId,
-    liveSession.sessionName
-  );
-  const signature = JSON.stringify(snapshot);
-  if (!force && signature === liveSession.lastPublishedSignature) {
-    return;
-  }
-
   liveSession.publishing = true;
   updatePresenterConnectionBadge();
   try {
+    const snapshot = await liveSnapshotForDeck(
+      deck,
+      liveSlideWithCountdownState(),
+      activeSlideIndex,
+      liveSession.instanceId,
+      liveSession.sessionName
+    );
+    const signature = JSON.stringify(snapshot);
+    if (!force && signature === liveSession.lastPublishedSignature) return;
     const state = await publishLiveSession(liveSession.code, snapshot, liveSession.presenterToken);
     liveSession.backendAvailable = true;
     liveSession.consecutiveFailures = 0;

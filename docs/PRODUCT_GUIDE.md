@@ -21,6 +21,7 @@ The standalone phone, tablet, or computer webpage opened using a deck’s QR cod
 ### Presenter View
 
 - If live sync is unavailable, **Reconnect / Go live** republishes the current session without clearing responses or creating a new session instance.
+- Live publishing automatically creates compact presentation copies of oversized embedded images and backgrounds so original editor assets remain untouched while the session stays within Cloudflare D1 limits.
 
 The private presentation control interface, available in responsive Desktop and Mobile layouts. It contains end-state current/next slide previews, speaker notes, navigation, an elapsed timer, live participant and response counts, engagement controls, and session controls.
 

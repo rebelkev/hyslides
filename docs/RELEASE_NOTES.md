@@ -4,6 +4,7 @@
 
 ### Editor
 
+- Prevented oversized embedded slide and background images from blocking live sessions by generating compact live-only image copies before storing the current slide in D1.
 - Replaced manual animation order numbers with an Animations panel that groups effects by trigger, supports drag-and-drop and accessible move controls, selects the matching canvas element, and previews or restarts the complete slide sequence.
 - Added a Presenter View **Reconnect / Go live** action that retries the current session without clearing responses or replacing its saved session instance.
 - Stabilized Presenter View live-session status: brief polling failures no longer force an immediate disconnect, failed retries use backoff, and “Not Live” appears only after repeated confirmed failures.
