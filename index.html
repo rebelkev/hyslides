@@ -170,19 +170,26 @@
           <div class="presenter-card-head"><strong id="presenterSlideTitle">Current slide</strong><span>End-state preview</span></div>
           <div class="presenter-main"><canvas id="presenterCanvas" width="1280" height="720"></canvas></div>
         </section>
-        <section class="presenter-next-card">
-          <div class="presenter-card-head"><strong>Next in flow</strong><span id="nextSlideTitle"></span></div>
-          <canvas id="nextCanvas" width="320" height="180"></canvas>
-        </section>
+      </main>
+
+      <aside class="presenter-side">
         <section class="presenter-notes-card">
           <label for="presenterNotes">Speaker notes</label>
           <textarea id="presenterNotes" placeholder="Add speaker notes for this slide..."></textarea>
         </section>
-      </main>
-
-      <aside class="presenter-side">
-        <div class="presenter-card-head"><strong>Live session</strong><span id="presenterConnectionStatus">Connecting…</span></div>
-        <div id="liveControls" class="live-controls"></div>
+        <section class="presenter-live-card">
+          <div class="presenter-card-head"><strong>Live session</strong><span id="presenterConnectionStatus">Connecting…</span></div>
+          <div id="liveControls" class="live-controls"></div>
+        </section>
+        <section class="presenter-qna-card">
+          <div class="presenter-card-head"><strong>Q&amp;A</strong><span id="presenterQnaCount">0 questions</span></div>
+          <div class="presenter-qna-tabs" role="tablist">
+            <button id="qnaUnansweredTab" class="active" type="button" role="tab">Unanswered</button>
+            <button id="qnaAnsweredTab" type="button" role="tab">Answered</button>
+          </div>
+          <div id="presenterQnaList" class="presenter-qna-list"></div>
+        </section>
+        <canvas id="nextCanvas" class="hidden" width="320" height="180"></canvas><span id="nextSlideTitle" class="hidden"></span>
       </aside>
 
       <footer class="presenter-actions">
