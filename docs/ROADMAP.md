@@ -42,6 +42,12 @@
     - Uses the deck's colors, typography, imagery, gradients, or animated background effects
     - Synchronizes to Presentation and Participant Views, with plain black as the fallback
 - Q&A enhancements: pinning, presenter spotlight layouts, and CSV export
+- Per-session audience response exports:
+  - Export all engagement-slide responses and session-wide Q&A from Session History
+  - Include the deck, session name, date/time, slide, engagement type, prompt, response, participant identifier, and submission time
+  - Include Q&A moderation state, display state, answer state, and upvote count
+  - Provide a combined session export plus optional exports for an individual engagement slide
+  - Start with CSV and preserve a structured format suitable for future analytics integrations
 - User accounts and authentication
 - Server-backed deck library and media storage
 - Cross-presentation slide transfer:
