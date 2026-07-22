@@ -6,6 +6,7 @@ import {
   createSlide,
   layoutTemplates,
   MAX_ENGAGEMENT_OPTIONS,
+  normalizeEngagementOptionColors,
   normalizeDeck,
   syncEngagementResultCharts,
 } from "../src/schema.js";
@@ -50,6 +51,34 @@ test("linked poll charts update from canonical engagement results", () => {
   syncEngagementResultCharts(slide);
 
   assert.deepEqual(chart.values, [3, 7]);
+});
+
+test("engagement choices receive distinct colors and preserve valid overrides", () => {
+  const colors = normalizeEngagementOptionColors(
+    ["Alpha", "Beta", "Gamma"],
+    ["#abcdef"]
+  );
+  assert.equal(colors[0], "#abcdef");
+  assert.equal(new Set(colors).size, 3);
+});
+
+test("linked poll charts mirror the option colors", () => {
+  const chart = createElement("chart", { engagementResults: true });
+  const slide = createSlide({
+    engagement: {
+      enabled: true,
+      type: "poll",
+      options: ["Alpha", "Beta"],
+      optionColors: ["#112233", "#445566"],
+      results: { Alpha: 1, Beta: 2 },
+    },
+    elements: [chart],
+  });
+
+  syncEngagementResultCharts(slide);
+
+  assert.deepEqual(chart.colors, ["#112233", "#445566"]);
+  assert.deepEqual(chart.values, [1, 2]);
 });
 
 test("legacy charts bind when their labels match engagement options", () => {

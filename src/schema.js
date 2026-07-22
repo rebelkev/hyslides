@@ -4,6 +4,19 @@ export const SLIDE_SIZE = {
 };
 
 export const MAX_ENGAGEMENT_OPTIONS = 10;
+export const ENGAGEMENT_OPTION_COLORS = [
+  "#2454d6", "#0c8b7f", "#d94b3d", "#ba7315", "#8b0c8d",
+  "#3b82f6", "#10b981", "#f97316", "#ec4899", "#637083",
+];
+
+export function normalizeEngagementOptionColors(options = [], colors = []) {
+  return options.slice(0, MAX_ENGAGEMENT_OPTIONS).map((_, index) => {
+    const color = String(colors?.[index] || "").trim();
+    return /^#[0-9a-f]{6}$/i.test(color)
+      ? color.toLowerCase()
+      : ENGAGEMENT_OPTION_COLORS[index % ENGAGEMENT_OPTION_COLORS.length];
+  });
+}
 export const MAX_REACTION_OPTIONS = 5;
 export const REACTION_CATALOG = {
   thumbsUp: "👍",
@@ -266,6 +279,7 @@ export function createElement(type, overrides = {}) {
       mode: "poll",
       prompt: "What should we ask the audience?",
       options: ["Option A", "Option B", "Option C"],
+      optionColors: [...ENGAGEMENT_OPTION_COLORS.slice(0, 3)],
       correctAnswers: [],
       hasCorrectAnswers: false,
       showCorrectAnswer: true,
@@ -375,6 +389,7 @@ export function createSlide(overrides = {}) {
       type: "poll",
       prompt: "What should we prioritize next?",
       options: ["Fidelity", "Speed", "Templates"],
+      optionColors: [...ENGAGEMENT_OPTION_COLORS.slice(0, 3)],
       correctAnswers: [],
       hasCorrectAnswers: false,
       showCorrectAnswer: true,
@@ -641,6 +656,7 @@ export function createSeedDeck() {
 }
 
 function createEngagementTemplateSlide({ type, title, prompt, options = [] }) {
+  const optionColors = normalizeEngagementOptionColors(options);
   return createSlide({
     title,
     layout: `engagement-${type}`,
@@ -650,6 +666,7 @@ function createEngagementTemplateSlide({ type, title, prompt, options = [] }) {
       type,
       prompt,
       options: [...options],
+      optionColors,
       correctAnswers: [],
       hasCorrectAnswers: false,
       showCorrectAnswer: true,
@@ -685,6 +702,7 @@ function createEngagementTemplateSlide({ type, title, prompt, options = [] }) {
         mode: type,
         prompt,
         options: [...options],
+        optionColors,
         hasCorrectAnswers: false,
         responseLimit: 1,
         name: `${title} engagement`,
@@ -1011,6 +1029,9 @@ export function normalizeSlide(raw = {}) {
   const correctAnswers = Array.isArray(raw.engagement?.correctAnswers)
     ? raw.engagement.correctAnswers.slice(0, MAX_ENGAGEMENT_OPTIONS)
     : [];
+  const engagementOptions = Array.isArray(raw.engagement?.options)
+    ? raw.engagement.options.slice(0, MAX_ENGAGEMENT_OPTIONS)
+    : createSlide().engagement.options;
   const slide = createSlide({
     ...raw,
     backgroundType: legacyAnimatedBackground ? "animated" : raw.backgroundType || "color",
@@ -1020,9 +1041,8 @@ export function normalizeSlide(raw = {}) {
       ...createSlide().engagement,
       ...(raw.engagement || {}),
       type: legacyQuiz ? "multipleChoice" : raw.engagement?.type || createSlide().engagement.type,
-      options: Array.isArray(raw.engagement?.options)
-        ? raw.engagement.options.slice(0, MAX_ENGAGEMENT_OPTIONS)
-        : createSlide().engagement.options,
+      options: engagementOptions,
+      optionColors: normalizeEngagementOptionColors(engagementOptions, raw.engagement?.optionColors),
       correctAnswers,
       hasCorrectAnswers: raw.engagement?.hasCorrectAnswers ?? (legacyQuiz || correctAnswers.length > 0),
       showCorrectAnswer: raw.engagement?.showCorrectAnswer ?? true,
@@ -1066,6 +1086,7 @@ export function normalizeElement(raw) {
     if (legacyQuiz) element.mode = "multipleChoice";
     element.options = (Array.isArray(element.options) ? element.options : [])
       .slice(0, MAX_ENGAGEMENT_OPTIONS);
+    element.optionColors = normalizeEngagementOptionColors(element.options, raw.optionColors);
     element.correctAnswers = (Array.isArray(element.correctAnswers) ? element.correctAnswers : [])
       .filter((answer) => element.options.includes(answer));
     element.hasCorrectAnswers = legacyQuiz || (raw.hasCorrectAnswers ?? (element.correctAnswers.length > 0));
@@ -1095,6 +1116,7 @@ export function syncEngagementResultCharts(slide) {
     }
     element.engagementResults = true;
     element.labels = [...(engagement.options || [])];
+    element.colors = normalizeEngagementOptionColors(element.labels, engagement.optionColors);
     element.values = element.labels.map((option) =>
       Math.max(0, Number(engagement.results?.[option]) || 0)
     );

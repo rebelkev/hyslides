@@ -1,4 +1,4 @@
-import { DEFAULT_REACTION_OPTIONS, MAX_ENGAGEMENT_OPTIONS, SLIDE_SIZE, normalizeReactionOption, reactionEmoji } from "./schema.js";
+import { DEFAULT_REACTION_OPTIONS, MAX_ENGAGEMENT_OPTIONS, SLIDE_SIZE, normalizeEngagementOptionColors, normalizeReactionOption, reactionEmoji } from "./schema.js";
 import { youtubeVideoId } from "./embed.js";
 import { createWordCloudLayout } from "./word-cloud.js";
 import { renderShaderOverlay } from "./backgrounds.js";
@@ -517,6 +517,9 @@ function drawChart(ctx, element, deck) {
     ? element.values.map((value) => Math.max(0, Number(value) || 0))
     : [];
   const labels = Array.isArray(element.labels) ? element.labels : [];
+  const colors = element.engagementResults
+    ? normalizeEngagementOptionColors(labels, element.colors)
+    : labels.map(() => element.fill || deck.theme.colors.accent);
   const padding = 30;
   const max = Math.max(1, ...values);
   const barGap = 12;
@@ -537,11 +540,11 @@ function drawChart(ctx, element, deck) {
   ctx.lineTo(element.w - padding + 4, padding + chartHeight);
   ctx.stroke();
 
-  ctx.fillStyle = element.fill || deck.theme.colors.accent;
   values.forEach((value, index) => {
     const height = (value / max) * chartHeight;
     const x = padding + index * (barWidth + barGap);
     const y = padding + chartHeight - height;
+    ctx.fillStyle = colors[index] || element.fill || deck.theme.colors.accent;
     if (height > 0) {
       roundedRect(ctx, x, y, barWidth, height, Math.min(5, height / 2));
       ctx.fill();
@@ -645,6 +648,7 @@ function drawChoicePreview(ctx, element, deck, options, padding, y, renderOption
   const availableHeight = Math.max(48, element.h - y - padding);
   const rowGap = options.length > 6 ? 5 : 10;
   const rowHeight = Math.max(16, Math.min(46, (availableHeight - rowGap * Math.max(0, options.length - 1)) / options.length));
+  const optionColors = normalizeEngagementOptionColors(options, element.optionColors);
 
   ctx.font = `700 ${Math.max(11, Math.min(20, rowHeight * 0.44))}px ${deck.theme.fonts.body}, Arial, sans-serif`;
   ctx.textBaseline = "middle";
@@ -656,6 +660,9 @@ function drawChoicePreview(ctx, element, deck, options, padding, y, renderOption
     roundedRect(ctx, padding, rowY, element.w - padding * 2, rowHeight, 8);
     ctx.fill();
     ctx.stroke();
+    ctx.fillStyle = optionColors[index];
+    roundedRect(ctx, padding + 8, rowY + 7, 6, Math.max(4, rowHeight - 14), 3);
+    ctx.fill();
     ctx.fillStyle = correct.has(option) ? "#0c6f66" : deck.theme.colors.ink;
     const count = Math.max(0, Number(element.results?.[option]) || 0);
     const total = Math.max(1, Object.values(element.results || {}).reduce((sum, value) => sum + (Number(value) || 0), 0));
@@ -663,13 +670,13 @@ function drawChoicePreview(ctx, element, deck, options, padding, y, renderOption
     if (progress > 0) {
       ctx.save();
       ctx.globalAlpha *= 0.16;
-      ctx.fillStyle = correct.has(option) ? "#0c8b7f" : element.accent || deck.theme.colors.primary;
+      ctx.fillStyle = correct.has(option) ? "#0c8b7f" : optionColors[index];
       roundedRect(ctx, padding, rowY, (element.w - padding * 2) * progress, rowHeight, 8);
       ctx.fill();
       ctx.restore();
     }
     ctx.fillStyle = correct.has(option) ? "#0c6f66" : deck.theme.colors.ink;
-    ctx.fillText(`${String.fromCharCode(65 + index)}. ${option} · ${count}`, padding + 16, rowY + rowHeight / 2, element.w - padding * 2 - 32);
+    ctx.fillText(`${String.fromCharCode(65 + index)}. ${option} · ${count}`, padding + 24, rowY + rowHeight / 2, element.w - padding * 2 - 40);
   });
 }
 

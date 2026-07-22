@@ -3,6 +3,7 @@ import {
   DEFAULT_REACTION_OPTIONS,
   MAX_ENGAGEMENT_OPTIONS,
   MAX_REACTION_OPTIONS,
+  normalizeEngagementOptionColors,
   REACTION_CATALOG,
   SLIDE_SIZE,
   cloneElement,
@@ -2335,6 +2336,18 @@ function elementInspectorFields(element) {
   }
 
   if (element.type === "chart") {
+    const slide = currentSlide();
+    const linkedEngagementChart = Boolean(element.engagementResults) &&
+      ["poll", "multipleChoice"].includes(slide?.engagement?.type);
+    if (linkedEngagementChart) {
+      return `
+        <section class="inspector-section">
+          <strong>Poll chart</strong>
+          <div class="field-row"><label for="chartTitleInput">Title</label><input id="chartTitleInput" value="${attr(element.title)}" /></div>
+          ${engagementOptionEditor(slide.engagement, "chart")}
+          <p class="field-help">Values come from live audience responses and start at zero.</p>
+        </section>`;
+    }
     return `
       <section class="inspector-section">
         <strong>Chart</strong>
@@ -2466,12 +2479,19 @@ function bindTypeFields(element) {
 
   if (element.type === "chart") {
     bindValue("#chartTitleInput", (value) => (element.title = value));
-    bindValue("#chartLabelsInput", (value) => (element.labels = value.split(/\n/).filter(Boolean)));
-    bindValue("#chartValuesInput", (value) => (element.values = value.split(/\n/).map(Number).filter((number) => !Number.isNaN(number))));
-    bindValue("#chartFillInput", (value) => {
-      element.brandColorStyleId = null;
-      element.fill = value;
-    });
+    if (element.engagementResults && ["poll", "multipleChoice"].includes(currentSlide()?.engagement?.type)) {
+      const slide = currentSlide();
+      bindEngagementOptionEditor(slide.engagement, "chart", () => {
+        syncEngagementElementsFromSlide(slide);
+      });
+    } else {
+      bindValue("#chartLabelsInput", (value) => (element.labels = value.split(/\n/).filter(Boolean)));
+      bindValue("#chartValuesInput", (value) => (element.values = value.split(/\n/).map(Number).filter((number) => !Number.isNaN(number))));
+      bindValue("#chartFillInput", (value) => {
+        element.brandColorStyleId = null;
+        element.fill = value;
+      });
+    }
   }
 
   if (element.type === "table") {
@@ -2832,6 +2852,7 @@ function engagementOptionEditor(engagement, scope) {
   }
 
   const options = engagement.options || [];
+  engagement.optionColors = normalizeEngagementOptionColors(options, engagement.optionColors);
   const atOptionLimit = options.length >= MAX_ENGAGEMENT_OPTIONS;
   const correctAnswers = new Set(engagement.correctAnswers || []);
   const supportsAnswers = engagement.type === "multipleChoice" && engagement.hasCorrectAnswers;
@@ -2843,6 +2864,7 @@ function engagementOptionEditor(engagement, scope) {
               ${supportsAnswers
                 ? `<input class="engagement-option-correct" type="checkbox" data-option-correct="${index}" ${correctAnswers.has(option) ? "checked" : ""} aria-label="Mark option ${index + 1} correct" title="Correct answer" />`
                 : `<span class="engagement-option-number" aria-hidden="true">${index + 1}</span>`}
+              <input class="engagement-option-color" type="color" data-option-color="${index}" value="${engagement.optionColors[index]}" aria-label="Color for option ${index + 1}" title="Option color" />
               <input type="text" data-option-text="${index}" value="${attr(option)}" aria-label="Option ${index + 1}" />
               <button class="engagement-option-remove" type="button" data-option-remove="${index}" aria-label="Remove option ${index + 1}" title="Remove option">&times;</button>
             </div>
@@ -5460,6 +5482,7 @@ function bindValue(selector, setter) {
 function bindEngagementOptionEditor(engagement, scope, synchronize) {
   const editor = document.querySelector(`[data-option-editor="${scope}"]`);
   if (!editor) return;
+  engagement.optionColors = normalizeEngagementOptionColors(engagement.options, engagement.optionColors);
 
   const updateViews = (message, rebuild = false) => {
     engagement.responseLimit = Math.min(
@@ -5484,6 +5507,11 @@ function bindEngagementOptionEditor(engagement, scope, synchronize) {
       const index = Number(input.dataset.optionText);
       const previous = engagement.options[index];
       engagement.options[index] = input.value;
+      if (previous !== input.value && Object.hasOwn(engagement.results || {}, previous)) {
+        engagement.results[input.value] = (Number(engagement.results[input.value]) || 0) +
+          (Number(engagement.results[previous]) || 0);
+        delete engagement.results[previous];
+      }
       engagement.correctAnswers = (engagement.correctAnswers || []).map((answer) =>
         answer === previous ? input.value : answer
       );
@@ -5495,6 +5523,13 @@ function bindEngagementOptionEditor(engagement, scope, synchronize) {
         engagement.options[index] = `Option ${index + 1}`;
         updateViews("Empty option restored", true);
       }
+    });
+  });
+
+  editor.querySelectorAll("[data-option-color]").forEach((input) => {
+    input.addEventListener("input", () => {
+      engagement.optionColors[Number(input.dataset.optionColor)] = input.value;
+      updateViews("Engagement option color updated");
     });
   });
 
@@ -5513,6 +5548,7 @@ function bindEngagementOptionEditor(engagement, scope, synchronize) {
     button.addEventListener("click", () => {
       const index = Number(button.dataset.optionRemove);
       const [removed] = engagement.options.splice(index, 1);
+      engagement.optionColors.splice(index, 1);
       engagement.correctAnswers = (engagement.correctAnswers || []).filter((answer) => answer !== removed);
       updateViews("Engagement option removed", true);
     });
@@ -5527,6 +5563,7 @@ function bindEngagementOptionEditor(engagement, scope, synchronize) {
       label = `Option ${number}`;
     }
     engagement.options.push(label);
+    engagement.optionColors = normalizeEngagementOptionColors(engagement.options, engagement.optionColors);
     updateViews("Engagement option added", true);
   });
 }
@@ -5835,6 +5872,10 @@ function syncSlideEngagementFromElement(element) {
   slide.engagement.type = element.mode || "poll";
   slide.engagement.prompt = element.prompt || "";
   slide.engagement.options = [...(element.options || [])];
+  slide.engagement.optionColors = normalizeEngagementOptionColors(
+    slide.engagement.options,
+    element.optionColors
+  );
   slide.engagement.correctAnswers = [...(element.correctAnswers || [])];
   slide.engagement.hasCorrectAnswers = Boolean(element.hasCorrectAnswers);
   slide.engagement.showCorrectAnswer = element.showCorrectAnswer ?? true;
@@ -5855,6 +5896,10 @@ function syncEngagementElementsFromSlide(slide) {
     element.mode = slide.engagement.type;
     element.prompt = slide.engagement.prompt;
     element.options = [...(slide.engagement.options || [])];
+    element.optionColors = normalizeEngagementOptionColors(
+      element.options,
+      slide.engagement.optionColors
+    );
     element.correctAnswers = [...(slide.engagement.correctAnswers || [])];
     element.hasCorrectAnswers = Boolean(slide.engagement.hasCorrectAnswers);
     element.results = { ...(slide.engagement.results || {}) };

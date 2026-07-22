@@ -4,6 +4,7 @@
 
 ### Editor
 
+- Replaced linked poll-chart label/value textareas with the same editable option rows used by Poll and Multiple Choice elements. Every option now receives a distinct default color that editors can override; the color follows that option into live charts, slide results, and Participant View.
 - Removed the duplicate Primary and Accent color controls from slide Properties. Those values remain as internal deck defaults and named global color styles managed through Global Deck Settings.
 - Fixed live word clouds so the engagement element receives current D1 totals, repeated phrases render at clearly different sizes, and case-insensitive matches preserve the capitalization of the first submitted response.
 - Changed the Add Slide button to create a blank slide instead of automatically inserting the two-column template. New blank slides still inherit the deck's default background and logo settings.

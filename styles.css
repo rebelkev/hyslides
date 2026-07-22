@@ -1137,11 +1137,32 @@ label {
   align-items: center;
   display: grid;
   gap: 7px;
-  grid-template-columns: 24px minmax(0, 1fr) 34px;
+  grid-template-columns: 24px 40px minmax(0, 1fr) 34px;
 }
 
 .engagement-option-row input[type="text"] {
   min-width: 0;
+}
+
+.engagement-option-color {
+  height: 38px;
+  min-height: 38px;
+  padding: 3px;
+  width: 40px;
+}
+
+.audience-option-button {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.audience-option-swatch {
+  background: var(--option-color, #2454d6);
+  border-radius: 999px;
+  flex: 0 0 auto;
+  height: 12px;
+  width: 12px;
 }
 
 .engagement-option-correct {

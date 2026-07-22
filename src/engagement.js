@@ -3,6 +3,7 @@ import {
   MAX_ENGAGEMENT_OPTIONS,
   MAX_REACTION_OPTIONS,
   REACTION_CATALOG,
+  normalizeEngagementOptionColors,
   normalizeReactionOption,
 } from "./schema.js";
 import { mergeWordCloudEntries } from "./word-cloud.js";
@@ -32,6 +33,10 @@ export function ensureEngagement(slide) {
   slide.engagement.prompt ||= "What should we prioritize next?";
   slide.engagement.options ||= ["Option A", "Option B", "Option C"];
   slide.engagement.options = slide.engagement.options.slice(0, MAX_ENGAGEMENT_OPTIONS);
+  slide.engagement.optionColors = normalizeEngagementOptionColors(
+    slide.engagement.options,
+    slide.engagement.optionColors
+  );
   slide.engagement.correctAnswers ||= [];
   slide.engagement.hasCorrectAnswers ??= legacyQuiz || slide.engagement.correctAnswers.length > 0;
   slide.engagement.showCorrectAnswer ??= true;
@@ -150,17 +155,19 @@ export function renderAudienceContent(container, deck, slide, onSubmit, latestRe
       : 1;
     const options = document.createElement("div");
     options.className = "audience-options";
-    for (const option of engagement.options) {
+    engagement.options.forEach((option, index) => {
       const button = document.createElement("button");
       button.type = "button";
-      button.textContent = option;
+      button.className = "audience-option-button";
+      button.style.setProperty("--option-color", engagement.optionColors[index]);
+      button.innerHTML = `<span class="audience-option-swatch" aria-hidden="true"></span><span>${escapeHtml(option)}</span>`;
       if (latestResponses.includes(option)) {
         button.setAttribute("aria-pressed", "true");
       }
       button.disabled = latestResponses.includes(option) || latestResponses.length >= responseLimit;
       button.addEventListener("click", () => onSubmit({ value: option }));
       options.append(button);
-    }
+    });
     container.append(options);
   }
 
@@ -207,17 +214,17 @@ export function renderAudienceContent(container, deck, slide, onSubmit, latestRe
 function renderResults(container, engagement) {
   const totals = Object.values(engagement.results).reduce((sum, value) => sum + value, 0) || 1;
   const correctAnswers = engagement.correctAnswerRevealed ? normalizedCorrectAnswers(engagement) : [];
-  for (const option of engagement.options) {
+  engagement.options.forEach((option, index) => {
     const count = engagement.results[option] || 0;
     const marker = correctAnswers.includes(option) ? " · Correct" : "";
     const row = document.createElement("div");
     row.className = "result-row";
     row.innerHTML = `
       <span>${escapeHtml(option)} · ${count}${marker}</span>
-      <div class="result-bar"><i style="width:${Math.round((count / totals) * 100)}%"></i></div>
+      <div class="result-bar"><i style="width:${Math.round((count / totals) * 100)}%;background:${engagement.optionColors[index]}"></i></div>
     `;
     container.append(row);
-  }
+  });
 }
 
 function renderCorrectAnswerControls(container, engagement, onChange) {
