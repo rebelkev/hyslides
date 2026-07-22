@@ -48,16 +48,23 @@
     </svg>
     <div id="app" class="app-shell" data-mode="edit">
       <header class="topbar" aria-label="Main toolbar">
-        <div class="brand">
-          <span class="brand-mark" aria-hidden="true">H</span>
-          <span>HySlides</span>
+        <div class="app-menu-wrap">
+          <button id="appMenuBtn" class="brand app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="appMenu">
+            <span class="brand-mark" aria-hidden="true">H</span>
+            <span>HySlides</span>
+            <span class="app-menu-chevron" aria-hidden="true">⌄</span>
+          </button>
+          <div id="appMenu" class="app-menu hidden" role="menu" aria-label="HySlides menu">
+            <button id="newDeckBtn" type="button" role="menuitem" data-icon="plus">New deck</button>
+            <button id="saveDeckBtn" type="button" role="menuitem" data-icon="save">Save now</button>
+            <button id="deckLibraryBtn" type="button" role="menuitem" data-icon="folder">Open saved decks</button>
+            <div class="app-menu-divider" role="separator"></div>
+            <button id="helpFaqBtn" type="button" role="menuitem" data-icon="help-circle">Help &amp; FAQ</button>
+          </div>
         </div>
         <nav class="toolbar" aria-label="Deck actions">
-          <button id="newDeckBtn" type="button" title="New deck" data-icon="plus">New</button>
-          <button id="saveDeckBtn" type="button" title="Save deck" data-icon="save">Save</button>
           <button id="undoBtn" type="button" title="Undo (Command/Ctrl+Z)" data-icon="undo" disabled>Undo</button>
           <button id="redoBtn" type="button" title="Redo (Command/Ctrl+Shift+Z)" data-icon="redo" disabled>Redo</button>
-          <button id="deckLibraryBtn" type="button" title="Open saved decks" data-icon="folder">Decks</button>
           <button id="sessionHistoryBtn" type="button" title="Session history" data-icon="history">Sessions</button>
           <button id="globalSettingsBtn" type="button" title="Global deck settings" data-icon="settings">Settings</button>
           <label class="button" for="pptxInput" title="Import PowerPoint" data-icon="upload">Import PPTX</label>
@@ -145,6 +152,22 @@
         </div>
         <div id="inspector" class="inspector"></div>
       </aside>
+    </div>
+
+    <div id="helpFaqOverlay" class="modal-overlay hidden" aria-hidden="true">
+      <section class="help-faq-card" role="dialog" aria-modal="true" aria-labelledby="helpFaqTitle">
+        <header class="presenter-head">
+          <div><strong id="helpFaqTitle">HySlides help</strong><span>Quick instructions for creating and presenting.</span></div>
+          <button id="closeHelpFaqBtn" type="button">Close</button>
+        </header>
+        <div class="help-faq-content">
+          <section><h3>Create a presentation</h3><p>Add blank slides or choose a layout from Templates. Changes autosave in this browser; Save now forces an immediate save.</p></section>
+          <section><h3>Present and invite participants</h3><p>Select Present to open Presenter View. Participants join using the QR code or six-digit access code and follow the current slide from their own device.</p></section>
+          <section><h3>Use audience engagement</h3><p>Add an Engagement element or engagement template, customize its choices, then go live. Results update on the slide as responses arrive.</p></section>
+          <section><h3>What are the four views?</h3><p><strong>Editor View</strong> builds slides. <strong>Presentation View</strong> is projected to the room. <strong>Participant View</strong> appears on audience devices. <strong>Presenter View</strong> controls the live presentation.</p></section>
+          <section><h3>Where are saved decks?</h3><p>Open the HySlides menu and choose Open saved decks. Decks currently remain in this browser until user accounts and cloud storage are introduced.</p></section>
+        </div>
+      </section>
     </div>
 
     <div id="presenterOverlay" class="presenter hidden" aria-hidden="true">

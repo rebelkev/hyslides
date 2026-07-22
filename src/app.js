@@ -247,6 +247,32 @@ async function init() {
 }
 
 function bindEvents() {
+  const appMenuButton = document.querySelector("#appMenuBtn");
+  const appMenu = document.querySelector("#appMenu");
+  const helpOverlay = document.querySelector("#helpFaqOverlay");
+  const closeAppMenu = () => {
+    appMenu?.classList.add("hidden");
+    appMenuButton?.setAttribute("aria-expanded", "false");
+  };
+  appMenuButton?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const opening = appMenu.classList.contains("hidden");
+    appMenu.classList.toggle("hidden", !opening);
+    appMenuButton.setAttribute("aria-expanded", String(opening));
+  });
+  appMenu?.addEventListener("click", (event) => {
+    if (event.target.closest("[role='menuitem']")) closeAppMenu();
+  });
+  document.querySelector("#helpFaqBtn")?.addEventListener("click", () => {
+    helpOverlay.classList.remove("hidden");
+    helpOverlay.setAttribute("aria-hidden", "false");
+  });
+  const closeHelp = () => {
+    helpOverlay?.classList.add("hidden");
+    helpOverlay?.setAttribute("aria-hidden", "true");
+  };
+  document.querySelector("#closeHelpFaqBtn")?.addEventListener("click", closeHelp);
+  helpOverlay?.addEventListener("click", (event) => { if (event.target === helpOverlay) closeHelp(); });
   window.addEventListener("resize", () => {
     if (presentationWindowMode && presenterOpen) syncPresentationEmbeds(currentSlide());
     if (audienceOpen && audienceLive.state?.slide) syncAudienceEmbeds(audienceLive.state.slide);
@@ -451,6 +477,7 @@ function bindEvents() {
 
   document.addEventListener("keydown", onKeyDown);
   document.addEventListener("click", (event) => {
+    if (!event.target.closest(".app-menu-wrap")) closeAppMenu();
     if (
       (openSlideMenuIndex === null && openSectionMenuId === null) ||
       event.target.closest(".slide-menu") ||
@@ -494,15 +521,21 @@ function upgradeIconButtons() {
     "layer-up": "bring-to-front", "layer-down": "send-to-back", "to-front": "chevrons-up",
     "to-back": "chevrons-down", "align-horizontal": "align-horizontal-space-around",
     "align-vertical": "align-vertical-space-around", "zoom-out": "zoom-out", "zoom-in": "zoom-in",
-    undo: "undo-2", redo: "redo-2", timer: "timer", video: "video",
+    undo: "undo-2", redo: "redo-2", timer: "timer", video: "video", "help-circle": "circle-help",
   };
   document.querySelectorAll("[data-icon]").forEach((control) => {
     const label = control.getAttribute("aria-label") || control.getAttribute("title") || control.textContent.trim();
     const icon = control.dataset.icon;
-    control.classList.add("icon-button");
+    const menuItem = control.getAttribute("role") === "menuitem";
+    control.classList.add(menuItem ? "menu-icon-button" : "icon-button");
     control.setAttribute("aria-label", label);
     control.dataset.tooltip = label;
-    control.innerHTML = `
+    control.innerHTML = menuItem ? `
+      <span class="button-icon" data-lucide="${attr(lucideNames[icon] || icon)}" aria-hidden="true">
+        <svg class="button-icon" aria-hidden="true" focusable="false"><use href="#icon-${icon}"></use></svg>
+      </span>
+      <span>${escapeHtml(label)}</span>
+    ` : `
       <span class="button-icon" data-lucide="${attr(lucideNames[icon] || icon)}" aria-hidden="true">
         <svg class="button-icon" aria-hidden="true" focusable="false"><use href="#icon-${icon}"></use></svg>
       </span>
