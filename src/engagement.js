@@ -202,23 +202,6 @@ export function renderAudienceContent(container, deck, slide, onSubmit, latestRe
     container.append(guidance);
   }
 
-  if (latestResponses.length) {
-    const results = document.createElement("section");
-    results.className = "audience-results";
-    const heading = document.createElement("strong");
-    heading.textContent = engagement.type === "wordCloud" ? "Everyone's responses" : "Live results";
-    results.append(heading);
-    if (["poll", "multipleChoice"].includes(engagement.type)) {
-      renderResults(results, engagement);
-    } else if (engagement.type === "wordCloud") {
-      renderWordCloud(results, engagement);
-    } else if (engagement.type === "qna") {
-      return;
-    } else if (engagement.type === "reactions") {
-      renderReactions(results, engagement);
-    }
-    container.append(results);
-  }
 }
 
 function renderResults(container, engagement) {

@@ -3636,7 +3636,11 @@ function updatePresenterTimer() {
 function togglePresentationBlackout() {
   presentationBlackout = !presentationBlackout;
   applyPresentationBlackout();
-  presenterChannel?.postMessage({ type: "presentation-blackout", value: presentationBlackout });
+  const message = { type: "presentation-blackout", value: presentationBlackout };
+  presenterChannel?.postMessage(message);
+  if (presentationWindow && !presentationWindow.closed) {
+    presentationWindow.postMessage(message, location.origin);
+  }
 }
 
 function applyPresentationBlackout() {
@@ -3647,6 +3651,11 @@ function applyPresentationBlackout() {
 }
 
 function bindPresenterChannel() {
+  window.addEventListener("message", (event) => {
+    if (event.origin !== location.origin || event.data?.type !== "presentation-blackout") return;
+    presentationBlackout = Boolean(event.data.value);
+    applyPresentationBlackout();
+  });
   if (!presenterChannel) {
     return;
   }
