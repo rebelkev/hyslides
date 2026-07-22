@@ -1846,6 +1846,8 @@ label {
   width: min(100%, 720px);
 }
 
+.audience-card > .presenter-head { display: none; }
+
 .audience-slide-frame {
   background: #111827;
   border-radius: 8px;
@@ -1945,10 +1947,15 @@ label {
 body.audience-window { background: #f8fafc; min-width: 0; overflow: hidden; }
 body.audience-window .app-shell { display: none !important; }
 body.audience-window .audience { background: #f8fafc; padding: 0; }
-body.audience-window .audience-card { border-radius: 0; height: 100vh; max-height: none; max-width: none; padding: 16px; width: 100vw; }
-body.audience-window .audience-card > .presenter-head { justify-content: flex-start; }
+body.audience-window .audience-card { border-radius: 0; height: 100dvh; max-height: none; max-width: none; padding: 0; width: 100vw; }
 body.audience-window #closeAudienceBtn { display: none; }
-body.audience-window .audience-slide-frame { margin-top: 12px; }
+body.audience-window .audience-slide-frame {
+  aspect-ratio: 16 / 9;
+  margin: 0 auto;
+  max-height: 100dvh;
+  width: min(100vw, calc(100dvh * 16 / 9));
+}
+body.audience-window #audienceCanvas { height: 100%; width: 100%; }
 
 .participant-qna-launcher {
   align-items: center;

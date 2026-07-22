@@ -79,6 +79,7 @@
 
 ### Presenter View v1
 
+- Added persistent same-origin Black Screen synchronization so the projected tab still responds if direct messaging or BroadcastChannel delivery is unavailable.
 - Made Black Screen reach the projected Presentation View through both the shared presenter channel and a direct tab-to-tab fallback, while the private Presenter View remains visible as a confidence monitor.
 - Synchronized YouTube play, pause, restart, and playback position through the live session so remote Participant Views display the playing video instead of a static placeholder. Participant video is muted to avoid room echo and satisfy mobile autoplay rules.
 - Added a muted, synchronized YouTube monitor directly on the Presenter View slide preview, plus Play/Pause and Restart controls that operate the projected Presentation View player.
@@ -112,6 +113,7 @@
 
 ### Presenter View Layout
 
+- Removed the session Pause action and arranged Clear responses / Add timer followed by New session / End session in a balanced two-column control grid.
 - Removed the redundant next-slide preview and enlarged the current slide.
 - Moved speaker notes above a compact Live Session panel and removed duplicate QR/link controls.
 - Added a one-click timer insertion action for unplanned breaks.
@@ -122,6 +124,7 @@
 
 ### Participant View Layout
 
+- Removed the deck-title header at every Participant View breakpoint and constrained the slide to the available viewport so presentation-only slides fit without vertical scrolling.
 - Removed the duplicate post-response results panel because live totals already update inside the displayed slide.
 - Stabilized word-cloud and Q&A text entry by avoiding unchanged polling rerenders, preserving drafts, and deferring visible refreshes while a participant is actively typing.
 - Kept word-cloud phrases intact, allowed distinct submissions from the same participant, and limited the empty-state helper text to Editor View previews.

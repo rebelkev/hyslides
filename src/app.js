@@ -157,6 +157,7 @@ let presenterAnimation = createAnimationPlaybackState();
 const presenterWindowMode = location.hash === "#presenter";
 const presentationWindowMode = location.hash === "#presentation";
 const presenterChannel = "BroadcastChannel" in window ? new BroadcastChannel("hyslides-presenter") : null;
+const PRESENTATION_BLACKOUT_STORAGE_PREFIX = "hyslides-presentation-blackout:";
 let skippedSlideIds = new Set();
 let presentationBlackout = false;
 let presenterStartedAt = 0;
@@ -3582,6 +3583,11 @@ function launchPresenterWindow() {
 }
 
 function openPresentationWindow() {
+  presentationBlackout = false;
+  localStorage.setItem(
+    `${PRESENTATION_BLACKOUT_STORAGE_PREFIX}${deck.id}`,
+    JSON.stringify({ value: false, updatedAt: Date.now() })
+  );
   presentationWindow = window.open(`${location.href.split("#")[0]}#presentation`, "_blank");
   if (!presentationWindow) {
     setStatus("Allow HySlides to open Presentation View in a new tab");
@@ -3638,6 +3644,10 @@ function togglePresentationBlackout() {
   applyPresentationBlackout();
   const message = { type: "presentation-blackout", value: presentationBlackout };
   presenterChannel?.postMessage(message);
+  localStorage.setItem(
+    `${PRESENTATION_BLACKOUT_STORAGE_PREFIX}${deck.id}`,
+    JSON.stringify({ value: presentationBlackout, updatedAt: Date.now() })
+  );
   if (presentationWindow && !presentationWindow.closed) {
     presentationWindow.postMessage(message, location.origin);
   }
@@ -3651,6 +3661,28 @@ function applyPresentationBlackout() {
 }
 
 function bindPresenterChannel() {
+  const syncStoredBlackout = () => {
+    if (!presentationWindowMode) return;
+    try {
+      const stored = JSON.parse(localStorage.getItem(`${PRESENTATION_BLACKOUT_STORAGE_PREFIX}${deck.id}`) || "null");
+      if (!stored || Boolean(stored.value) === presentationBlackout) return;
+      presentationBlackout = Boolean(stored.value);
+      applyPresentationBlackout();
+    } catch {
+      // Ignore malformed state left by extensions or manual storage edits.
+    }
+  };
+  syncStoredBlackout();
+  if (presentationWindowMode) window.setInterval(syncStoredBlackout, 250);
+  window.addEventListener("storage", (event) => {
+    if (event.key !== `${PRESENTATION_BLACKOUT_STORAGE_PREFIX}${deck.id}` || !event.newValue) return;
+    try {
+      presentationBlackout = Boolean(JSON.parse(event.newValue).value);
+      applyPresentationBlackout();
+    } catch {
+      // Ignore malformed state left by extensions or manual storage edits.
+    }
+  });
   window.addEventListener("message", (event) => {
     if (event.origin !== location.origin || event.data?.type !== "presentation-blackout") return;
     presentationBlackout = Boolean(event.data.value);
@@ -4522,24 +4554,21 @@ function renderLiveJoinPanel(slide) {
   const participantText = slide.engagement?.enabled
     ? `${liveSession.responseCount}/${liveSession.participantCount} connected participants responded.`
     : `${liveSession.participantCount} participant${liveSession.participantCount === 1 ? "" : "s"} connected.`;
-  const paused = liveSession.lifecycleStatus === "paused";
   panel.innerHTML = `
     <div class="live-join-copy">
       <span>${escapeHtml(participantText)}</span>
       <div class="live-join-actions">
         ${!liveSession.backendAvailable ? '<button id="reconnectLiveSessionBtn" class="primary" type="button">Reconnect / Go live</button>' : ""}
-        <button id="toggleLiveSessionBtn" type="button">${paused ? "Resume" : "Pause"}</button>
         <button id="clearLiveSlideBtn" type="button">Clear responses</button>
         <button id="insertLiveTimerBtn" type="button">Add timer to slide</button>
-        <button id="endLiveSessionBtn" type="button">End session</button>
         <button id="newLiveSessionBtn" type="button">New session</button>
+        <button id="endLiveSessionBtn" type="button">End session</button>
       </div>
       <small>${escapeHtml(liveSession.status)}</small>
     </div>
   `;
   dom.liveControls.prepend(panel);
   panel.querySelector("#reconnectLiveSessionBtn")?.addEventListener("click", reconnectLiveSession);
-  panel.querySelector("#toggleLiveSessionBtn")?.addEventListener("click", () => runLiveControl(paused ? "resume" : "pause"));
   panel.querySelector("#insertLiveTimerBtn")?.addEventListener("click", insertCountdownFromPresenter);
   panel.querySelector("#clearLiveSlideBtn")?.addEventListener("click", () => {
     if (confirm("Clear every response to the current slide? This cannot be undone.")) runLiveControl("clearSlide");
