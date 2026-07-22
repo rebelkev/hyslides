@@ -2103,10 +2103,6 @@ function renderSlideInspector(slide) {
     </section>
     <section class="inspector-section">
       <strong>Theme</strong>
-      <div class="field-grid">
-        <div class="field-row"><label for="primaryColor">Primary</label><input id="primaryColor" type="color" value="${deck.theme.colors.primary}" /></div>
-        <div class="field-row"><label for="accentColor">Accent</label><input id="accentColor" type="color" value="${deck.theme.colors.accent}" /></div>
-      </div>
       <div class="field-row">
         <label for="brandColorInput">Saved brand colors</label>
         <div class="brand-color-save">
@@ -2208,8 +2204,6 @@ function renderSlideInspector(slide) {
     markChanged("Background image removed");
     renderAll();
   });
-  bindValue("#primaryColor", (value) => (deck.theme.colors.primary = value));
-  bindValue("#accentColor", (value) => (deck.theme.colors.accent = value));
   bindBrandPaletteManager();
   bindToggle("#snapToggle", (value) => (deck.settings.snapToGrid = value));
   bindToggle("#guideToggle", (value) => (deck.settings.showGuides = value));
