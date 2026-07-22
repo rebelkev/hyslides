@@ -2,6 +2,7 @@
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
 import { containsBlockedLanguage } from "../src/moderation.js";
+import { mergeWordCloudEntries } from "../src/word-cloud.js";
 
 interface Env {
   ASSETS: Fetcher;
@@ -831,7 +832,8 @@ async function applyLiveAggregates(
     .all<LiveCountRow>();
   const submissions = await db.prepare(
     `SELECT kind, value FROM hyslides_live_instance_submissions
-      WHERE instance_id = ? AND slide_id = ?`
+      WHERE instance_id = ? AND slide_id = ?
+      ORDER BY created_at ASC`
   ).bind(instanceId, slideId).all<{ kind: string; value: string }>();
 
   const results: Record<string, number> = {};
@@ -842,9 +844,18 @@ async function applyLiveAggregates(
     wow: 0,
     fire: 0,
   };
+  const wordCloudEntries: Array<[string, number]> = [];
+  const isWordCloud = stringValue(engagement.type) === "wordCloud";
+  if (isWordCloud) {
+    for (const row of submissions.results || []) {
+      if (row.kind !== "reaction") wordCloudEntries.push([row.value, 1]);
+    }
+  }
   for (const row of counts.results || []) {
     if (row.kind === "reaction") {
       reactions[row.response_key] = row.count;
+    } else if (isWordCloud) {
+      wordCloudEntries.push([row.response_key, row.count]);
     } else {
       results[row.response_key] = row.count;
     }
@@ -852,12 +863,14 @@ async function applyLiveAggregates(
   for (const row of submissions.results || []) {
     if (row.kind === "reaction") {
       reactions[row.value] = (reactions[row.value] || 0) + 1;
-    } else if (stringValue(engagement.type) === "wordCloud") {
-      const phrase = row.value.trim().replace(/\s+/g, " ").toLowerCase();
-      if (phrase) results[phrase] = (results[phrase] || 0) + 1;
+    } else if (isWordCloud) {
+      continue;
     } else {
       results[row.value] = (results[row.value] || 0) + 1;
     }
+  }
+  if (isWordCloud) {
+    Object.assign(results, Object.fromEntries(mergeWordCloudEntries(wordCloudEntries)));
   }
   engagement.results = results;
   engagement.reactions = {
@@ -886,6 +899,13 @@ async function applyLiveAggregates(
     answered: Boolean(question.answered),
     visible: Boolean((question as LiveQuestionRow & { visible: number }).visible),
   }))];
+
+  for (const element of Array.isArray(slide.elements) ? slide.elements as Array<Record<string, unknown>> : []) {
+    if (stringValue(element.type) !== "engagement") continue;
+    element.results = { ...engagement.results as Record<string, number> };
+    element.reactions = { ...engagement.reactions as Record<string, number> };
+    element.qna = [...engagement.qna as Array<Record<string, unknown>>];
+  }
 }
 
 async function getLiveSessionRow(db: D1Database, code: string): Promise<LiveSessionRow> {

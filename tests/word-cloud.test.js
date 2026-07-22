@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createWordCloudLayout } from "../src/word-cloud.js";
+import { createWordCloudLayout, mergeWordCloudEntries } from "../src/word-cloud.js";
 
 const bounds = { x: 0, y: 0, width: 720, height: 320 };
 const measure = (text, fontSize) => text.length * fontSize * 0.56;
@@ -29,6 +29,14 @@ test("word cloud merges capitalization and spacing variants before weighting", (
   assert.equal(layout.length, 2);
   assert.equal(team.count, 5);
   assert.ok(team.fontSize > analytics.fontSize);
+});
+
+test("word cloud preserves the first submitted capitalization while grouping case-insensitively", () => {
+  assert.deepEqual(mergeWordCloudEntries([
+    ["HySlides", 1],
+    ["hyslides", 2],
+    ["HYSLIDES", 3],
+  ]), [["HySlides", 6]]);
 });
 
 test("word cloud uses non-overlapping positions inside its element", () => {

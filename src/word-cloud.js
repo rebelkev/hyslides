@@ -1,7 +1,7 @@
 const DEFAULT_LIMIT = 32;
 
 export function createWordCloudLayout(entries, bounds, measure, options = {}) {
-  const words = normalizeEntries(entries).slice(0, options.limit || DEFAULT_LIMIT);
+  const words = mergeWordCloudEntries(entries).slice(0, options.limit || DEFAULT_LIMIT);
   if (!words.length || bounds.width <= 0 || bounds.height <= 0) return [];
 
   const counts = words.map(([, count]) => count);
@@ -27,7 +27,7 @@ export function createWordCloudLayout(entries, bounds, measure, options = {}) {
   return placed;
 }
 
-function normalizeEntries(entries) {
+export function mergeWordCloudEntries(entries) {
   const merged = new Map();
   for (const [rawText, rawCount] of entries || []) {
     const text = String(rawText || "").trim().replace(/\s+/g, " ");

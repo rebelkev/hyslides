@@ -1,3 +1,5 @@
+import { mergeWordCloudEntries } from "./word-cloud.js";
+
 const LIVE_API_BASE = "/api/live";
 const PUBLIC_APP_BASE_URL = "";
 const SUPABASE_URL = "https://cgdlbwodcacxdkmznvtw.supabase.co";
@@ -377,13 +379,15 @@ function applySupabaseResponsesToSlide(slide, rows) {
   engagement.qna = [];
   engagement.reactions = Object.fromEntries((engagement.reactionOptions || ["thumbsUp", "heart", "clap", "wow", "fire"]).map((key) => [key, 0]));
 
+  const wordCloudEntries = [];
   for (const row of rows) {
     const value = String(row.value || "");
     if (!value) {
       continue;
     }
     if (row.kind === "response") {
-      engagement.results[value] = (engagement.results[value] || 0) + 1;
+      if (engagement.type === "wordCloud") wordCloudEntries.push([value, 1]);
+      else engagement.results[value] = (engagement.results[value] || 0) + 1;
     }
     if (row.kind === "qna") {
       engagement.qna.push({
@@ -396,6 +400,19 @@ function applySupabaseResponsesToSlide(slide, rows) {
     if (row.kind === "reaction") {
       engagement.reactions[value] = (engagement.reactions[value] || 0) + 1;
     }
+  }
+  if (engagement.type === "wordCloud") {
+    engagement.results = Object.fromEntries(mergeWordCloudEntries(wordCloudEntries));
+  }
+  syncLiveEngagementElements(slide);
+}
+
+function syncLiveEngagementElements(slide) {
+  for (const element of slide.elements || []) {
+    if (element.type !== "engagement") continue;
+    element.results = { ...(slide.engagement?.results || {}) };
+    element.reactions = { ...(slide.engagement?.reactions || {}) };
+    element.qna = [...(slide.engagement?.qna || [])];
   }
 }
 
@@ -428,7 +445,7 @@ function supabaseResponseRows(code, slideId, engagement, value) {
     return [{
       ...base,
       kind: "response",
-      value: text.replace(/\s+/g, " ").toLowerCase().slice(0, 200),
+      value: text.replace(/\s+/g, " ").slice(0, 200),
     }];
   }
 

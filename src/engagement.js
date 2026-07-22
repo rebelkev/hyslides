@@ -5,6 +5,7 @@ import {
   REACTION_CATALOG,
   normalizeReactionOption,
 } from "./schema.js";
+import { mergeWordCloudEntries } from "./word-cloud.js";
 
 export const engagementTypes = [
   { value: "poll", label: "Live poll" },
@@ -74,8 +75,10 @@ export function recordAudienceResponse(slide, payload) {
   }
 
   if (engagement.type === "wordCloud") {
-    const phrase = String(payload.value || "").trim().replace(/\s+/g, " ").toLowerCase();
-    if (phrase) engagement.results[phrase] = (engagement.results[phrase] || 0) + 1;
+    const phrase = String(payload.value || "").trim().replace(/\s+/g, " ");
+    if (phrase) engagement.results = Object.fromEntries(
+      mergeWordCloudEntries([...Object.entries(engagement.results), [phrase, 1]])
+    );
   }
 
   if (engagement.type === "qna" && payload.value) {
@@ -283,10 +286,18 @@ function renderCorrectAnswerSummary(container, engagement) {
 
 function renderWordCloud(container, engagement) {
   const words = Object.entries(engagement.results).sort((a, b) => b[1] - a[1]).slice(0, 16);
+  const counts = words.map(([, count]) => Math.max(0, Number(count) || 0));
+  const minCount = counts.length ? Math.min(...counts) : 0;
+  const maxCount = counts.length ? Math.max(...counts) : 0;
+  const fontSize = (count) => {
+    if (maxCount === minCount) return 28;
+    const ratio = (Math.sqrt(count) - Math.sqrt(minCount)) / (Math.sqrt(maxCount) - Math.sqrt(minCount));
+    return Math.round(18 + ratio * 32);
+  };
   const row = document.createElement("div");
   row.className = "result-row word-cloud";
   row.innerHTML = words.length
-    ? words.map(([word, count]) => `<span style="font-size:${Math.min(42, 15 + count * 4)}px">${escapeHtml(word)}</span>`).join(" ")
+    ? words.map(([word, count]) => `<span style="font-size:${fontSize(Math.max(0, Number(count) || 0))}px">${escapeHtml(word)}</span>`).join(" ")
     : "<span>No words yet</span>";
   container.append(row);
 }

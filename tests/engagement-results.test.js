@@ -156,5 +156,6 @@ test("word cloud submissions preserve phrases instead of splitting words", () =>
     engagement: { enabled: true, type: "wordCloud", results: {} },
   });
   recordAudienceResponse(slide, { value: "Customer success" });
-  assert.deepEqual(slide.engagement.results, { "customer success": 1 });
+  recordAudienceResponse(slide, { value: "customer SUCCESS" });
+  assert.deepEqual(slide.engagement.results, { "Customer success": 2 });
 });

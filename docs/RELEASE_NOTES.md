@@ -4,6 +4,7 @@
 
 ### Editor
 
+- Fixed live word clouds so the engagement element receives current D1 totals, repeated phrases render at clearly different sizes, and case-insensitive matches preserve the capitalization of the first submitted response.
 - Changed the Add Slide button to create a blank slide instead of automatically inserting the two-column template. New blank slides still inherit the deck's default background and logo settings.
 - Prevented oversized embedded slide and background images from blocking live sessions by generating compact live-only image copies before storing the current slide in D1.
 - Replaced manual animation order numbers with an Animations panel that groups effects by trigger, supports drag-and-drop and accessible move controls, selects the matching canvas element, and previews or restarts the complete slide sequence.
