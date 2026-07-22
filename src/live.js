@@ -67,8 +67,11 @@ export function isLocalJoinUrl(value) {
 
 const MAX_LIVE_SLIDE_JSON_LENGTH = 700000;
 
-export async function liveSnapshotForDeck(deck, slide, activeSlideIndex, instanceId = "", sessionName = "") {
+export async function liveSnapshotForDeck(deck, slide, activeSlideIndex, instanceId = "", sessionName = "", runtime = {}) {
   const liveSlide = JSON.parse(JSON.stringify(slide));
+  liveSlide.runtimePresentation = {
+    blackout: Boolean(runtime.blackout),
+  };
   await compactLiveSlideImages(liveSlide);
   return {
     instanceId,

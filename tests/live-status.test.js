@@ -17,9 +17,12 @@ test("live snapshots copy slide data without mutating the editor slide", async (
     slide,
     0,
     "instance-1",
-    "Session"
+    "Session",
+    { blackout: true }
   );
   snapshot.slide.elements[0].text = "Changed";
   assert.equal(slide.elements[0].text, "Hello");
   assert.equal(snapshot.activeSlideId, "slide-1");
+  assert.equal(snapshot.slide.runtimePresentation.blackout, true);
+  assert.equal(slide.runtimePresentation, undefined);
 });

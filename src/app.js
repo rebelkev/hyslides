@@ -3646,6 +3646,7 @@ function togglePresentationBlackout() {
   if (presentationWindow && !presentationWindow.closed) {
     presentationWindow.postMessage(message, location.origin);
   }
+  if (presenterWindowMode) queueLivePublish(true);
 }
 
 function publishPresentationControlState() {
@@ -4424,7 +4425,8 @@ async function publishCurrentLiveSession(force = false) {
       liveSlideWithCountdownState(),
       activeSlideIndex,
       liveSession.instanceId,
-      liveSession.sessionName
+      liveSession.sessionName,
+      { blackout: presentationBlackout }
     );
     const signature = JSON.stringify(snapshot);
     if (!force && signature === liveSession.lastPublishedSignature) return;
@@ -4784,6 +4786,7 @@ async function runLiveControl(action) {
 
 async function renderLiveAudience() {
   if (!audienceLive.state) {
+    document.body.classList.remove("audience-blackout");
     dom.audienceEmbedLayer?.replaceChildren();
     dom.audienceDeckTitle.textContent = deck.title || "Untitled presentation";
     dom.audienceContent.innerHTML = `
@@ -4800,6 +4803,17 @@ async function renderLiveAudience() {
   }
 
   const liveSlide = audienceLive.state.slide;
+  const participantBlackout = Boolean(liveSlide.runtimePresentation?.blackout);
+  document.body.classList.toggle("audience-blackout", participantBlackout);
+  if (participantBlackout) {
+    dom.audienceEmbedLayer?.replaceChildren();
+    audienceCtx.setTransform(1, 0, 0, 1, 0, 0);
+    audienceCtx.fillStyle = "#000000";
+    audienceCtx.fillRect(0, 0, dom.audienceCanvas.width, dom.audienceCanvas.height);
+    dom.audienceContent.replaceChildren();
+    audienceLive.lastRenderSignature = audienceRenderSignature();
+    return;
+  }
   const existingWordInput = dom.audienceContent.querySelector("#audienceInput");
   if (existingWordInput) {
     audienceLive.drafts[liveSlide.id] = existingWordInput.value;

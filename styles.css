@@ -1850,7 +1850,7 @@ label {
 
 .audience-slide-frame {
   background: #111827;
-  border-radius: 8px;
+  border-radius: 0;
   margin: 14px 0;
   overflow: hidden;
   position: relative;
@@ -1956,6 +1956,12 @@ body.audience-window .audience-slide-frame {
   width: min(100vw, calc(100dvh * 16 / 9));
 }
 body.audience-window #audienceCanvas { height: 100%; width: 100%; }
+body.audience-window #audienceContent { padding: clamp(16px, 4vw, 28px); }
+body.audience-window.audience-blackout,
+body.audience-window.audience-blackout .audience,
+body.audience-window.audience-blackout .audience-card,
+body.audience-window.audience-blackout .audience-slide-frame { background: #000; }
+body.audience-window.audience-blackout #audienceContent { display: none; }
 
 .participant-qna-launcher {
   align-items: center;
