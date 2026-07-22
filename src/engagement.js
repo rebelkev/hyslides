@@ -10,7 +10,6 @@ export const engagementTypes = [
   { value: "poll", label: "Live poll" },
   { value: "multipleChoice", label: "Multiple choice" },
   { value: "wordCloud", label: "Word cloud" },
-  { value: "qna", label: "Q&A" },
   { value: "reactions", label: "Emoji reactions" },
 ];
 

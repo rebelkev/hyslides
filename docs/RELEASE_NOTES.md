@@ -44,7 +44,7 @@
 - Removed PowerPoint export.
 - Kept organizational slide titles out of the rendered slide footer; optional footers now show only the slide number.
 - Reorganized the left rail into dedicated Slides and Templates tabs, with explicit “Add to deck” actions for every template.
-- Added ready-to-edit templates for Poll, Multiple Choice, Word Cloud, Q&A, and Reactions engagement slides.
+- Added ready-to-edit templates for Poll, Multiple Choice, Word Cloud, and Reactions engagement slides.
 - Streamlined Poll and Multiple Choice setup into one inline option list with editing, removal, adding, and optional correct-answer selection in the same rows.
 - Capped choice-based engagement slides at 10 options and made their on-slide question elements expand and compact their rows so every option remains visible.
 
@@ -95,7 +95,8 @@
 ### Live Q&A Moderation
 
 - Changed Participant View Q&A to a private, submission-only workflow with no public question list.
-- Made Display place exactly one selected question on screen: inside the Q&A engagement element when that slide is active, or in a synchronized overlay over any other Presentation View slide.
+- Made Display place exactly one selected question in a synchronized overlay over the current Presentation View slide.
+- Removed the dedicated Q&A engagement type and template. Live Q&A remains available throughout every session from Participant View and Presenter View.
 - Made Hide, Mark answered, and Delete remove the on-screen question immediately.
 - Improved Participant View Q&A with a mobile bottom sheet, a multi-line question field, and a clear separation between private submissions and presenter-approved displayed questions.
 

@@ -3747,24 +3747,16 @@ function sendPresenterSnapshot() {
   });
 }
 
-function currentSlideShowsFeaturedQuestion() {
-  return currentSlide()?.engagement?.enabled && currentSlide()?.engagement?.type === "qna";
-}
-
 function renderPresentationQuestionOverlay() {
   if (!dom.presentationQuestionOverlay) return;
   const question = liveSession.featuredQuestion;
-  const shouldShow = Boolean(presentationWindowMode && question?.text && !currentSlideShowsFeaturedQuestion());
+  const shouldShow = Boolean(presentationWindowMode && question?.text);
   dom.presentationQuestionOverlay.classList.toggle("hidden", !shouldShow);
   if (shouldShow) dom.presentationQuestionText.textContent = question.text;
 }
 
 async function renderPresenter() {
   const slide = currentSlide();
-  if (slide.engagement?.enabled && slide.engagement.type === "qna") {
-    slide.engagement.qna = liveSession.featuredQuestion ? [liveSession.featuredQuestion] : [];
-    syncEngagementElementsFromSlide(slide);
-  }
   ensureSlideCountdowns(slide);
   ensurePresenterAnimationPlayback(slide);
   dom.presenterDeckTitle.textContent = deck.title;
@@ -4488,9 +4480,6 @@ function applyLiveStateToCurrentSlide(state) {
   });
   slide.engagement.results = state.slide.engagement?.results || {};
   slide.engagement.qna = state.slide.engagement?.qna || [];
-  if (slide.engagement.type === "qna") {
-    slide.engagement.qna = liveSession.featuredQuestion ? [liveSession.featuredQuestion] : [];
-  }
   slide.engagement.reactions = {
     ...slide.engagement.reactions,
     ...(state.slide.engagement?.reactions || {}),

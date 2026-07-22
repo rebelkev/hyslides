@@ -896,17 +896,6 @@ export const layoutTemplates = [
     },
   },
   {
-    id: "qna",
-    name: "Q&A",
-    apply() {
-      return createEngagementTemplateSlide({
-        type: "qna",
-        title: "Audience Q&A",
-        prompt: "What questions should we discuss?",
-      });
-    },
-  },
-  {
     id: "reactions",
     name: "Reactions",
     apply() {

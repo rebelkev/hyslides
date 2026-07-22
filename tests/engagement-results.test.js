@@ -97,7 +97,7 @@ test("polls default to one response per participant", () => {
   assert.equal(createElement("engagement").responseLimit, 1);
 });
 
-test("the template library includes every engagement type", () => {
+test("the template library includes every slide-based engagement type", () => {
   const types = new Set(
     layoutTemplates
       .map((template) => template.apply())
@@ -106,7 +106,7 @@ test("the template library includes every engagement type", () => {
   );
   assert.deepEqual(
     [...types].sort(),
-    ["multipleChoice", "poll", "qna", "reactions", "wordCloud"].sort()
+    ["multipleChoice", "poll", "reactions", "wordCloud"].sort()
   );
 });
 

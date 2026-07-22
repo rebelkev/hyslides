@@ -147,7 +147,7 @@ Participants can submit Q&A at any time during an active session; a dedicated Q&
 
 - Submitted questions enter a private **Pending review** queue in Presenter View.
 - Presenters can Display, Hide, Mark answered/unanswered, or Delete each question.
-- Only one question is placed on screen at a time. On a Q&A slide it fills the Q&A element; on any other slide it appears in a focused Presentation View overlay.
+- Only one question is placed on screen at a time, in a focused Presentation View overlay over the current slide.
 - Participant View is submission-only: audience members never see the moderation queue or other participants' questions in the Q&A panel.
 - Offensive-language filtering is applied before a question is stored.
 - Questions, votes, and moderation state belong to the current session instance and follow the same 14-day retention policy as responses.
