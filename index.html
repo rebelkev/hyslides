@@ -225,6 +225,12 @@
         <div class="audience-slide-frame">
           <canvas id="audienceCanvas" width="1280" height="720" aria-label="Current presentation slide"></canvas>
           <div id="audienceEmbedLayer" class="audience-embed-layer" aria-label="Live slide video"></div>
+          <div id="audienceQuestionOverlay" class="audience-featured-question-overlay hidden" role="status" aria-live="polite">
+            <div class="audience-featured-question-card">
+              <span>Audience question</span>
+              <strong id="audienceQuestionText"></strong>
+            </div>
+          </div>
         </div>
         <div id="audienceContent"></div>
       </div>

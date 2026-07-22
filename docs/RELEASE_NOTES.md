@@ -125,6 +125,7 @@
 
 ### Participant View Layout
 
+- Displayed presenter-approved Q&A now appears as an overlay on remote Participant Views; pending and hidden questions remain private.
 - Extended Black Screen through the live session to remote Participant Views, removed slide-frame corner rounding, and added responsive spacing around participant controls below the slide.
 - Removed the deck-title header at every Participant View breakpoint and constrained the slide to the available viewport so presentation-only slides fit without vertical scrolling.
 - Removed the duplicate post-response results panel because live totals already update inside the displayed slide.

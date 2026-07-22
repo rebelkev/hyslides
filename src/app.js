@@ -120,6 +120,8 @@ const dom = {
   liveControls: document.querySelector("#liveControls"),
   audienceContent: document.querySelector("#audienceContent"),
   audienceDeckTitle: document.querySelector("#audienceDeckTitle"),
+  audienceQuestionOverlay: document.querySelector("#audienceQuestionOverlay"),
+  audienceQuestionText: document.querySelector("#audienceQuestionText"),
   pptxInput: document.querySelector("#pptxInput"),
   imageInput: document.querySelector("#imageInput"),
 };
@@ -4787,6 +4789,7 @@ async function runLiveControl(action) {
 async function renderLiveAudience() {
   if (!audienceLive.state) {
     document.body.classList.remove("audience-blackout");
+    renderAudienceQuestionOverlay(null);
     dom.audienceEmbedLayer?.replaceChildren();
     dom.audienceDeckTitle.textContent = deck.title || "Untitled presentation";
     dom.audienceContent.innerHTML = `
@@ -4806,6 +4809,7 @@ async function renderLiveAudience() {
   const participantBlackout = Boolean(liveSlide.runtimePresentation?.blackout);
   document.body.classList.toggle("audience-blackout", participantBlackout);
   if (participantBlackout) {
+    renderAudienceQuestionOverlay(null);
     dom.audienceEmbedLayer?.replaceChildren();
     audienceCtx.setTransform(1, 0, 0, 1, 0, 0);
     audienceCtx.fillStyle = "#000000";
@@ -4829,6 +4833,7 @@ async function renderLiveAudience() {
     footer: false,
     revealCorrectAnswers: shouldRevealCorrectAnswers(liveSlide),
   });
+  renderAudienceQuestionOverlay(audienceLive.state.featuredQuestion);
   syncAudienceEmbeds(liveSlide);
   const latestResponse = audienceLive.responses[liveSlide.id] || null;
   renderAudienceContent(
@@ -4881,7 +4886,15 @@ function audienceRenderSignature() {
     activeSlideIndex: state?.activeSlideIndex,
     slide: state?.slide,
     questions: state?.questions,
+    featuredQuestion: state?.featuredQuestion,
   });
+}
+
+function renderAudienceQuestionOverlay(question) {
+  if (!dom.audienceQuestionOverlay) return;
+  const shouldShow = Boolean(question?.text);
+  dom.audienceQuestionOverlay.classList.toggle("hidden", !shouldShow);
+  if (shouldShow) dom.audienceQuestionText.textContent = question.text;
 }
 
 function renderSessionQnaForAudience() {

@@ -774,10 +774,9 @@ async function liveState(db: D1Database, code: string, includeHiddenQuestions = 
       SELECT participant_id FROM hyslides_live_instance_questions WHERE instance_id = ? AND slide_id = ?
     )`
   ).bind(session.instance_id, session.active_slide_id, session.instance_id, session.active_slide_id).first<{ count: number }>();
-  const questions = includeHiddenQuestions ? await sessionQuestions(db, session.instance_id, true) : [];
-  const featuredQuestion = includeHiddenQuestions
-    ? questions.find((question) => question.visible && !question.answered) || null
-    : null;
+  const moderatedQuestions = await sessionQuestions(db, session.instance_id, includeHiddenQuestions);
+  const questions = includeHiddenQuestions ? moderatedQuestions : [];
+  const featuredQuestion = moderatedQuestions.find((question) => question.visible && !question.answered) || null;
   return {
     code,
     instanceId: session.instance_id,
