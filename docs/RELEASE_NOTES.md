@@ -79,6 +79,7 @@
 
 ### Presenter View v1
 
+- Unified Black Screen and presenter-selected Q&A into persistent Presentation Control state, preventing missed browser messages from leaving the projected tab out of sync.
 - Added persistent same-origin Black Screen synchronization so the projected tab still responds if direct messaging or BroadcastChannel delivery is unavailable.
 - Made Black Screen reach the projected Presentation View through both the shared presenter channel and a direct tab-to-tab fallback, while the private Presenter View remains visible as a confidence monitor.
 - Synchronized YouTube play, pause, restart, and playback position through the live session so remote Participant Views display the playing video instead of a static placeholder. Participant video is muted to avoid room echo and satisfy mobile autoplay rules.

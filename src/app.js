@@ -157,9 +157,10 @@ let presenterAnimation = createAnimationPlaybackState();
 const presenterWindowMode = location.hash === "#presenter";
 const presentationWindowMode = location.hash === "#presentation";
 const presenterChannel = "BroadcastChannel" in window ? new BroadcastChannel("hyslides-presenter") : null;
-const PRESENTATION_BLACKOUT_STORAGE_PREFIX = "hyslides-presentation-blackout:";
+const PRESENTATION_CONTROL_STORAGE_KEY = "hyslides.presentationControl";
 let skippedSlideIds = new Set();
 let presentationBlackout = false;
+let presentationControlUpdatedAt = 0;
 let presenterStartedAt = 0;
 let presenterTimerInterval = 0;
 let countdownRuntime = new Map();
@@ -3584,10 +3585,7 @@ function launchPresenterWindow() {
 
 function openPresentationWindow() {
   presentationBlackout = false;
-  localStorage.setItem(
-    `${PRESENTATION_BLACKOUT_STORAGE_PREFIX}${deck.id}`,
-    JSON.stringify({ value: false, updatedAt: Date.now() })
-  );
+  publishPresentationControlState();
   presentationWindow = window.open(`${location.href.split("#")[0]}#presentation`, "_blank");
   if (!presentationWindow) {
     setStatus("Allow HySlides to open Presentation View in a new tab");
@@ -3644,13 +3642,44 @@ function togglePresentationBlackout() {
   applyPresentationBlackout();
   const message = { type: "presentation-blackout", value: presentationBlackout };
   presenterChannel?.postMessage(message);
-  localStorage.setItem(
-    `${PRESENTATION_BLACKOUT_STORAGE_PREFIX}${deck.id}`,
-    JSON.stringify({ value: presentationBlackout, updatedAt: Date.now() })
-  );
+  publishPresentationControlState();
   if (presentationWindow && !presentationWindow.closed) {
     presentationWindow.postMessage(message, location.origin);
   }
+}
+
+function publishPresentationControlState() {
+  const state = {
+    deckId: deck.id,
+    audienceCode: deck.settings?.audienceCode || liveSession.code || "",
+    blackout: presentationBlackout,
+    featuredQuestion: liveSession.featuredQuestion || null,
+    updatedAt: Date.now(),
+  };
+  presentationControlUpdatedAt = state.updatedAt;
+  try {
+    localStorage.setItem(PRESENTATION_CONTROL_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // Direct tab messaging remains available when browser storage is restricted.
+  }
+  const message = { type: "presentation-control", state };
+  presenterChannel?.postMessage(message);
+  if (presentationWindow && !presentationWindow.closed) {
+    presentationWindow.postMessage(message, location.origin);
+  }
+}
+
+function applyPresentationControlState(state) {
+  if (!state || Number(state.updatedAt || 0) <= presentationControlUpdatedAt) return;
+  const sameDeck = !state.deckId || state.deckId === deck.id;
+  const currentCode = deck.settings?.audienceCode || liveSession.code || "";
+  const sameSession = !state.audienceCode || !currentCode || state.audienceCode === currentCode;
+  if (!sameDeck && !sameSession) return;
+  presentationControlUpdatedAt = Number(state.updatedAt || Date.now());
+  presentationBlackout = Boolean(state.blackout);
+  liveSession.featuredQuestion = state.featuredQuestion || null;
+  applyPresentationBlackout();
+  renderPresentationQuestionOverlay();
 }
 
 function applyPresentationBlackout() {
@@ -3661,32 +3690,32 @@ function applyPresentationBlackout() {
 }
 
 function bindPresenterChannel() {
-  const syncStoredBlackout = () => {
+  const syncStoredPresentationControls = () => {
     if (!presentationWindowMode) return;
     try {
-      const stored = JSON.parse(localStorage.getItem(`${PRESENTATION_BLACKOUT_STORAGE_PREFIX}${deck.id}`) || "null");
-      if (!stored || Boolean(stored.value) === presentationBlackout) return;
-      presentationBlackout = Boolean(stored.value);
-      applyPresentationBlackout();
+      applyPresentationControlState(JSON.parse(localStorage.getItem(PRESENTATION_CONTROL_STORAGE_KEY) || "null"));
     } catch {
       // Ignore malformed state left by extensions or manual storage edits.
     }
   };
-  syncStoredBlackout();
-  if (presentationWindowMode) window.setInterval(syncStoredBlackout, 250);
+  syncStoredPresentationControls();
+  if (presentationWindowMode) window.setInterval(syncStoredPresentationControls, 250);
   window.addEventListener("storage", (event) => {
-    if (event.key !== `${PRESENTATION_BLACKOUT_STORAGE_PREFIX}${deck.id}` || !event.newValue) return;
+    if (event.key !== PRESENTATION_CONTROL_STORAGE_KEY || !event.newValue) return;
     try {
-      presentationBlackout = Boolean(JSON.parse(event.newValue).value);
-      applyPresentationBlackout();
+      applyPresentationControlState(JSON.parse(event.newValue));
     } catch {
       // Ignore malformed state left by extensions or manual storage edits.
     }
   });
   window.addEventListener("message", (event) => {
-    if (event.origin !== location.origin || event.data?.type !== "presentation-blackout") return;
-    presentationBlackout = Boolean(event.data.value);
-    applyPresentationBlackout();
+    if (event.origin !== location.origin) return;
+    if (event.data?.type === "presentation-control") {
+      applyPresentationControlState(event.data.state);
+    } else if (event.data?.type === "presentation-blackout") {
+      presentationBlackout = Boolean(event.data.value);
+      applyPresentationBlackout();
+    }
   });
   if (!presenterChannel) {
     return;
@@ -3746,6 +3775,9 @@ function bindPresenterChannel() {
     if (message.type === "presentation-blackout") {
       presentationBlackout = Boolean(message.value);
       applyPresentationBlackout();
+    }
+    if (message.type === "presentation-control") {
+      applyPresentationControlState(message.state);
     }
     if (message.type === "animation-command" && presentationWindowMode) {
       const element = currentSlide().elements.find((item) => item.id === message.elementId);
@@ -4505,8 +4537,12 @@ function applyLiveStateToCurrentSlide(state) {
   liveSession.participantCount = Number(state.participantCount || 0);
   liveSession.responseCount = Number(state.responseCount || 0);
   liveSession.questions = Array.isArray(state.questions) ? state.questions : liveSession.questions;
+  const priorFeaturedQuestion = JSON.stringify(liveSession.featuredQuestion || null);
   if (Object.hasOwn(state, "featuredQuestion")) {
     liveSession.featuredQuestion = state.featuredQuestion || null;
+  }
+  if (presenterWindowMode && priorFeaturedQuestion !== JSON.stringify(liveSession.featuredQuestion || null)) {
+    publishPresentationControlState();
   }
   liveSession.lifecycleStatus = state.status || liveSession.lifecycleStatus;
   liveSession.status = liveSession.lifecycleStatus === "active"
