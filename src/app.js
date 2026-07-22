@@ -10,6 +10,7 @@ import {
   createDeck,
   createElement,
   createSection,
+  createSlide,
   createSeedDeck,
   layoutTemplates,
   normalizeDeck,
@@ -281,7 +282,11 @@ function bindEvents() {
   document.querySelector("#closeGlobalSettingsBtn").addEventListener("click", closeGlobalSettings);
 
   document.querySelector("#addSlideBtn").addEventListener("click", () => {
-    const slide = layoutTemplates[1].apply();
+    const slide = createSlide({
+      title: "Blank slide",
+      layout: "blank",
+      elements: [],
+    });
     applyDeckDefaultBackground(slide);
     slide.sectionId = deck.slides[deck.slides.length - 1]?.sectionId || null;
     deck.slides.push(slide);
