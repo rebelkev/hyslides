@@ -2856,6 +2856,21 @@ function engagementOptionEditor(engagement, scope) {
   const atOptionLimit = options.length >= MAX_ENGAGEMENT_OPTIONS;
   const correctAnswers = new Set(engagement.correctAnswers || []);
   const supportsAnswers = engagement.type === "multipleChoice" && engagement.hasCorrectAnswers;
+  const colorPicker = (index) => {
+    const color = engagement.optionColors[index];
+    const swatches = brandColorStyles().map((style) => `
+      <button class="engagement-option-style" type="button" data-option-color-swatch="${index}" data-option-color-value="${attr(style.color)}" title="Use ${attr(style.name)}">
+        <span class="swatch" style="background:${attr(style.color)}"></span><span>${escapeHtml(style.name)}</span>
+      </button>`).join("");
+    return `<details class="engagement-option-color-picker">
+      <summary aria-label="Choose color for option ${index + 1}" title="Option color"><span class="engagement-option-color-preview" style="background:${attr(color)}"></span></summary>
+      <div class="engagement-option-color-menu">
+        <label for="${attr(scope)}OptionColor${index}">Custom color</label>
+        <input id="${attr(scope)}OptionColor${index}" type="color" data-option-color="${index}" value="${attr(color)}" />
+        ${swatches ? `<div class="engagement-option-swatches"><strong>Global color styles</strong>${swatches}</div>` : ""}
+      </div>
+    </details>`;
+  };
   const optionRows = options.length
     ? options
         .map(
@@ -2864,7 +2879,7 @@ function engagementOptionEditor(engagement, scope) {
               ${supportsAnswers
                 ? `<input class="engagement-option-correct" type="checkbox" data-option-correct="${index}" ${correctAnswers.has(option) ? "checked" : ""} aria-label="Mark option ${index + 1} correct" title="Correct answer" />`
                 : `<span class="engagement-option-number" aria-hidden="true">${index + 1}</span>`}
-              <input class="engagement-option-color" type="color" data-option-color="${index}" value="${engagement.optionColors[index]}" aria-label="Color for option ${index + 1}" title="Option color" />
+              ${colorPicker(index)}
               <input type="text" data-option-text="${index}" value="${attr(option)}" aria-label="Option ${index + 1}" />
               <button class="engagement-option-remove" type="button" data-option-remove="${index}" aria-label="Remove option ${index + 1}" title="Remove option">&times;</button>
             </div>
@@ -5483,6 +5498,11 @@ function bindEngagementOptionEditor(engagement, scope, synchronize) {
   const editor = document.querySelector(`[data-option-editor="${scope}"]`);
   if (!editor) return;
   engagement.optionColors = normalizeEngagementOptionColors(engagement.options, engagement.optionColors);
+  const colorPickers = [...editor.querySelectorAll(".engagement-option-color-picker")];
+  colorPickers.forEach((picker) => picker.addEventListener("toggle", () => {
+    if (!picker.open) return;
+    colorPickers.forEach((other) => { if (other !== picker) other.open = false; });
+  }));
 
   const updateViews = (message, rebuild = false) => {
     engagement.responseLimit = Math.min(
@@ -5528,8 +5548,19 @@ function bindEngagementOptionEditor(engagement, scope, synchronize) {
 
   editor.querySelectorAll("[data-option-color]").forEach((input) => {
     input.addEventListener("input", () => {
-      engagement.optionColors[Number(input.dataset.optionColor)] = input.value;
+      const index = Number(input.dataset.optionColor);
+      engagement.optionColors[index] = input.value;
+      const preview = input.closest(".engagement-option-color-picker")?.querySelector(".engagement-option-color-preview");
+      if (preview) preview.style.background = input.value;
       updateViews("Engagement option color updated");
+    });
+  });
+
+  editor.querySelectorAll("[data-option-color-swatch]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const index = Number(button.dataset.optionColorSwatch);
+      engagement.optionColors[index] = button.dataset.optionColorValue;
+      updateViews("Engagement option color updated", true);
     });
   });
 
