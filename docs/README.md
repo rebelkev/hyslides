@@ -5,6 +5,7 @@ This folder is the maintained reference for HySlides. Update it whenever product
 - [Product Guide](PRODUCT_GUIDE.md) — terminology, features, and instructions for creators, presenters, and participants.
 - [Technical Handoff](TECHNICAL_HANDOFF.md) — architecture, data model, hosting, testing, retention, and developer orientation.
 - [Roadmap](ROADMAP.md) — completed foundations, next milestones, and intentionally deferred work.
+- [Live Presentation QA Checklist](LIVE_QA_CHECKLIST.md) — release gate for presenter, presentation, participant, engagement, and recovery testing.
 - [Release Notes](RELEASE_NOTES.md) — user-visible changes grouped by development milestone.
 
 ## Canonical View Names

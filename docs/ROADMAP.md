@@ -37,6 +37,10 @@
   - Global colors, named linked swatches, and slide-assignment colors
   - Global typography for headings, body text, labels, and placeholders, with Google Fonts and per-element overrides
   - Persistent brand/logo treatment and default slide appearance
+  - Custom Hold Screen used by the Presenter View's screen-hiding control:
+    - Branded background, logo, message, and optional countdown
+    - Uses the deck's colors, typography, imagery, gradients, or animated background effects
+    - Synchronizes to Presentation and Participant Views, with plain black as the fallback
 - Q&A enhancements: pinning, presenter spotlight layouts, and CSV export
 - User accounts and authentication
 - Server-backed deck library and media storage
