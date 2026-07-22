@@ -281,6 +281,8 @@ label {
   justify-content: flex-start;
 }
 
+.topbar > .toolbar { padding-left: 10px; }
+
 .deck-title { padding-right: 12px; }
 
 .modal-overlay {
@@ -749,7 +751,7 @@ label {
   display: flex;
   gap: 7px;
   overflow-x: auto;
-  padding: 6px 10px 6px 0;
+  padding: 6px 10px;
 }
 
 .tool-separator {
