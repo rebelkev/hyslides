@@ -31,6 +31,19 @@ test("saved animation settings survive element normalization", () => {
   assert.equal(element.animation.delayMs, 0);
 });
 
+test("with previous animation triggers survive element normalization", () => {
+  const element = normalizeElement({
+    type: "text",
+    animation: {
+      effect: "fadeIn",
+      trigger: "withPrevious",
+      delayMs: 200,
+    },
+  });
+  assert.equal(element.animation.trigger, "withPrevious");
+  assert.equal(element.animation.delayMs, 200);
+});
+
 test("duplicated slides receive independent slide and element identities", () => {
   const source = createSlide({
     elements: [

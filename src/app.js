@@ -1896,6 +1896,7 @@ function renderAnimationPanel() {
   const items = animatedElements(currentSlide());
   const groups = [
     ["slideStart", "On slide start"],
+    ["withPrevious", "With previous"],
     ["afterPrevious", "After previous"],
     ["onClick", "On click"],
   ];
@@ -2240,7 +2241,7 @@ function renderElementInspector(element) {
     <section class="inspector-section">
       <strong>Animation</strong>
       <div class="field-row"><label for="animationEffectInput">Effect</label><select id="animationEffectInput">${animationOptionList([["none", "None"], ["appear", "Appear"], ["fadeIn", "Fade in"]], animation.effect)}</select></div>
-      <div class="field-row"><label for="animationTriggerInput">Trigger</label><select id="animationTriggerInput">${animationOptionList([["slideStart", "On slide start"], ["onClick", "On click"], ["afterPrevious", "After previous"]], animation.trigger)}</select></div>
+      <div class="field-row"><label for="animationTriggerInput">Trigger</label><select id="animationTriggerInput">${animationOptionList([["slideStart", "On slide start"], ["onClick", "On click"], ["withPrevious", "With previous"], ["afterPrevious", "After previous"]], animation.trigger)}</select></div>
       <div class="field-grid">
         <div class="field-row"><label for="animationDelayInput">Delay (ms)</label><input id="animationDelayInput" type="number" min="0" step="100" value="${animation.delayMs}" /></div>
         <div class="field-row"><label for="animationDurationInput">Duration (ms)</label><input id="animationDurationInput" type="number" min="100" step="100" value="${animation.durationMs}" /></div>
@@ -5010,7 +5011,7 @@ function ensurePresenterAnimationPlayback(slide) {
   const items = animatedElements(slide);
   items.forEach((element, index) => {
     const animation = normalizedAnimation(element);
-    if (animation.trigger === "slideStart" || (animation.trigger === "afterPrevious" && index === 0)) {
+    if (animation.trigger === "slideStart" || ((animation.trigger === "afterPrevious" || animation.trigger === "withPrevious") && index === 0)) {
       schedulePresenterAnimation(element);
     }
   });
@@ -5022,6 +5023,16 @@ function schedulePresenterAnimation(element) {
   const delay = Math.max(0, Number(normalizedAnimation(element).delayMs) || 0);
   const timer = setTimeout(() => startPresenterElementAnimation(element), delay);
   presenterAnimation.timers.push(timer);
+  scheduleWithPreviousAnimations(element);
+}
+
+function scheduleWithPreviousAnimations(previousElement) {
+  const items = animatedElements(currentSlide());
+  const previousIndex = items.findIndex((item) => item.id === previousElement.id);
+  const next = items[previousIndex + 1];
+  if (next && normalizedAnimation(next).trigger === "withPrevious") {
+    schedulePresenterAnimation(next);
+  }
 }
 
 function startPresenterElementAnimation(element, broadcast = presenterWindowMode) {
@@ -5130,15 +5141,19 @@ function previewAnimations(elements) {
   editorAnimationStates = Object.fromEntries(items.map((element) => [element.id, { hidden: true }]));
   renderCanvas();
   let previousEnd = 0;
+  let previousStart = 0;
   let previewEnd = 0;
   for (const element of items) {
     const animation = normalizedAnimation(element);
     const delay = Math.max(0, Number(animation.delayMs) || 0);
     const startAt = animation.trigger === "slideStart"
       ? delay
-      : previousEnd + (animation.trigger === "onClick" ? 350 : 0) + delay;
+      : animation.trigger === "withPrevious"
+        ? previousStart + delay
+        : previousEnd + (animation.trigger === "onClick" ? 350 : 0) + delay;
     const duration = animation.effect === "fadeIn" ? Math.max(100, Number(animation.durationMs) || 500) : 100;
     setTimeout(() => runEditorAnimation(element, token), startAt);
+    previousStart = startAt;
     previousEnd = startAt + duration;
     previewEnd = Math.max(previewEnd, previousEnd);
   }

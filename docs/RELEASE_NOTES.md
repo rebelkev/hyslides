@@ -58,7 +58,8 @@
 ### Animation
 
 - Added Appear and Fade In element effects.
-- Added slide-start, click, and after-previous triggers.
+- Added slide-start, click, with-previous, and after-previous triggers.
+- With Previous starts alongside the preceding animation while honoring its own delay, duration, and easing.
 - Added delay, duration, easing, ordering, editor preview, and presenter playback.
 
 ### Live Sessions

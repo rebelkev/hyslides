@@ -103,9 +103,10 @@ Available triggers:
 
 - On slide start
 - On click
+- With previous
 - After previous
 
-Properties include animation order, delay, duration, and Linear, Ease, Ease In, Ease Out, or Ease In/Out timing. Use **Preview animation** in element Properties or **Preview animations** above the canvas. Presenter navigation plays queued click animations before advancing to the next slide. Participant View and exported PDFs show the completed, fully visible slide.
+**With previous** starts an element at the same time as the preceding animation step; its delay is measured from that shared start. Properties also include animation order, duration, and Linear, Ease, Ease In, Ease Out, or Ease In/Out timing. Use **Preview animation** in element Properties or **Preview animations** above the canvas. Presenter navigation plays queued click animations before advancing to the next slide. Participant View and exported PDFs show the completed, fully visible slide.
 
 ## Countdown Timers
 
