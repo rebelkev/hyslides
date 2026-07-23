@@ -68,6 +68,7 @@ import {
 } from "./live.js";
 import { youtubeEmbedUrl, youtubeVideoId } from "./embed.js";
 import { resizeBounds } from "./resize.js";
+import { lucideIconSvgDataUri } from "./icon-assets.js";
 import { backgroundShaderOptions } from "./backgrounds.js";
 
 const dom = {
@@ -2729,22 +2730,7 @@ function iconInspectorFields(element) {
 function lucideIconDataUri(name, color = "#2454d6", strokeWidth = 2) {
   const iconKey = String(name || "sparkles").split("-").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join("");
   const iconNode = window.lucide?.icons?.[name] || window.lucide?.icons?.[iconKey] || window.lucide?.icons?.Sparkles;
-  const svg = iconNode && window.lucide?.createElement
-    ? window.lucide.createElement(iconNode, {
-      color,
-      stroke: color,
-      fill: "none",
-      width: 24,
-      height: 24,
-      "stroke-width": Math.max(0.75, Math.min(4, Number(strokeWidth) || 2)),
-    })
-    : null;
-  if (!svg) return "";
-  svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-  svg.setAttribute("width", "24");
-  svg.setAttribute("height", "24");
-  const serialized = new XMLSerializer().serializeToString(svg);
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(serialized)}`;
+  return lucideIconSvgDataUri(iconNode, color, strokeWidth);
 }
 
 function refreshIconAsset(element) {

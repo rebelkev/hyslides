@@ -9,12 +9,15 @@ export function resolveTextTypography(element, deck) {
   const style = element?.useGlobalTypography !== false
     ? deck?.theme?.typographyStyles?.[element.typographyStyleId || "body"]
     : null;
+  const linkedColor = element?.brandColorStyleId ? element.color : null;
   return {
     fontFamily: style?.fontFamily || element.fontFamily || (element.fontWeight >= 700 ? deck?.theme?.fonts?.heading : deck?.theme?.fonts?.body) || "Inter",
     fontSize: Number(style?.fontSize || element.fontSize || 28),
     fontWeight: Number(style?.fontWeight || element.fontWeight || 500),
     lineHeight: Number(style?.lineHeight || element.lineHeight || 1.18),
-    color: style?.color || element.color || deck?.theme?.colors?.ink || "#1d232a",
+    // An element color style is an intentional override even while the
+    // remaining typography properties stay linked to the deck.
+    color: linkedColor || style?.color || element.color || deck?.theme?.colors?.ink || "#1d232a",
   };
 }
 

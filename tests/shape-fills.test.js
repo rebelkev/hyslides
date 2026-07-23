@@ -31,5 +31,6 @@ test("shape properties expose every fill mode and icons omit the duplicate color
   assert.match(script, /\["image", "Image"\]/);
   assert.match(script, /\["animated", "Animated effect"\]/);
   assert.match(script, /element\.type === "icon" \? "" : brandColorElementSection/);
-  assert.match(script, /window\.lucide\?\.createElement/);
+  assert.match(script, /lucideIconSvgDataUri\(iconNode, color, strokeWidth\)/);
+  assert.doesNotMatch(script, /window\.lucide\?\.createElement/);
 });

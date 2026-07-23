@@ -2,6 +2,9 @@
 
 ## Current Development Build
 
+- Fixed element color styles being visually overridden by linked global typography colors.
+- Rebuilt icon SVG generation so the selected HEX color is embedded directly without recoloring unrelated interface icons.
+- Added regression coverage for linked text colors, global typography colors, and exact icon colors.
 - Renamed the Divider element to Line and added adjustable corner radius.
 - Standardized slide-level brand logo, slide number, disclaimer, and background controls around deck-default inheritance, clear overrides, placement controls, and one-click reset to deck defaults.
 
