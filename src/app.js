@@ -1257,23 +1257,34 @@ function renderCanvas() {
   dom.canvas.style.height = `${SLIDE_SIZE.height * zoom}px`;
   dom.zoomRange.value = Math.round(zoom * 100);
   dom.zoomLabel.textContent = `${Math.round(zoom * 100)}%`;
+  drawEditorCanvas();
+  preloadSlideImages(currentSlide(), deck).then(drawEditorCanvas);
+}
+
+function drawEditorCanvas() {
+  const editingElementId = dom.textEditor.classList.contains("open")
+    ? dom.textEditor.dataset.elementId
+    : "";
+  const canvasElementStates = editingElementId
+    ? {
+        ...(editorAnimationStates || {}),
+        [editingElementId]: {
+          ...(editorAnimationStates?.[editingElementId] || {}),
+          hidden: true,
+        },
+      }
+    : editorAnimationStates;
+  const canvasSelectedIds = editingElementId
+    ? selectedIds.filter((id) => id !== editingElementId)
+    : selectedIds;
+
   drawSlide(ctx, currentSlide(), deck, {
-    selectedIds,
+    selectedIds: canvasSelectedIds,
     guides,
     includeSelection: true,
     scale: zoom,
     showEngagementPlaceholders: true,
-    elementStates: editorAnimationStates,
-  });
-  preloadSlideImages(currentSlide(), deck).then(() => {
-    drawSlide(ctx, currentSlide(), deck, {
-      selectedIds,
-      guides,
-      includeSelection: true,
-      scale: zoom,
-      showEngagementPlaceholders: true,
-      elementStates: editorAnimationStates,
-    });
+    elementStates: canvasElementStates,
   });
 }
 
@@ -3678,15 +3689,17 @@ function openTextEditor() {
   dom.textEditor.style.width = `${element.w * zoom}px`;
   dom.textEditor.style.height = `${element.h * zoom}px`;
   const typography = resolveTextTypography(element, deck);
-  dom.textEditor.style.fontSize = `${Math.max(12, typography.fontSize * zoom)}px`;
+  dom.textEditor.style.fontSize = `${typography.fontSize * zoom}px`;
   dom.textEditor.style.fontFamily = typography.fontFamily;
   dom.textEditor.style.fontWeight = typography.fontWeight;
   dom.textEditor.style.fontStyle = element.italic ? "italic" : "normal";
   dom.textEditor.style.textDecoration = element.underline ? "underline" : "none";
   dom.textEditor.style.lineHeight = typography.lineHeight;
   dom.textEditor.style.color = typography.color;
+  dom.textEditor.style.textAlign = element.bulletList ? "left" : element.align || "left";
   dom.textEditor.classList.toggle("bulleted", Boolean(element.bulletList));
   dom.textEditor.classList.add("open");
+  renderCanvas();
   dom.textEditor.focus();
 }
 

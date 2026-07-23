@@ -831,16 +831,23 @@ label {
 }
 
 .text-editor {
-  background: rgba(255, 255, 255, 0.92);
-  border: 2px solid var(--blue);
-  border-radius: 3px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-sizing: border-box;
+  caret-color: currentColor;
   display: none;
   min-height: 32px;
+  outline: 2px solid var(--blue);
   overflow: hidden;
-  padding: 6px 8px;
+  padding: 2px 0 0;
   position: absolute;
   white-space: pre-wrap;
   z-index: 4;
+}
+
+.text-editor:focus {
+  outline: 2px solid var(--blue);
 }
 
 .text-editor.open {
