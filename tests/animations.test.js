@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { cloneSlide, createElement, createSlide, normalizeDeck, normalizeElement } from "../src/schema.js";
+
+const app = readFileSync(new URL("../src/app.js", import.meta.url), "utf8");
 
 test("new elements default to no animation", () => {
   const element = createElement("text");
@@ -79,4 +82,13 @@ test("countdown elements default to a seven-minute presenter-controlled timer", 
   assert.equal(element.autoStart, false);
   assert.equal(element.autoAdvance, false);
   assert.equal(element.completionBehavior, "message");
+  assert.equal(element.backgroundOpacity, 0.78);
+  assert.equal(element.fill, "#111827");
+});
+
+test("countdown editor supports hiding the timer at zero", () => {
+  assert.match(app, /\["hide", "Hide timer"\]/);
+  assert.match(app, /data-countdown-action="subtract"/);
+  assert.match(app, /data-countdown-action="end"/);
+  assert.match(app, /function endCountdown/);
 });

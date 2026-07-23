@@ -2169,6 +2169,10 @@ label {
   width: 100%;
 }
 
+.countdown-control-row button.danger {
+  color: #a61b1b;
+}
+
 .live-join-panel {
   align-items: start;
   background: #ffffff;
@@ -3343,14 +3347,50 @@ body.remote-controller-window > :not(#remoteControllerApp):not(script) {
 .audience-reaction-count { font-size: 14px; font-weight: 800; }
 
 @media (max-width: 600px) {
+  body.audience-window #audienceContent {
+    padding: 18px;
+  }
+
+  body.audience-window #audienceContent > .result-row:first-child strong {
+    font-size: clamp(22px, 6vw, 30px);
+    line-height: 1.18;
+  }
+
+  body.audience-window .audience-options {
+    gap: 12px;
+    margin-top: 18px;
+  }
+
+  body.audience-window .audience-options button,
+  body.audience-window .audience-options input,
+  body.audience-window .audience-options textarea {
+    font-size: 18px;
+    min-height: 58px;
+    padding: 14px 16px;
+  }
+
+  body.audience-window .audience-options label {
+    font-size: 16px;
+    font-weight: 750;
+  }
+
+  body.audience-window .audience-option-swatch {
+    height: 24px;
+    width: 24px;
+  }
+
   .audience-reaction-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .audience-reaction-grid button {
     height: auto;
+    min-height: 76px;
     min-width: 0;
     width: 100%;
   }
+
+  body.audience-window .audience-reaction-emoji { font-size: 36px; }
+  body.audience-window .audience-reaction-count { font-size: 18px; }
 }
 
 .reaction-selected-row { grid-template-columns: 48px minmax(0, 1fr) 42px; }

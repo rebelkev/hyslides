@@ -3059,7 +3059,7 @@ function elementInspectorFields(element) {
           <div class="field-row"><label for="countdownFillInput">Background</label><input id="countdownFillInput" type="color" value="${element.fill === "transparent" ? "#ffffff" : element.fill || "#ffffff"}" /></div>
           <div class="field-row"><label for="countdownAlignInput">Align</label><select id="countdownAlignInput">${optionList(["left", "center", "right"], element.align || "center")}</select></div>
         </div>
-        <div class="field-row"><label for="countdownCompletionInput">At zero</label><select id="countdownCompletionInput">${animationOptionList([["zero", "Remain at 00:00"], ["message", "Show a message"]], element.completionBehavior || "message")}</select></div>
+        <div class="field-row"><label for="countdownCompletionInput">At zero</label><select id="countdownCompletionInput">${animationOptionList([["zero", "Remain at 00:00"], ["message", "Show a message"], ["hide", "Hide timer"]], element.completionBehavior || "message")}</select></div>
         <div class="field-row"><label for="countdownMessageInput">Completion message</label><input id="countdownMessageInput" value="${attr(element.completionMessage || "Break is over")}" /></div>
         <div class="check-row"><input id="countdownAutoStartInput" type="checkbox" ${element.autoStart ? "checked" : ""} /><label for="countdownAutoStartInput">Start when slide appears</label></div>
         <div class="check-row"><input id="countdownAutoAdvanceInput" type="checkbox" ${element.autoAdvance ? "checked" : ""} /><label for="countdownAutoAdvanceInput">Advance to next slide at zero</label></div>
@@ -4647,6 +4647,7 @@ function ensureSlideCountdowns(slide) {
       running: false,
       endsAt: 0,
       completed: false,
+      hidden: false,
     });
     if (element.autoStart && presenterWindowMode) startCountdown(element.id);
   }
@@ -4657,6 +4658,7 @@ function countdownStatesForRenderer() {
     remainingSeconds: countdownRemaining(state),
     running: state.running,
     completed: state.completed,
+    hidden: Boolean(state.hidden),
   }]));
 }
 
@@ -4671,6 +4673,7 @@ function applyCountdownState(states) {
       running: Boolean(state.running),
       endsAt: state.running ? Date.now() + Math.max(0, Number(state.remainingSeconds) || 0) * 1000 : 0,
       completed: Boolean(state.completed),
+      hidden: Boolean(state.hidden),
     });
   }
 }
@@ -4684,7 +4687,7 @@ function startCountdown(elementId) {
   if (!element) return;
   const state = countdownRuntime.get(elementId) || { remainingSeconds: element.durationSeconds || 0 };
   const remaining = state.completed || countdownRemaining(state) <= 0 ? element.durationSeconds || 0 : countdownRemaining(state);
-  countdownRuntime.set(elementId, { remainingSeconds: remaining, running: true, endsAt: Date.now() + remaining * 1000, completed: false });
+  countdownRuntime.set(elementId, { remainingSeconds: remaining, running: true, endsAt: Date.now() + remaining * 1000, completed: false, hidden: false });
   startCountdownTicker();
   broadcastCountdownState();
 }
@@ -4701,7 +4704,7 @@ function pauseCountdown(elementId) {
 function resetCountdown(elementId) {
   const element = currentSlide().elements.find((item) => item.id === elementId);
   if (!element) return;
-  countdownRuntime.set(elementId, { remainingSeconds: element.durationSeconds || 0, running: false, endsAt: 0, completed: false });
+  countdownRuntime.set(elementId, { remainingSeconds: element.durationSeconds || 0, running: false, endsAt: 0, completed: false, hidden: false });
   broadcastCountdownState();
   drawPresentationCountdownFrame();
 }
@@ -4712,7 +4715,20 @@ function addCountdownTime(elementId, seconds = 60) {
   if (state.running) state.endsAt = Math.max(Date.now(), state.endsAt + seconds * 1000);
   else state.remainingSeconds = Math.max(0, countdownRemaining(state) + seconds);
   state.completed = false;
+  state.hidden = false;
   broadcastCountdownState();
+}
+
+function endCountdown(elementId) {
+  const state = countdownRuntime.get(elementId);
+  if (!state) return;
+  state.remainingSeconds = countdownRemaining(state);
+  state.running = false;
+  state.endsAt = 0;
+  state.hidden = true;
+  broadcastCountdownState();
+  queueLivePublish(true);
+  queueRemoteControllerPublish(true);
 }
 
 function startCountdownTicker() {
@@ -4967,14 +4983,16 @@ function renderCountdownControls(slide) {
   }
   panel.innerHTML = `<div class="countdown-control-head"><strong>On-screen countdown</strong><span>Visible to everyone</span></div>${elements.map((element) => {
     const state = countdownRuntime.get(element.id);
-    return `<div class="countdown-control-row" data-countdown-id="${attr(element.id)}"><strong class="countdown-readout">${formatCountdown(countdownRemaining(state))}</strong><div><button data-countdown-action="${state?.running ? "pause" : "start"}" type="button">${state?.running ? "Pause" : "Start"}</button><button data-countdown-action="add" type="button">+1 min</button><button data-countdown-action="reset" type="button">Reset</button></div></div>`;
+    return `<div class="countdown-control-row" data-countdown-id="${attr(element.id)}"><strong class="countdown-readout">${formatCountdown(countdownRemaining(state))}</strong><div><button data-countdown-action="${state?.running ? "pause" : "start"}" type="button">${state?.running ? "Pause" : "Start"}</button><button data-countdown-action="subtract" type="button">−1 min</button><button data-countdown-action="add" type="button">+1 min</button><button data-countdown-action="reset" type="button">Reset</button><button data-countdown-action="end" class="danger" type="button">End</button></div></div>`;
   }).join("")}`;
   panel.querySelectorAll("[data-countdown-action]").forEach((button) => button.addEventListener("click", () => {
     const id = button.closest("[data-countdown-id]").dataset.countdownId;
     if (button.dataset.countdownAction === "start") startCountdown(id);
     if (button.dataset.countdownAction === "pause") pauseCountdown(id);
+    if (button.dataset.countdownAction === "subtract") addCountdownTime(id, -60);
     if (button.dataset.countdownAction === "add") addCountdownTime(id, 60);
     if (button.dataset.countdownAction === "reset") resetCountdown(id);
+    if (button.dataset.countdownAction === "end") endCountdown(id);
     renderCountdownControls(currentSlide());
   }));
   dom.liveControls.scrollTop = scrollTop;
@@ -5376,7 +5394,9 @@ function renderLiveJoinPanel(slide) {
     openEndSessionDialog();
   });
   panel.querySelector("#newLiveSessionBtn")?.addEventListener("click", () => {
-    if (confirm("Start a new session instance for this deck?")) {
+    if (liveSession.lifecycleStatus === "active") {
+      openEndSessionDialog("new");
+    } else if (confirm("Start a new session instance for this deck?")) {
       beginNewLiveSession();
       liveSession.lifecycleStatus = "active";
       liveSession.backendAvailable = false;
@@ -5402,7 +5422,7 @@ function reconnectLiveSession() {
   queueLivePublish(true);
 }
 
-function openEndSessionDialog() {
+function openEndSessionDialog(intent = "end") {
   const ids = [
     "endCurrentSessionOption",
     "clearSessionResponsesOption",
@@ -5410,6 +5430,12 @@ function openEndSessionDialog() {
     "returnFirstSlideOption",
   ];
   ids.forEach((id) => { document.querySelector(`#${id}`).checked = true; });
+  document.querySelector("#endSessionTitle").textContent = intent === "new"
+    ? "Start a new session"
+    : "Finish this presentation";
+  document.querySelector("#continueEndSessionBtn").textContent = intent === "new"
+    ? "Start new session"
+    : "Continue";
   updateEndSessionDependencies();
   dom.endSessionOverlay.classList.remove("hidden");
   dom.endSessionOverlay.setAttribute("aria-hidden", "false");

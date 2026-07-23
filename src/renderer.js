@@ -306,16 +306,22 @@ function drawCountdown(ctx, element, deck, options = {}) {
   const state = options.countdownStates?.[element.id];
   const remaining = Math.max(0, Math.round(state?.remainingSeconds ?? element.runtimeRemainingSeconds ?? element.durationSeconds ?? 0));
   const completed = Boolean(state?.completed ?? element.runtimeCompleted);
+  if (state?.hidden || (completed && element.completionBehavior === "hide")) return;
   const showMessage = completed && element.completionBehavior === "message" && element.completionMessage;
   const text = showMessage
     ? element.completionMessage
     : `${String(Math.floor(remaining / 60)).padStart(2, "0")}:${String(remaining % 60).padStart(2, "0")}`;
-  if (element.fill && element.fill !== "transparent") {
-    ctx.fillStyle = element.fill;
-    roundedRect(ctx, 0, 0, element.w, element.h, 12);
+  const legacyTransparentTimer = !element.fill || element.fill === "transparent";
+  const timerFill = legacyTransparentTimer ? "#111827" : element.fill;
+  if (timerFill) {
+    ctx.save();
+    ctx.globalAlpha *= Math.max(0, Math.min(1, Number(element.backgroundOpacity ?? 0.78)));
+    ctx.fillStyle = timerFill;
+    roundedRect(ctx, 0, 0, element.w, element.h, Math.max(0, Number(element.cornerRadius) || 18));
     ctx.fill();
+    ctx.restore();
   }
-  ctx.fillStyle = element.color || deck.theme.colors.ink;
+  ctx.fillStyle = legacyTransparentTimer ? "#ffffff" : element.color || deck.theme.colors.ink;
   ctx.font = `${element.fontWeight || 800} ${showMessage ? Math.min(element.fontSize || 104, 64) : element.fontSize || 104}px ${element.fontFamily || deck.theme.fonts.heading}, Arial, sans-serif`;
   ctx.textAlign = element.align || "center";
   ctx.textBaseline = "middle";
