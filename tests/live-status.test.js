@@ -32,6 +32,9 @@ test("live slides carry deck furniture settings to participant devices", async (
     fonts: { body: "Inter" },
     colors: { muted: "#637083" },
     typographyStyles: { caption: { name: "Caption", fontSize: 16 } },
+    brandPalette: ["#112233"],
+    brandColorStyles: [{ id: "brand-primary", name: "Primary", color: "#112233" }],
+    defaultBackground: { type: "color", color: "#112233" },
     master: { footer: { showSlideNumber: true, disclaimer: { enabled: true, text: "Confidential" } } },
     logo: { src: "https://example.com/logo.svg", corner: "top-right", showOnSlides: true, width: 96 },
   };
@@ -44,5 +47,7 @@ test("live slides carry deck furniture settings to participant devices", async (
   assert.equal(participantDeck.theme.master.footer.disclaimer.text, "Confidential");
   assert.equal(participantDeck.theme.logo.src, "https://example.com/logo.svg");
   assert.equal(participantDeck.theme.logo.corner, "top-right");
+  assert.equal(participantDeck.theme.brandColorStyles[0].color, "#112233");
+  assert.equal(participantDeck.theme.defaultBackground.color, "#112233");
   assert.notEqual(snapshot.slide.liveTheme, theme);
 });

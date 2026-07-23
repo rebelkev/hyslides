@@ -39,6 +39,11 @@ test("remote controller supports navigation, slide flow, live controls, and Q&A 
   assert.match(app, /renderRemoteQuestions/);
   assert.match(app, /queueRemoteControllerPublish\(true\)/);
   assert.match(app, /remoteTimerReadout/);
+  assert.match(app, /sendRemoteControllerCommand\(code, token/);
+  assert.doesNotMatch(app, /\bsendRemoteCommand\(/);
+  assert.match(app, /data-remote-slide-action="jump"/);
+  assert.match(app, /data-remote-slide-action="toggle"/);
+  assert.match(styles, /\.remote-slide-actions/);
 });
 
 test("remote controller credentials are scoped, hashed, expiring, and revoked on session end", () => {

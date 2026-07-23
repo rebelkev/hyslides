@@ -2842,20 +2842,25 @@ body.remote-controller-window > :not(#remoteControllerApp):not(script) {
   border: 2px solid transparent;
   border-radius: 10px;
   display: grid;
-  flex: 0 0 156px;
+  flex: 0 0 min(72vw, 220px);
   gap: 7px;
+  min-width: 0;
+  overflow: hidden;
   padding: 7px;
   scroll-snap-align: center;
 }
 
 .remote-slide-card.current,
 .remote-slide-card.active { border-color: var(--blue); }
+.remote-slide-card.selected { box-shadow: 0 0 0 2px rgba(36, 84, 214, .16); }
 .remote-slide-card.excluded,
 .remote-slide-card.skipped { opacity: .48; }
 .remote-slide-card img { aspect-ratio: 16 / 9; background: #e9eef5; object-fit: cover; width: 100%; }
-.remote-slide-card button { border: 0; padding: 0; text-align: left; }
-.remote-slide-card label { align-items: center; display: flex; font-size: 12px; gap: 6px; }
-.remote-slide-card input { min-height: auto; width: auto; }
+.remote-slide-card .remote-slide-select { border: 0; display: grid; gap: 6px; min-width: 0; padding: 0; text-align: left; width: 100%; }
+.remote-slide-card .remote-slide-select strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.remote-slide-state { color: var(--muted); font-size: 12px; font-weight: 700; }
+.remote-slide-actions { display: grid; gap: 7px; grid-template-columns: 1fr 1fr; }
+.remote-slide-actions button { font-size: 12px; justify-content: center; min-height: 42px; padding: 7px; text-align: center; width: 100%; }
 .remote-notes { white-space: pre-wrap; }
 .remote-control-notes { min-height: 0; }
 .remote-live-summary { display: grid; gap: 5px; }
@@ -3110,6 +3115,28 @@ body.remote-controller-window > :not(#remoteControllerApp):not(script) {
 
 .reaction-row button {
   font-size: 18px;
+}
+
+.audience-reaction-grid button {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  min-height: 62px;
+}
+
+.audience-reaction-emoji { font-size: 28px; line-height: 1; }
+.audience-reaction-count { font-size: 14px; font-weight: 800; }
+
+@media (max-width: 600px) {
+  .audience-reaction-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .audience-reaction-grid button {
+    height: auto;
+    min-width: 0;
+    width: 100%;
+  }
 }
 
 .reaction-selected-row { grid-template-columns: 48px minmax(0, 1fr) 42px; }

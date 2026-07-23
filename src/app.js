@@ -190,6 +190,7 @@ let remoteControllerPublishTimer = 0;
 let remoteControllerCommandsPolling = false;
 let audienceOpen = false;
 let participantQnaOpen = false;
+let remoteSelectedSlideIndex = null;
 let leftRailTab = "slides";
 let inspectorTab = "properties";
 const globalSettingsOpenSections = new Set(["audience"]);
@@ -6536,7 +6537,7 @@ function initRemoteController() {
     event.currentTarget.textContent = expanded ? "Hide slide notes" : "View slide notes";
     notes?.classList.toggle("hidden", !expanded);
   });
-  const send = (action, payload = {}) => sendRemoteCommand(code, token, { action, ...payload }).then(() => {
+  const send = (action, payload = {}) => sendRemoteControllerCommand(code, token, { action, ...payload }).then(() => {
     window.setTimeout(refreshRemoteController, 250);
   }).catch(showRemoteControllerError);
   document.querySelector("#remotePreviousBtn")?.addEventListener("click", () => send("previous"));
@@ -6588,6 +6589,9 @@ function showRemoteControllerError(error) {
 function renderRemoteController(state) {
   const slides = Array.isArray(state.slides) ? state.slides : [];
   const index = clamp(Number(state.activeSlideIndex) || 0, 0, Math.max(0, slides.length - 1));
+  if (remoteSelectedSlideIndex === null || !slides[remoteSelectedSlideIndex]) {
+    remoteSelectedSlideIndex = index;
+  }
   const current = slides[index] || {};
   document.querySelector("#remoteDeckTitle").textContent = state.deckTitle || "HySlides";
   const status = document.querySelector("#remoteConnectionStatus");
@@ -6617,17 +6621,30 @@ function renderRemoteSlideStrip(container, slides, activeIndex, compact) {
   container.replaceChildren();
   slides.forEach((slide, index) => {
     const card = document.createElement("article");
-    card.className = `remote-slide-card${index === activeIndex ? " active" : ""}${slide.included ? "" : " skipped"}`;
+    const selected = index === remoteSelectedSlideIndex;
+    card.className = `remote-slide-card${index === activeIndex ? " active" : ""}${selected ? " selected" : ""}${slide.included ? "" : " skipped"}`;
     card.innerHTML = `
-      <button type="button" class="remote-slide-jump" aria-label="Jump to slide ${index + 1}">
+      <button type="button" class="remote-slide-select" aria-expanded="${selected}" aria-label="Select slide ${index + 1}">
         <img src="${attr(slide.thumbnail || "")}" alt=""><strong>${index + 1}. ${escapeHtml(slide.title || "")}</strong>
       </button>
-      <label><input type="checkbox" ${slide.included ? "checked" : ""}> ${slide.included ? "Included" : "Skipped"}</label>`;
-    card.querySelector(".remote-slide-jump").addEventListener("click", () => remoteControllerState.send("goTo", { slideIndex: index }));
-    card.querySelector("input").addEventListener("change", (event) => remoteControllerState.send("toggleIncluded", { slideIndex: index, included: event.target.checked }));
+      <span class="remote-slide-state">${index === activeIndex ? "On screen" : slide.included ? "Included" : "Skipped"}</span>
+      ${selected ? `<div class="remote-slide-actions">
+        <button type="button" data-remote-slide-action="jump" ${slide.included ? "" : "disabled"}>Jump to slide</button>
+        <button type="button" data-remote-slide-action="toggle">${slide.included ? "Skip slide" : "Include slide"}</button>
+      </div>` : ""}`;
+    card.querySelector(".remote-slide-select").addEventListener("click", () => {
+      remoteSelectedSlideIndex = index;
+      renderRemoteSlideStrip(container, slides, activeIndex, compact);
+    });
+    card.querySelector('[data-remote-slide-action="jump"]')?.addEventListener("click", () => {
+      remoteControllerState.send("goTo", { slideIndex: index });
+    });
+    card.querySelector('[data-remote-slide-action="toggle"]')?.addEventListener("click", () => {
+      remoteControllerState.send("toggleIncluded", { slideIndex: index, included: !slide.included });
+    });
     container.append(card);
   });
-  if (compact) container.querySelector(".active")?.scrollIntoView({ block: "nearest", inline: "center" });
+  if (compact) container.querySelector(".selected, .active")?.scrollIntoView({ block: "nearest", inline: "center" });
 }
 
 function renderRemoteQuestions(questions) {

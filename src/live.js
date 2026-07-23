@@ -73,6 +73,9 @@ export async function liveSnapshotForDeck(deck, slide, activeSlideIndex, instanc
     fonts: cloneJson(deck.theme?.fonts || {}),
     colors: cloneJson(deck.theme?.colors || {}),
     typographyStyles: cloneJson(deck.theme?.typographyStyles || {}),
+    brandPalette: cloneJson(deck.theme?.brandPalette || []),
+    brandColorStyles: cloneJson(deck.theme?.brandColorStyles || []),
+    defaultBackground: cloneJson(deck.theme?.defaultBackground || {}),
     master: cloneJson(deck.theme?.master || {}),
     logo: cloneJson(deck.theme?.logo || {}),
   };

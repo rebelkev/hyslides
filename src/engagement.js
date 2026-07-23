@@ -190,12 +190,13 @@ export function renderAudienceContent(container, deck, slide, onSubmit, latestRe
 
   if (engagement.type === "reactions") {
     const row = document.createElement("div");
-    row.className = "reaction-row";
+    row.className = "reaction-row audience-reaction-grid";
     for (const key of selectedReactionKeys(engagement)) {
       const label = reactionLabels[key] || key;
       const button = document.createElement("button");
       button.type = "button";
-      button.textContent = label;
+      button.innerHTML = `<span class="audience-reaction-emoji">${escapeHtml(label)}</span><span class="audience-reaction-count">${Number(engagement.reactions?.[key] || 0)}</span>`;
+      button.setAttribute("aria-label", `React with ${label}`);
       button.addEventListener("click", () => onSubmit({ value: key }));
       row.append(button);
     }

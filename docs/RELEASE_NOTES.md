@@ -2,17 +2,23 @@
 
 ## Current Development Build
 
-### Mobile Presenter Controller
+### Mobile Presenter Remote
 
 - Simplified the phone controller to focused Control, Live, and Q&A tabs.
 - Kept the current slide, previous/next controls, expandable notes, and a horizontally scrollable slide strip together on the Control tab.
-- Added include/skip checkboxes and direct slide jumping to both mobile slide strips while preserving desktop Presenter View.
+- Replaced cramped carousel checkboxes with a tap-first slide action card: select a slide, then choose **Jump to slide** or **Skip/Include slide**.
+- Fixed a broken command dispatcher that prevented every Mobile Presenter Remote action from reaching the live Presenter View.
 - Added **Connect phone** to desktop Presenter View, generating a private QR code and short-lived controller link for a separate phone or tablet.
 - Added secure D1-backed controller state and command queues. Controller links are scoped to the current session, stored as token hashes, expire after eight hours, and are revoked when the session ends.
 - Added remote Previous/Next, direct slide jump, Include/Skip, Black Screen, speaker notes, participant/response totals, response clearing, timer insertion, new/end session, and Q&A moderation.
 - Fixed controller authorization across new session instances so a paired phone no longer becomes falsely expired after **New session**.
 - Corrected skipped-slide state and every remote command path, added automatic reconnection, synchronized answered/unanswered Q&A status, compacted Q&A cards, and added an unanswered-question indicator.
 - Moved Black Screen to Live and added a live timer readout with one-minute increase/decrease and removal controls.
+
+### Participant View
+
+- Synchronized named global color styles and default background settings into live participant snapshots so linked slide backgrounds match Presenter and Presentation Views.
+- Reworked emoji reaction controls into a responsive two-column mobile grid with touch-sized buttons, the selected emoji, and its current count.
 
 ### Editor
 
