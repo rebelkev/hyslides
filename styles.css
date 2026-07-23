@@ -1901,7 +1901,7 @@ label {
 
 .presenter-qna-tabs { display: grid; gap: 6px; grid-template-columns: 1fr 1fr; margin-bottom: 8px; }
 .presenter-qna-tabs button.active { background: #e6efff; border-color: #88aaf8; color: #17449d; }
-.presenter-qna-list { display: grid; gap: 7px; overflow: auto; }
+.presenter-qna-list { align-content: start; display: grid; gap: 7px; grid-auto-rows: max-content; overflow: auto; }
 .presenter-qna-empty { color: var(--muted); font-size: 12px; padding: 18px 4px; text-align: center; }
 .presenter-qna-item { background: #fff; border: 1px solid var(--line); border-radius: 8px; display: grid; gap: 7px; padding: 9px; }
 .presenter-qna-item.pending { border-left: 4px solid #e0a52b; }
@@ -2737,7 +2737,7 @@ body.remote-controller-window > :not(#remoteControllerApp):not(script) {
   border-radius: 12px;
   display: grid;
   gap: 4px;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   padding: 4px;
   position: sticky;
   top: 8px;
@@ -2749,9 +2749,33 @@ body.remote-controller-window > :not(#remoteControllerApp):not(script) {
   font-size: 11px;
   min-height: 42px;
   padding: 6px 3px;
+  position: relative;
 }
 
 .remote-controller-tabs button.active { background: #e8efff; color: var(--blue); }
+
+.remote-tab-indicator {
+  background: #e33f48;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  height: 10px;
+  position: absolute;
+  right: 8px;
+  top: 6px;
+  width: 10px;
+}
+
+.remote-controller-tabs button.has-active-timer::after {
+  background: #0c8b7f;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  content: "";
+  height: 10px;
+  position: absolute;
+  right: 8px;
+  top: 6px;
+  width: 10px;
+}
 
 .remote-panel {
   display: none;
@@ -2806,20 +2830,43 @@ body.remote-controller-window > :not(#remoteControllerApp):not(script) {
   scroll-snap-align: center;
 }
 
-.remote-slide-card.current { border-color: var(--blue); }
-.remote-slide-card.excluded { opacity: .48; }
+.remote-slide-card.current,
+.remote-slide-card.active { border-color: var(--blue); }
+.remote-slide-card.excluded,
+.remote-slide-card.skipped { opacity: .48; }
 .remote-slide-card img { aspect-ratio: 16 / 9; background: #e9eef5; object-fit: cover; width: 100%; }
 .remote-slide-card button { border: 0; padding: 0; text-align: left; }
 .remote-slide-card label { align-items: center; display: flex; font-size: 12px; gap: 6px; }
 .remote-slide-card input { min-height: auto; width: auto; }
-.remote-notes { min-height: 45vh; white-space: pre-wrap; }
+.remote-notes { white-space: pre-wrap; }
+.remote-control-notes { min-height: 0; }
 .remote-live-summary { display: grid; gap: 5px; }
 .remote-live-actions button { min-height: 52px; }
 .remote-live-actions .danger { color: #a42d2d; }
-.remote-qna-list { display: grid; gap: 10px; }
+.remote-qna-list { align-content: start; display: grid; gap: 10px; grid-auto-rows: max-content; }
 .remote-qna-item { display: grid; gap: 8px; }
 .remote-qna-item span { color: var(--muted); font-size: 12px; }
 .remote-qna-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.remote-timer-panel {
+  align-items: center;
+  background: #e9f7f4;
+  border: 1px solid #9cd5ca;
+  border-radius: 12px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr auto;
+  padding: 12px;
+}
+
+.remote-timer-panel > span { color: var(--muted); font-size: 12px; }
+.remote-timer-panel > strong { font-size: 26px; }
+.remote-timer-panel > div {
+  display: grid;
+  gap: 6px;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(3, 1fr);
+}
 
 @media (max-width: 560px) {
   .remote-pairing-access { grid-template-columns: 1fr; }

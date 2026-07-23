@@ -4,12 +4,15 @@
 
 ### Mobile Presenter Controller
 
-- Added touch-focused Control, Slides, Notes, Live, and Q&A tabs to Presenter View on phones.
-- Kept the current slide, previous/next controls, black screen, full screen, and a horizontally scrollable slide strip together on the Control tab.
+- Simplified the phone controller to focused Control, Live, and Q&A tabs.
+- Kept the current slide, previous/next controls, expandable notes, and a horizontally scrollable slide strip together on the Control tab.
 - Added include/skip checkboxes and direct slide jumping to both mobile slide strips while preserving desktop Presenter View.
 - Added **Connect phone** to desktop Presenter View, generating a private QR code and short-lived controller link for a separate phone or tablet.
 - Added secure D1-backed controller state and command queues. Controller links are scoped to the current session, stored as token hashes, expire after eight hours, and are revoked when the session ends.
 - Added remote Previous/Next, direct slide jump, Include/Skip, Black Screen, speaker notes, participant/response totals, response clearing, timer insertion, new/end session, and Q&A moderation.
+- Fixed controller authorization across new session instances so a paired phone no longer becomes falsely expired after **New session**.
+- Corrected skipped-slide state and every remote command path, added automatic reconnection, synchronized answered/unanswered Q&A status, compacted Q&A cards, and added an unanswered-question indicator.
+- Moved Black Screen to Live and added a live timer readout with one-minute increase/decrease and removal controls.
 
 ### Editor
 

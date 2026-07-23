@@ -18,20 +18,27 @@ test("remote controller mode hides the editor and exposes focused tabs", () => {
   assert.match(app, /remoteControllerMatch = location\.hash\.match/);
   assert.match(app, /document\.body\.classList\.add\("remote-controller-window"\)/);
   assert.match(styles, /body\.remote-controller-window > :not\(#remoteControllerApp\)/);
-  for (const tab of ["control", "slides", "notes", "live", "qna"]) {
+  for (const tab of ["control", "live", "qna"]) {
     assert.match(html, new RegExp(`data-remote-tab="${tab}"`));
   }
+  assert.doesNotMatch(html, /data-remote-tab="slides"/);
+  assert.doesNotMatch(html, /data-remote-tab="notes"/);
+  assert.match(html, /id="remoteNotesToggleBtn"/);
+  assert.match(html, /id="remoteQnaIndicator"/);
 });
 
 test("remote controller supports navigation, slide flow, live controls, and Q&A moderation", () => {
   for (const action of [
     "next", "previous", "goTo", "toggleIncluded", "blackout",
-    "clearResponses", "newSession", "endSession", "addTimer", "moderateQuestion",
+    "clearResponses", "newSession", "endSession", "addTimer", "adjustTimer",
+    "removeTimer", "moderateQuestion",
   ]) {
     assert.match(worker, new RegExp(`"${action}"`));
   }
   assert.match(app, /renderRemoteSlideStrip/);
   assert.match(app, /renderRemoteQuestions/);
+  assert.match(app, /queueRemoteControllerPublish\(true\)/);
+  assert.match(app, /remoteTimerReadout/);
 });
 
 test("remote controller credentials are scoped, hashed, expiring, and revoked on session end", () => {
@@ -40,4 +47,12 @@ test("remote controller credentials are scoped, hashed, expiring, and revoked on
   assert.match(worker, /datetime\('now', '\+8 hours'\)/);
   assert.match(worker, /Remote controller access has expired/);
   assert.match(worker, /DELETE FROM hyslides_remote_controller_pairings WHERE instance_id = \?/);
+  assert.match(worker, /UPDATE hyslides_remote_controller_pairings SET instance_id = \?/);
+});
+
+test("remote Q&A uses the canonical answered flag and compact cards", () => {
+  assert.match(app, /question\.answered \? "Answered" : "Unanswered"/);
+  assert.match(app, /row\.className = "remote-qna-item"/);
+  assert.match(styles, /\.remote-qna-list \{ align-content: start;/);
+  assert.match(styles, /\.presenter-qna-list \{ align-content: start;/);
 });

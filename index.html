@@ -274,10 +274,8 @@
       </header>
       <nav class="remote-controller-tabs" role="tablist" aria-label="Remote controller sections">
         <button class="active" type="button" role="tab" data-remote-tab="control">Control</button>
-        <button type="button" role="tab" data-remote-tab="slides">Slides</button>
-        <button type="button" role="tab" data-remote-tab="notes">Notes</button>
         <button type="button" role="tab" data-remote-tab="live">Live</button>
-        <button type="button" role="tab" data-remote-tab="qna">Q&amp;A</button>
+        <button type="button" role="tab" data-remote-tab="qna">Q&amp;A<span id="remoteQnaIndicator" class="remote-tab-indicator hidden" aria-label="New unanswered questions"></span></button>
       </nav>
       <section class="remote-panel active" data-remote-panel="control">
         <div class="remote-current-slide">
@@ -288,26 +286,28 @@
           <button id="remotePreviousBtn" type="button">Previous</button>
           <button id="remoteNextBtn" class="primary" type="button">Next</button>
         </div>
-        <button id="remoteBlackoutBtn" type="button" aria-pressed="false">Black screen</button>
+        <button id="remoteNotesToggleBtn" type="button" aria-expanded="false">View slide notes</button>
+        <div id="remoteNotes" class="remote-notes remote-control-notes hidden">No notes for this slide.</div>
         <div id="remoteQuickSlides" class="remote-slide-strip"></div>
-      </section>
-      <section class="remote-panel" data-remote-panel="slides">
-        <h2>Presentation flow</h2>
-        <p>Tap a slide to jump to it. Use the checkbox to include or skip it.</p>
-        <div id="remoteAllSlides" class="remote-slide-strip"></div>
-      </section>
-      <section class="remote-panel" data-remote-panel="notes">
-        <h2>Speaker notes</h2>
-        <div id="remoteNotes" class="remote-notes">No notes for this slide.</div>
       </section>
       <section class="remote-panel" data-remote-panel="live">
         <h2>Live session</h2>
         <div id="remoteLiveSummary" class="remote-live-summary"></div>
         <div class="remote-live-actions">
+          <button id="remoteBlackoutBtn" type="button" aria-pressed="false">Black screen</button>
           <button id="remoteClearResponsesBtn" type="button">Clear responses</button>
           <button id="remoteAddTimerBtn" type="button">Add timer</button>
           <button id="remoteNewSessionBtn" type="button">New session</button>
           <button id="remoteEndSessionBtn" class="danger" type="button">End session</button>
+        </div>
+        <div id="remoteTimerPanel" class="remote-timer-panel hidden">
+          <span>Slide timer</span>
+          <strong id="remoteTimerReadout">00:00</strong>
+          <div>
+            <button id="remoteTimerMinusBtn" type="button" aria-label="Remove one minute">−1 min</button>
+            <button id="remoteTimerPlusBtn" type="button" aria-label="Add one minute">+1 min</button>
+            <button id="remoteTimerRemoveBtn" type="button">Remove</button>
+          </div>
         </div>
       </section>
       <section class="remote-panel" data-remote-panel="qna">

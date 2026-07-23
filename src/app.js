@@ -4094,8 +4094,8 @@ function resetCountdown(elementId) {
 function addCountdownTime(elementId, seconds = 60) {
   const state = countdownRuntime.get(elementId);
   if (!state) return;
-  if (state.running) state.endsAt += seconds * 1000;
-  else state.remainingSeconds = countdownRemaining(state) + seconds;
+  if (state.running) state.endsAt = Math.max(Date.now(), state.endsAt + seconds * 1000);
+  else state.remainingSeconds = Math.max(0, countdownRemaining(state) + seconds);
   state.completed = false;
   broadcastCountdownState();
 }
@@ -4126,6 +4126,7 @@ function tickCountdowns() {
     tickCountdowns.lastSecond = Math.floor(Date.now() / 1000);
     broadcastCountdownState();
     queueLivePublish(true);
+    queueRemoteControllerPublish(true);
   }
   if (!hasRunning) {
     clearInterval(countdownTickInterval);
@@ -6270,6 +6271,8 @@ async function openRemotePairing() {
 
 function remoteControllerSnapshot() {
   const thumbnails = [...(dom.presenterSlideList?.querySelectorAll("canvas") || [])];
+  const timerElement = countdownElements(currentSlide())[0];
+  const timerState = timerElement ? countdownRuntime.get(timerElement.id) : null;
   return {
     deckId: deck.id,
     deckTitle: deck.title || "Untitled presentation",
@@ -6278,6 +6281,11 @@ function remoteControllerSnapshot() {
     participantCount: liveSession.participantCount,
     responseCount: liveSession.responseCount,
     status: liveSession.lifecycleStatus,
+    timer: timerElement ? {
+      id: timerElement.id,
+      remainingSeconds: countdownRemaining(timerState || { remainingSeconds: timerElement.durationSeconds || 0 }),
+      running: Boolean(timerState?.running),
+    } : null,
     slides: deck.slides.map((slide, index) => ({
       id: slide.id,
       title: slide.title || `Slide ${index + 1}`,
@@ -6336,6 +6344,19 @@ async function executeRemoteControllerCommand(command) {
   } else if (command.action === "blackout") togglePresentationBlackout();
   else if (command.action === "clearResponses") await runLiveControl("clearSlide");
   else if (command.action === "addTimer") insertCountdownFromPresenter();
+  else if (command.action === "adjustTimer") {
+    const timer = countdownElements(currentSlide())[0];
+    if (timer) addCountdownTime(timer.id, clamp(Number(command.seconds) || 0, -3600, 3600));
+  } else if (command.action === "removeTimer") {
+    const timer = countdownElements(currentSlide())[0];
+    if (timer) {
+      currentSlide().elements = currentSlide().elements.filter((element) => element.id !== timer.id);
+      countdownRuntime.delete(timer.id);
+      presenterChannel?.postMessage({ type: "deck-updated", deck: JSON.parse(JSON.stringify(deck)), activeSlideIndex });
+      queueLivePublish(true);
+      await renderPresenter();
+    }
+  }
   else if (command.action === "newSession") {
     beginNewLiveSession();
     queueLivePublish(true);
@@ -6362,6 +6383,13 @@ function initRemoteController() {
     document.querySelectorAll("[data-remote-tab]").forEach((item) => item.classList.toggle("active", item === button));
     document.querySelectorAll("[data-remote-panel]").forEach((panel) => panel.classList.toggle("active", panel.dataset.remotePanel === button.dataset.remoteTab));
   }));
+  document.querySelector("#remoteNotesToggleBtn")?.addEventListener("click", (event) => {
+    const notes = document.querySelector("#remoteNotes");
+    const expanded = event.currentTarget.getAttribute("aria-expanded") !== "true";
+    event.currentTarget.setAttribute("aria-expanded", String(expanded));
+    event.currentTarget.textContent = expanded ? "Hide slide notes" : "View slide notes";
+    notes?.classList.toggle("hidden", !expanded);
+  });
   const send = (action, payload = {}) => sendRemoteCommand(code, token, { action, ...payload }).then(() => {
     window.setTimeout(refreshRemoteController, 250);
   }).catch(showRemoteControllerError);
@@ -6372,6 +6400,9 @@ function initRemoteController() {
     if (confirm("Clear responses to the current slide?")) send("clearResponses");
   });
   document.querySelector("#remoteAddTimerBtn")?.addEventListener("click", () => send("addTimer"));
+  document.querySelector("#remoteTimerMinusBtn")?.addEventListener("click", () => send("adjustTimer", { seconds: -60 }));
+  document.querySelector("#remoteTimerPlusBtn")?.addEventListener("click", () => send("adjustTimer", { seconds: 60 }));
+  document.querySelector("#remoteTimerRemoveBtn")?.addEventListener("click", () => send("removeTimer"));
   document.querySelector("#remoteNewSessionBtn")?.addEventListener("click", () => {
     if (confirm("Start a new session and clear current responses?")) send("newSession");
   });
@@ -6397,7 +6428,6 @@ async function refreshRemoteController() {
     renderRemoteController(state);
   } catch (error) {
     showRemoteControllerError(error);
-    if (/expired|unauthorized|ended/i.test(error.message)) clearInterval(remoteControllerPollTimer);
   }
 }
 
@@ -6427,8 +6457,12 @@ function renderRemoteController(state) {
   document.querySelector("#remoteLiveSummary").innerHTML = `
     <strong>${Number(state.live?.participantCount || state.participantCount || 0)} connected</strong>
     <span>${Number(state.live?.responseCount || state.responseCount || 0)} responses on this slide</span>`;
+  const timer = state.timer;
+  const timerPanel = document.querySelector("#remoteTimerPanel");
+  timerPanel?.classList.toggle("hidden", !timer);
+  if (timer) document.querySelector("#remoteTimerReadout").textContent = formatCountdown(timer.remainingSeconds);
+  document.querySelector('[data-remote-tab="live"]')?.classList.toggle("has-active-timer", Boolean(timer));
   renderRemoteSlideStrip(document.querySelector("#remoteQuickSlides"), slides, index, true);
-  renderRemoteSlideStrip(document.querySelector("#remoteAllSlides"), slides, index, false);
   renderRemoteQuestions(state.live?.questions || []);
 }
 
@@ -6454,17 +6488,20 @@ function renderRemoteQuestions(questions) {
   const list = document.querySelector("#remoteQnaList");
   list.replaceChildren();
   const visible = questions.filter((question) => question.status !== "deleted");
+  const unansweredCount = visible.filter((question) => !question.answered).length;
+  document.querySelector("#remoteQnaIndicator")?.classList.toggle("hidden", unansweredCount === 0);
   if (!visible.length) {
     list.innerHTML = "<p>No audience questions yet.</p>";
     return;
   }
   visible.forEach((question) => {
     const row = document.createElement("article");
+    row.className = "remote-qna-item";
     row.dataset.questionId = question.id;
     row.innerHTML = `
       <strong>${escapeHtml(question.text || "")}</strong>
-      <span>${Number(question.votes || 0)} upvotes · ${escapeHtml(question.status || "unanswered")}</span>
-      <div>
+      <span>${Number(question.upvotes ?? question.votes ?? 0)} upvotes · ${question.answered ? "Answered" : "Unanswered"}</span>
+      <div class="remote-qna-actions">
         <button type="button" data-remote-question-action="${question.visible ? "hide" : "show"}">${question.visible ? "Hide" : "Display"}</button>
         <button type="button" data-remote-question-action="${question.answered ? "unanswered" : "answered"}">${question.answered ? "Reopen" : "Mark answered"}</button>
         <button type="button" data-remote-question-action="delete">Delete</button>

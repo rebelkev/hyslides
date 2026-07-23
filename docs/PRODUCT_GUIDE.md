@@ -23,11 +23,17 @@ The standalone phone, tablet, or computer webpage opened using a deck’s QR cod
 - If live sync is unavailable, **Reconnect / Go live** republishes the current session without clearing responses or creating a new session instance.
 - Live publishing automatically creates compact presentation copies of oversized embedded images and backgrounds so original editor assets remain untouched while the session stays within Cloudflare D1 limits.
 
-The private presentation control interface, available in responsive Desktop and Mobile layouts. It contains end-state slide previews, speaker notes, navigation, an elapsed timer, live participant and response counts, engagement controls, and session controls. On phones, Control, Slides, Notes, Live, and Q&A tabs keep the interface focused. The Control tab includes a horizontally scrollable deck strip for jumping to a slide or skipping it without leaving the main navigation controls.
+The private presentation control interface, available in responsive Desktop and Mobile layouts. It contains end-state slide previews, speaker notes, navigation, an elapsed timer, live participant and response counts, engagement controls, and session controls. On phones, Control, Live, and Q&A tabs keep the interface focused. The Control tab includes a horizontally scrollable deck strip for jumping to a slide or skipping it without leaving the main navigation controls, plus expandable slide notes.
 
 Click **Present** in Editor View to open Presenter View in a new tab. Then select **Open Presentation View** to open the clean projected slide show in another tab.
 
 ### Mobile Presenter Controller
+
+Pair a phone from Desktop Presenter View using **Connect phone**. The controller remains paired when the presenter starts a new session instance, and it automatically reconnects after a brief connection interruption.
+
+- **Control:** current slide, Previous/Next, direct slide jumping, include/skip controls, and expandable speaker notes.
+- **Live:** participant and response totals, Black Screen, response clearing, session controls, and timer controls. An active timer appears in this tab with one-minute adjustment and removal controls.
+- **Q&A:** unanswered and answered questions with display, answer/reopen, and delete actions. A red indicator appears on the tab while unanswered questions remain.
 
 In desktop Presenter View, select **Connect phone**. Scan the private QR code with the presenter's phone or copy its link. The focused controller page provides Control, Slides, Notes, Live, and Q&A tabs without exposing Editor View.
 

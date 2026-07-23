@@ -608,8 +608,13 @@ async function authorizeRemoteController(db: D1Database, request: Request, code:
   ).bind(tokenHash, code).first<{ instance_id: string }>();
   if (!pairing) throw new Error("Remote controller access has expired.");
   const session = await getLiveSessionRow(db, code);
-  if (session.instance_id !== pairing.instance_id || session.status === "ended") {
+  if (session.status === "ended") {
     throw new Error("Remote controller access has expired.");
+  }
+  if (session.instance_id !== pairing.instance_id) {
+    await db.prepare(
+      `UPDATE hyslides_remote_controller_pairings SET instance_id = ? WHERE token_hash = ? AND access_code = ?`
+    ).bind(session.instance_id, tokenHash, code).run();
   }
   return session;
 }
@@ -643,13 +648,14 @@ async function queueRemoteCommand(db: D1Database, instanceId: string, payload: R
   const action = stringValue(payload.action);
   const allowed = new Set([
     "next", "previous", "goTo", "toggleIncluded", "blackout", "clearResponses",
-    "newSession", "endSession", "addTimer", "moderateQuestion",
+    "newSession", "endSession", "addTimer", "adjustTimer", "removeTimer", "moderateQuestion",
   ]);
   if (!allowed.has(action)) throw new Error("Remote command is not allowed.");
   const safePayload = JSON.stringify({
     action,
     slideIndex: numberValue(payload.slideIndex),
     included: Boolean(payload.included),
+    seconds: numberValue(payload.seconds),
     questionId: stringValue(payload.questionId).slice(0, 100),
     moderationAction: stringValue(payload.moderationAction).slice(0, 24),
   });
