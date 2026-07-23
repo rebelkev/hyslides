@@ -2,6 +2,12 @@
 
 ## Current Development Build
 
+### Mobile Presenter Controller
+
+- Added touch-focused Control, Slides, Notes, Live, and Q&A tabs to Presenter View on phones.
+- Kept the current slide, previous/next controls, black screen, full screen, and a horizontally scrollable slide strip together on the Control tab.
+- Added include/skip checkboxes and direct slide jumping to both mobile slide strips while preserving desktop Presenter View.
+
 ### Editor
 
 - Moved New deck, Save now, Open saved decks, and Help & FAQ into an application menu opened from the HySlides mark. The remaining top-bar actions now align with the slide-editing toolbar and the new help panel explains the four views, autosave, presenting, and engagement basics.

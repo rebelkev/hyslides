@@ -170,7 +170,7 @@
       </section>
     </div>
 
-    <div id="presenterOverlay" class="presenter hidden" aria-hidden="true">
+    <div id="presenterOverlay" class="presenter hidden" data-mobile-tab="control" aria-hidden="true">
       <header class="presenter-topbar">
         <div class="presenter-brand">
           <span class="brand-mark" aria-hidden="true">H</span>
@@ -188,6 +188,14 @@
         </div>
       </header>
 
+      <nav class="presenter-mobile-tabs" aria-label="Presenter sections" role="tablist">
+        <button class="active" type="button" role="tab" aria-selected="true" data-presenter-mobile-tab="control">Control</button>
+        <button type="button" role="tab" aria-selected="false" data-presenter-mobile-tab="slides">Slides</button>
+        <button type="button" role="tab" aria-selected="false" data-presenter-mobile-tab="notes">Notes</button>
+        <button type="button" role="tab" aria-selected="false" data-presenter-mobile-tab="live">Live</button>
+        <button type="button" role="tab" aria-selected="false" data-presenter-mobile-tab="qna">Q&amp;A</button>
+      </nav>
+
       <aside class="presenter-filmstrip" aria-label="Presentation flow">
         <div class="presenter-section-head">
           <div><strong>Presentation flow</strong><span>Uncheck a slide to skip it</span></div>
@@ -200,6 +208,13 @@
         <section class="presenter-current-card">
           <div class="presenter-card-head"><strong id="presenterSlideTitle">Current slide</strong><span>End-state preview</span></div>
           <div class="presenter-main"><canvas id="presenterCanvas" width="1280" height="720"></canvas><div id="presentationEmbedLayer" class="presentation-embed-layer" aria-label="Embedded video layer"></div></div>
+        </section>
+        <section class="presenter-mobile-quick-flow" aria-label="Quick slide navigation">
+          <div class="presenter-section-head">
+            <div><strong>Slides</strong><span>Tap a slide to present it. Uncheck it to skip.</span></div>
+            <span id="presenterMobileFlowCount"></span>
+          </div>
+          <div id="presenterMobileSlideList" class="presenter-slide-list presenter-mobile-slide-list"></div>
         </section>
       </main>
 

@@ -112,6 +112,8 @@ const dom = {
   presenterConnectionStatus: document.querySelector("#presenterConnectionStatus"),
   presenterFlowCount: document.querySelector("#presenterFlowCount"),
   presenterSlideList: document.querySelector("#presenterSlideList"),
+  presenterMobileFlowCount: document.querySelector("#presenterMobileFlowCount"),
+  presenterMobileSlideList: document.querySelector("#presenterMobileSlideList"),
   presenterQnaList: document.querySelector("#presenterQnaList"),
   presenterQnaCount: document.querySelector("#presenterQnaCount"),
   nextSlideTitle: document.querySelector("#nextSlideTitle"),
@@ -172,6 +174,7 @@ const presenterVideoStates = new Map();
 const liveVideoPlayback = new Map();
 let lastVideoTelemetryAt = 0;
 let presenterQnaTab = "unanswered";
+let presenterMobileTab = "control";
 let audienceOpen = false;
 let participantQnaOpen = false;
 let leftRailTab = "slides";
@@ -396,6 +399,9 @@ function bindEvents() {
   document.querySelector("#openPresentationViewBtn").addEventListener("click", openPresentationWindow);
   document.querySelector("#resetPresenterTimerBtn").addEventListener("click", resetPresenterTimer);
   document.querySelector("#blackoutPresentationBtn").addEventListener("click", togglePresentationBlackout);
+  document.querySelectorAll("[data-presenter-mobile-tab]").forEach((button) => {
+    button.addEventListener("click", () => setPresenterMobileTab(button.dataset.presenterMobileTab));
+  });
   document.querySelector("#qnaUnansweredTab").addEventListener("click", () => {
     presenterQnaTab = "unanswered";
     renderPresenterQna();
@@ -4322,12 +4328,19 @@ function formatCountdown(seconds) {
 
 async function renderPresenterFlow() {
   if (!dom.presenterSlideList) return;
-  dom.presenterFlowCount.textContent = `${deck.slides.length - skippedSlideIds.size}/${deck.slides.length} included`;
-  dom.presenterSlideList.replaceChildren();
+  const countLabel = `${deck.slides.length - skippedSlideIds.size}/${deck.slides.length} included`;
+  dom.presenterFlowCount.textContent = countLabel;
+  if (dom.presenterMobileFlowCount) dom.presenterMobileFlowCount.textContent = countLabel;
+  await renderPresenterFlowList(dom.presenterSlideList);
+  if (dom.presenterMobileSlideList) await renderPresenterFlowList(dom.presenterMobileSlideList, true);
+}
+
+async function renderPresenterFlowList(container, mobileQuickFlow = false) {
+  container.replaceChildren();
   for (const [index, slide] of deck.slides.entries()) {
     const row = document.createElement("div");
     const skipped = skippedSlideIds.has(slide.id);
-    row.className = `presenter-flow-slide${index === activeSlideIndex ? " active" : ""}${skipped ? " skipped" : ""}`;
+    row.className = `presenter-flow-slide${mobileQuickFlow ? " quick" : ""}${index === activeSlideIndex ? " active" : ""}${skipped ? " skipped" : ""}`;
     row.innerHTML = `<input type="checkbox" ${skipped ? "" : "checked"} aria-label="Include slide ${index + 1}"><div><canvas width="160" height="90"></canvas><strong>${index + 1}. ${escapeHtml(slide.title)}</strong></div>`;
     const canvas = row.querySelector("canvas");
     const thumbCtx = canvas.getContext("2d");
@@ -4345,9 +4358,23 @@ async function renderPresenterFlow() {
       if (event.target.matches("input") || skippedSlideIds.has(slide.id)) return;
       activeSlideIndex = index;
       syncPresenterSlideChange();
+      if (mobileQuickFlow && window.matchMedia("(max-width: 980px)").matches) {
+        setPresenterMobileTab("control");
+      }
     });
-    dom.presenterSlideList.append(row);
+    container.append(row);
   }
+}
+
+function setPresenterMobileTab(tab = "control") {
+  const allowed = new Set(["control", "slides", "notes", "live", "qna"]);
+  presenterMobileTab = allowed.has(tab) ? tab : "control";
+  dom.presenterOverlay.dataset.mobileTab = presenterMobileTab;
+  document.querySelectorAll("[data-presenter-mobile-tab]").forEach((button) => {
+    const selected = button.dataset.presenterMobileTab === presenterMobileTab;
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-selected", String(selected));
+  });
 }
 
 function nextIncludedSlideIndex(fromIndex, direction) {
