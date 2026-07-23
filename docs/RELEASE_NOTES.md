@@ -10,6 +10,7 @@
 
 ### Editor
 
+- Streamlined element Properties by removing coordinate and size fields, moving element-specific controls above shared properties, placing rotation beside a numeric opacity field, moving animation controls last, and replacing the Locked checkbox with a lock/unlock icon beside the element type.
 - Moved New deck, Save now, Open saved decks, and Help & FAQ into an application menu opened from the HySlides mark. The remaining top-bar actions now align with the slide-editing toolbar and the new help panel explains the four views, autosave, presenting, and engagement basics.
 - Replaced linked poll-chart label/value textareas with the same editable option rows used by Poll and Multiple Choice elements. Every option now receives a distinct default color that editors can override using a compact picker with the deck's named global swatches; the color follows that option into live charts, slide results, and Participant View.
 - Removed the duplicate Primary and Accent color controls from slide Properties. Those values remain as internal deck defaults and named global color styles managed through Global Deck Settings.

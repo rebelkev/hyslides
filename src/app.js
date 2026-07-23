@@ -2258,27 +2258,30 @@ function renderSlideInspector(slide) {
 function renderElementInspector(element) {
   const animation = normalizedAnimation(element);
   dom.inspector.innerHTML = `
+    <section class="inspector-section element-inspector-heading">
+      <div class="element-heading-row">
+        <button
+          id="elementLockToggle"
+          class="element-lock-toggle"
+          type="button"
+          aria-label="${element.locked ? "Unlock" : "Lock"} ${attr(elementTypeHeading(element))}"
+          aria-pressed="${Boolean(element.locked)}"
+          title="${element.locked ? "Unlock element" : "Lock element"}"
+        ><i data-lucide="${element.locked ? "lock" : "unlock"}" aria-hidden="true"></i></button>
+        <strong>${escapeHtml(elementTypeHeading(element))}</strong>
+      </div>
+    </section>
+    ${elementInspectorFields(element)}
+    ${brandColorElementSection([element])}
     <section class="inspector-section">
-      <strong>${escapeHtml(element.name || element.type)}</strong>
       <div class="field-row"><label for="nameInput">Name</label><input id="nameInput" value="${attr(element.name)}" /></div>
       <div class="field-grid">
-        <div class="field-row"><label for="xInput">X</label><input id="xInput" type="number" value="${Math.round(element.x)}" /></div>
-        <div class="field-row"><label for="yInput">Y</label><input id="yInput" type="number" value="${Math.round(element.y)}" /></div>
-        <div class="field-row"><label for="wInput">W</label><input id="wInput" type="number" value="${Math.round(element.w)}" /></div>
-        <div class="field-row"><label for="hInput">H</label><input id="hInput" type="number" value="${Math.round(element.h)}" /></div>
-      </div>
-      <div class="field-grid">
         <div class="field-row"><label for="rotationInput">Rotation</label><input id="rotationInput" type="number" value="${Math.round(element.rotation || 0)}" /></div>
-        <div class="field-row opacity-field">
-          <label for="opacityRange">Opacity</label>
-          <div class="opacity-control">
-            <input id="opacityRange" type="range" min="0" max="100" step="1" value="${opacityPercent(element.opacity)}" />
-            <input id="opacityValue" type="number" min="0" max="100" step="1" value="${opacityPercent(element.opacity)}" aria-label="Opacity percent" />
-            <span>%</span>
-          </div>
+        <div class="field-row">
+          <label for="opacityValue">Opacity (%)</label>
+          <input id="opacityValue" type="number" min="0" max="100" step="1" value="${opacityPercent(element.opacity)}" />
         </div>
       </div>
-      <div class="check-row"><input id="lockedInput" type="checkbox" ${element.locked ? "checked" : ""} /><label for="lockedInput">Locked</label></div>
       ${element.type === "text" ? `<div class="check-row"><input id="autoHeightInput" type="checkbox" ${element.autoHeight !== false ? "checked" : ""} /><label for="autoHeightInput">Automatically fit height to text</label></div>` : ""}
     </section>
     <section class="inspector-section">
@@ -2292,21 +2295,17 @@ function renderElementInspector(element) {
       <div class="field-row"><label for="animationEasingInput">Easing</label><select id="animationEasingInput">${animationOptionList([["linear", "Linear"], ["ease", "Ease"], ["easeIn", "Ease in"], ["easeOut", "Ease out"], ["easeInOut", "Ease in/out"]], animation.easing)}</select></div>
       <button id="previewElementAnimationBtn" type="button">Preview animation</button>
     </section>
-    ${brandColorElementSection([element])}
-    ${elementInspectorFields(element)}
   `;
 
-  bindValue("#nameInput", (value) => (element.name = value));
-  bindNumber("#xInput", (value) => (element.x = value));
-  bindNumber("#yInput", (value) => (element.y = value));
-  bindNumber("#wInput", (value) => (element.w = Math.max(8, value)));
-  bindNumber("#hInput", (value) => {
-    element.autoHeight = false;
-    element.h = Math.max(8, value);
+  window.lucide?.createIcons({ attrs: { "stroke-width": 1.8 } });
+  document.querySelector("#elementLockToggle")?.addEventListener("click", () => {
+    element.locked = !element.locked;
+    markChanged(element.locked ? "Element locked" : "Element unlocked");
+    renderAll();
   });
+  bindValue("#nameInput", (value) => (element.name = value));
   bindNumber("#rotationInput", (value) => (element.rotation = value));
   bindOpacityControls([element]);
-  bindToggle("#lockedInput", (value) => (element.locked = value));
   bindToggle("#autoHeightInput", (value) => {
     element.autoHeight = value;
     if (value) element.h = measureTextElementHeight(ctx, element, deck);
@@ -2319,6 +2318,24 @@ function renderElementInspector(element) {
   document.querySelector("#previewElementAnimationBtn")?.addEventListener("click", () => previewElementAnimation(element));
   bindBrandColorApplication([element]);
   bindTypeFields(element);
+}
+
+function elementTypeHeading(element) {
+  if (element.audienceJoinRole === "qr") return "Audience QR code";
+  if (element.audienceJoinRole === "code") return "Audience access code";
+  const labels = {
+    text: "Text",
+    shape: "Shape",
+    image: "Image",
+    icon: "Icon",
+    chart: "Chart",
+    table: "Table",
+    divider: "Divider",
+    engagement: "Engagement",
+    countdown: "Countdown",
+    embed: "YouTube video",
+  };
+  return labels[element.type] || "Element";
 }
 
 function elementInspectorFields(element) {
@@ -2581,26 +2598,15 @@ function bindTypeFields(element) {
 }
 
 function renderMultiInspector(selected) {
-  const bounds = boundsForElements(selected);
   const averageOpacity = selected.length
     ? opacityPercent(selected.reduce((total, element) => total + (element.opacity ?? 1), 0) / selected.length)
     : 100;
   dom.inspector.innerHTML = `
     <section class="inspector-section">
       <strong>${selected.length} elements selected</strong>
-      <div class="field-grid">
-        <div class="field-row"><label>X</label><input readonly value="${Math.round(bounds.x)}" /></div>
-        <div class="field-row"><label>Y</label><input readonly value="${Math.round(bounds.y)}" /></div>
-        <div class="field-row"><label>W</label><input readonly value="${Math.round(bounds.w)}" /></div>
-        <div class="field-row"><label>H</label><input readonly value="${Math.round(bounds.h)}" /></div>
-        <div class="field-row opacity-field">
-          <label for="opacityRange">Opacity</label>
-          <div class="opacity-control">
-            <input id="opacityRange" type="range" min="0" max="100" step="1" value="${averageOpacity}" />
-            <input id="opacityValue" type="number" min="0" max="100" step="1" value="${averageOpacity}" aria-label="Opacity percent" />
-            <span>%</span>
-          </div>
-        </div>
+      <div class="field-row">
+        <label for="opacityValue">Opacity (%)</label>
+        <input id="opacityValue" type="number" min="0" max="100" step="1" value="${averageOpacity}" />
       </div>
       <button id="groupSelectedBtn" type="button">Group selected</button>
       <button id="ungroupSelectedBtn" type="button">Ungroup selected</button>

@@ -1096,6 +1096,49 @@ label {
   border-bottom: 0;
 }
 
+.element-inspector-heading {
+  padding-bottom: 10px;
+}
+
+.element-heading-row {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.element-heading-row strong {
+  font-size: 18px;
+}
+
+.element-lock-toggle {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: inline-flex;
+  height: 34px;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0;
+  width: 34px;
+}
+
+.element-lock-toggle:hover {
+  background: #e8efff;
+  border-color: var(--blue);
+}
+
+.element-lock-toggle[aria-pressed="true"] {
+  background: #e8efff;
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+.element-lock-toggle svg {
+  height: 18px;
+  width: 18px;
+}
+
 .field-grid {
   display: grid;
   gap: 8px;
