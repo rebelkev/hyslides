@@ -68,7 +68,7 @@ import {
 } from "./live.js";
 import { youtubeEmbedUrl, youtubeVideoId } from "./embed.js";
 import { resizeBounds } from "./resize.js";
-import { lucideIconSvgDataUri } from "./icon-assets.js";
+import { lucideIconSvgDataUri, normalizeLucideIconName, resolveLucideIconNode } from "./icon-assets.js";
 import { backgroundShaderOptions } from "./backgrounds.js";
 
 const dom = {
@@ -2578,10 +2578,7 @@ const ICON_CATEGORIES = [
 
 function lucideCatalogNames() {
   const names = Object.keys(window.lucide?.icons || {})
-    .map((name) => name
-      .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
-      .replace(/([A-Z])([A-Z][a-z])/g, "$1-$2")
-      .toLowerCase())
+    .map(normalizeLucideIconName)
     .filter((name) => !name.endsWith("-icon"));
   return [...new Set(names)].sort();
 }
@@ -2728,8 +2725,7 @@ function iconInspectorFields(element) {
 }
 
 function lucideIconDataUri(name, color = "#2454d6", strokeWidth = 2) {
-  const iconKey = String(name || "sparkles").split("-").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join("");
-  const iconNode = window.lucide?.icons?.[name] || window.lucide?.icons?.[iconKey] || window.lucide?.icons?.Sparkles;
+  const iconNode = resolveLucideIconNode(window.lucide?.icons, name, "sparkles");
   return lucideIconSvgDataUri(iconNode, color, strokeWidth);
 }
 
@@ -2806,7 +2802,6 @@ function bindIconInspector(element) {
     rerenderPicker();
   });
   rerenderPicker();
-  bindIconChoices(element);
   bindIconColorControls(element);
   bindNumber("#iconStrokeWidthInput", (value) => {
     element.strokeWidth = Math.max(0.75, Math.min(4, value));

@@ -18,6 +18,30 @@ function svgNodeMarkup(node) {
   return `<${safeTag}${attributeMarkup ? ` ${attributeMarkup}` : ""}>${childMarkup}</${safeTag}>`;
 }
 
+export function normalizeLucideIconName(name) {
+  return String(name || "")
+    .replace(/Icon$/, "")
+    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+    .replace(/([A-Z])([A-Z][a-z])/g, "$1-$2")
+    .replace(/[\s_]+/g, "-")
+    .toLowerCase();
+}
+
+export function resolveLucideIconNode(icons, requestedName, fallbackName = "sparkles") {
+  const catalog = icons && typeof icons === "object" ? icons : {};
+  const requested = normalizeLucideIconName(requestedName);
+  const fallback = normalizeLucideIconName(fallbackName);
+  let fallbackNode = null;
+
+  for (const [exportName, iconNode] of Object.entries(catalog)) {
+    const normalized = normalizeLucideIconName(exportName);
+    if (normalized === requested) return iconNode;
+    if (normalized === fallback && fallbackNode == null) fallbackNode = iconNode;
+  }
+
+  return fallbackNode;
+}
+
 export function lucideIconSvg(iconNode, color = "#2454d6", strokeWidth = 2) {
   const normalizedColor = /^#[0-9a-f]{6}$/i.test(String(color)) ? String(color) : "#2454d6";
   const normalizedWidth = Math.max(0.75, Math.min(4, Number(strokeWidth) || 2));

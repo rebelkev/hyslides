@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { lucideIconSvg, lucideIconSvgDataUri } from "../src/icon-assets.js";
+import {
+  lucideIconSvg,
+  lucideIconSvgDataUri,
+  normalizeLucideIconName,
+  resolveLucideIconNode,
+} from "../src/icon-assets.js";
 import { resolveTextTypography } from "../src/renderer.js";
 
 test("a linked element color overrides its global typography color", () => {
@@ -60,4 +65,19 @@ test("icon SVG embeds the exact selected color without changing other icons", ()
   assert.match(svg, /stroke-width="2.5"/);
   assert.match(svg, /<path d="M5 12h14"/);
   assert.match(decodeURIComponent(uri), /stroke="#8B0C8D"/);
+});
+
+test("icon selection resolves normalized Lucide export names to distinct assets", () => {
+  const icons = {
+    ActivityIcon: [["path", { d: "M3 12h4l2-7 4 14 2-7h6" }]],
+    CircleHelp: [["circle", { cx: "12", cy: "12", r: "10" }]],
+    Sparkles: [["path", { d: "m12 3-1.9 5.1L5 10l5.1 1.9L12 17l1.9-5.1L19 10l-5.1-1.9Z" }]],
+  };
+
+  assert.equal(normalizeLucideIconName("ActivityIcon"), "activity");
+  const activity = lucideIconSvgDataUri(resolveLucideIconNode(icons, "activity"), "#2454D6", 2);
+  const help = lucideIconSvgDataUri(resolveLucideIconNode(icons, "circle-help"), "#2454D6", 2);
+  assert.notEqual(activity, help);
+  assert.match(decodeURIComponent(activity), /M3 12h4l2-7/);
+  assert.match(decodeURIComponent(help), /<circle/);
 });
