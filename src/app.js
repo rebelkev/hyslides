@@ -2488,6 +2488,25 @@ const RECOMMENDED_ICON_NAMES = [
   "trophy", "upload", "user-check", "users", "video", "wifi", "workflow", "wrench",
 ];
 
+const ICON_CATEGORIES = [
+  ["business", "Business", ["award", "badge", "briefcase", "building", "calendar", "clipboard", "presentation", "target", "trophy", "workflow"]],
+  ["communication", "Communication", ["bell", "contact", "mail", "message", "mic", "phone", "radio", "send", "speech", "video"]],
+  ["data", "Data & analytics", ["activity", "bar-chart", "chart", "database", "gauge", "pie-chart", "table", "trending"]],
+  ["design", "Design", ["brush", "color", "crop", "frame", "image", "layers", "palette", "pen", "ruler", "shapes"]],
+  ["development", "Development & technology", ["binary", "bot", "braces", "bug", "cloud", "code", "cpu", "laptop", "monitor", "server", "terminal", "wifi"]],
+  ["education", "Education", ["book", "graduation", "library", "notebook", "school", "spell", "student"]],
+  ["files", "Files & folders", ["archive", "download", "file", "folder", "paperclip", "save", "upload"]],
+  ["finance", "Finance", ["bank", "bitcoin", "circle-dollar", "coins", "credit-card", "landmark", "receipt", "wallet"]],
+  ["healthcare", "Healthcare", ["ambulance", "cross", "dna", "heart-pulse", "hospital", "pill", "stethoscope", "syringe"]],
+  ["maps", "Maps & location", ["compass", "earth", "flag", "globe", "map", "navigation", "pin", "route"]],
+  ["media", "Media", ["camera", "film", "headphones", "image", "music", "pause", "play", "volume"]],
+  ["people", "People & teams", ["contact", "handshake", "person", "user", "users"]],
+  ["security", "Security", ["fingerprint", "key", "lock", "scan", "shield", "unlock"]],
+  ["shopping", "Shopping", ["badge-percent", "package", "receipt", "shopping", "store", "tag"]],
+  ["transportation", "Transportation", ["bike", "bus", "car", "plane", "rocket", "ship", "train", "truck"]],
+  ["weather", "Weather", ["cloud", "droplet", "rain", "snow", "sun", "thermometer", "umbrella", "wind"]],
+];
+
 function lucideCatalogNames() {
   const names = Object.keys(window.lucide?.icons || {})
     .map((name) => name
@@ -2505,19 +2524,22 @@ function iconDisplayName(name) {
     .join(" ");
 }
 
-function iconPickerResults(query = "") {
+function iconPickerResults(query = "", category = "") {
   const normalizedQuery = query.trim().toLowerCase();
   const catalog = lucideCatalogNames();
-  if (!normalizedQuery) {
+  const categoryKeywords = ICON_CATEGORIES.find(([value]) => value === category)?.[2] || [];
+  if (!catalog.length && !normalizedQuery && !category) {
     return RECOMMENDED_ICON_NAMES.filter((name) => catalog.includes(name) || !catalog.length);
   }
   return catalog
-    .filter((name) => name.includes(normalizedQuery) || iconDisplayName(name).toLowerCase().includes(normalizedQuery))
-    .slice(0, 120);
+    .filter((name) => !normalizedQuery
+      || name.includes(normalizedQuery)
+      || iconDisplayName(name).toLowerCase().includes(normalizedQuery))
+    .filter((name) => !categoryKeywords.length || categoryKeywords.some((keyword) => name.includes(keyword)));
 }
 
-function renderIconPickerGrid(element, query = "") {
-  const results = iconPickerResults(query);
+function renderIconPickerGrid(element, query = "", category = "", limit = 80) {
+  const results = iconPickerResults(query, category).slice(0, limit);
   if (!results.length) {
     return `<p class="icon-picker-empty">No icons found. Try a broader term such as “chart,” “people,” “security,” or “arrow.”</p>`;
   }
@@ -2542,13 +2564,18 @@ function iconInspectorFields(element) {
         <label for="iconSearchInput">Search icon library</label>
         <input id="iconSearchInput" type="search" placeholder="Search 1,500+ icons…" autocomplete="off" />
       </div>
-      <div class="icon-search-suggestions" aria-label="Suggested icon searches">
-        ${["Business", "People", "Data", "Security", "Communication"].map((term) =>
-          `<button type="button" data-icon-search="${term.toLowerCase()}">${term}</button>`).join("")}
+      <div class="field-row icon-category-field">
+        <label class="sr-only" for="iconCategoryInput">Search by category</label>
+        <select id="iconCategoryInput">
+          <option value="">Search by Category</option>
+          ${ICON_CATEGORIES.map(([value, label]) => `<option value="${attr(value)}">${escapeHtml(label)}</option>`).join("")}
+        </select>
       </div>
+      <div class="icon-picker-status"><span id="iconResultCount">${iconPickerResults().length.toLocaleString()} icons available</span><span>Search the full library</span></div>
       <div id="iconPickerGrid" class="icon-picker-grid" role="listbox" aria-label="Available icons">
         ${renderIconPickerGrid(element)}
       </div>
+      <button id="loadMoreIconsBtn" class="secondary-button icon-load-more" type="button">Load more icons</button>
     </section>
     <section class="inspector-section">
       <strong>Icon style</strong>
@@ -2609,20 +2636,33 @@ function refreshIconAsset(element) {
 }
 
 function bindIconInspector(element) {
-  const rerenderPicker = (query = "") => {
+  let visibleIconLimit = 80;
+  const rerenderPicker = ({ reset = false } = {}) => {
     const grid = document.querySelector("#iconPickerGrid");
     if (!grid) return;
-    grid.innerHTML = renderIconPickerGrid(element, query);
+    if (reset) visibleIconLimit = 80;
+    const query = document.querySelector("#iconSearchInput")?.value || "";
+    const category = document.querySelector("#iconCategoryInput")?.value || "";
+    const allResults = iconPickerResults(query, category);
+    grid.innerHTML = renderIconPickerGrid(element, query, category, visibleIconLimit);
+    const count = document.querySelector("#iconResultCount");
+    if (count) count.textContent = `${Math.min(visibleIconLimit, allResults.length).toLocaleString()} of ${allResults.length.toLocaleString()} icons`;
+    const loadMore = document.querySelector("#loadMoreIconsBtn");
+    if (loadMore) {
+      loadMore.classList.toggle("hidden", allResults.length <= visibleIconLimit);
+      loadMore.textContent = `Load more icons (${Math.max(0, allResults.length - visibleIconLimit).toLocaleString()} remaining)`;
+    }
     window.lucide?.createIcons({ attrs: { "stroke-width": 1.8 } });
     bindIconChoices(element);
   };
   const searchInput = document.querySelector("#iconSearchInput");
-  searchInput?.addEventListener("input", () => rerenderPicker(searchInput.value));
-  document.querySelectorAll("[data-icon-search]").forEach((button) => button.addEventListener("click", () => {
-    if (searchInput) searchInput.value = button.dataset.iconSearch;
-    rerenderPicker(button.dataset.iconSearch);
-    searchInput?.focus();
-  }));
+  searchInput?.addEventListener("input", () => rerenderPicker({ reset: true }));
+  document.querySelector("#iconCategoryInput")?.addEventListener("change", () => rerenderPicker({ reset: true }));
+  document.querySelector("#loadMoreIconsBtn")?.addEventListener("click", () => {
+    visibleIconLimit += 80;
+    rerenderPicker();
+  });
+  rerenderPicker();
   bindIconChoices(element);
   bindValue("#iconColorInput", (value) => {
     element.brandColorStyleId = null;

@@ -18,6 +18,10 @@ test("new icons carry corporate-friendly style and accessibility defaults", () =
 test("icon properties expose searchable Lucide selection and styling controls", async () => {
   const script = await readFile(new URL("src/app.js", root), "utf8");
   assert.match(script, /Search 1,500\+ icons/);
+  assert.match(script, /Search by Category/);
+  assert.match(script, /Data & analytics/);
+  assert.match(script, /Load more icons/);
+  assert.match(script, /iconPickerResults\(query, category\)/);
   assert.match(script, /Lucide Icons · MIT licensed/);
   assert.match(script, /id="iconColorInput"/);
   assert.match(script, /id="iconStrokeWidthInput"/);

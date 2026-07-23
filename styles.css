@@ -1189,25 +1189,22 @@ label {
   width: 24px;
 }
 
-.icon-search-suggestions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
+.icon-category-field select {
+  font-weight: 700;
+  width: 100%;
 }
 
-.icon-search-suggestions button {
-  background: #f8fafc;
-  border-radius: 999px;
+.icon-picker-status {
   color: var(--muted);
+  display: flex;
   font-size: 10px;
-  min-height: 27px;
-  padding: 4px 8px;
+  gap: 10px;
+  justify-content: space-between;
 }
 
-.icon-search-suggestions button:hover {
-  background: #edf3ff;
-  border-color: #85a4ff;
-  color: #183f9f;
+.icon-picker-status span:first-child {
+  color: var(--ink);
+  font-weight: 800;
 }
 
 .icon-picker-grid {
@@ -1266,6 +1263,10 @@ label {
   line-height: 1.4;
   margin: 0;
   padding: 12px 8px;
+}
+
+.icon-load-more {
+  width: 100%;
 }
 
 .element-lock-toggle:hover {
