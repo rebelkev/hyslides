@@ -176,6 +176,7 @@ export function createTheme(overrides = {}) {
       },
       footer: {
         showSlideNumber: true,
+        slideNumberPosition: "bottom-right",
         color: "#637083",
         disclaimer: {
           enabled: false,
@@ -288,6 +289,8 @@ export function createElement(type, overrides = {}) {
       fill: "#d94b3d",
       stroke: "transparent",
       strokeWidth: 0,
+      radius: 3,
+      name: "Line",
     },
     engagement: {
       x: 126,
@@ -394,10 +397,13 @@ export function createSlide(overrides = {}) {
     backgroundEffectColorBStyleId: null,
     backgroundShaderIntensity: 0.5,
     backgroundShaderSpeed: 1,
+    backgroundUseDeckDefault: false,
     logoVisible: null,
     logoCorner: null,
     slideNumberVisible: null,
+    slideNumberPosition: null,
     disclaimerVisible: null,
+    disclaimerPosition: null,
     notes: "",
     transition: {
       type: "none",
@@ -1130,6 +1136,9 @@ export function normalizeElement(raw) {
   if (element.type === "text") {
     element.typographyStyleId = raw.typographyStyleId || "body";
     element.useGlobalTypography = raw.useGlobalTypography ?? false;
+  }
+  if (element.type === "divider" && (!raw.name || raw.name === "Divider")) {
+    element.name = "Line";
   }
   return element;
 }

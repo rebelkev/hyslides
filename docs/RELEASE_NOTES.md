@@ -2,6 +2,9 @@
 
 ## Current Development Build
 
+- Renamed the Divider element to Line and added adjustable corner radius.
+- Standardized slide-level brand logo, slide number, disclaimer, and background controls around deck-default inheritance, clear overrides, placement controls, and one-click reset to deck defaults.
+
 ### Mobile Presenter Remote
 
 - Simplified the phone controller to focused Control, Live, and Q&A tabs.

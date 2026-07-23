@@ -74,7 +74,7 @@ Opening another deck or importing a PowerPoint starts a new history for that dec
 
 ## Editing Elements
 
-HySlides supports text, shapes, images, icons, charts, tables, dividers, and engagement elements.
+HySlides supports text, shapes, images, icons, charts, tables, lines, and engagement elements.
 
 Deck-level actions are available from the HySlides menu in the upper-left corner. Use it to create a new deck, force an immediate save, open saved decks, or view Help & FAQ. Editing changes continue to autosave locally in the current browser.
 
@@ -111,6 +111,10 @@ The Default background section defines the solid color or gradient used when a n
 Open **Global Deck Settings → Brand logo** to upload a PNG, JPEG, WebP, or SVG logo. Choose its default corner and display width; new and existing slides inherit the deck setting and show the logo by default. In an individual slide’s Properties, the logo can be hidden, moved to another corner, or reset to the deck defaults. The logo is protected deck branding rather than a deletable slide element.
 
 Open **Global Deck Settings → Slide numbers & disclaimer** to choose whether slide numbers appear by default and to configure persistent legal or confidentiality text. The disclaimer can use any linked deck typography style and can be placed at the top or bottom, aligned left, center, or right. In an individual slide’s Properties, either item can inherit the deck default, be forced visible, or be hidden. Slide numbers and disclaimers are painted above the background but below normal slide elements, allowing a creator to intentionally cover them with shapes or other content.
+
+Slide Properties uses the same inheritance pattern for the brand logo, slide number, disclaimer, and background. Each section shows the effective setting, supports a slide-specific visibility or placement override, and includes **Use deck defaults** to restore the live deck setting. Newly created blank slides inherit the deck background until a creator enables an override.
+
+The **Line** element (previously called Divider) supports fill, stroke, stroke width, and corner radius. Existing Divider elements remain compatible and are presented as Lines in the editor.
 
 Select **Import PowerPoint** in the Editor toolbar to review supported and unsupported features before choosing a `.pptx` file. After import, the same modal reports any conversion notes. PowerPoint guidance no longer occupies every slide’s Properties panel.
 

@@ -386,6 +386,7 @@ function bindEvents() {
       elements: [],
     });
     applyDeckDefaultBackground(slide);
+    slide.backgroundUseDeckDefault = true;
     slide.sectionId = deck.slides[deck.slides.length - 1]?.sectionId || null;
     deck.slides.push(slide);
     activeSlideIndex = deck.slides.length - 1;
@@ -774,6 +775,7 @@ function renderGlobalSettings() {
     ${globalSettingsSectionMarkup("furniture", "Slide numbers & disclaimer", "Deck-wide reference and legal text with per-slide overrides.", `
       <div class="global-slide-furniture">
         <div class="check-row"><input id="globalSlideNumberVisible" type="checkbox" ${footerSettings.showSlideNumber !== false ? "checked" : ""} /><label for="globalSlideNumberVisible">Show slide numbers by default</label></div>
+        <div class="field-row"><label for="globalSlideNumberPosition">Slide number position</label><select id="globalSlideNumberPosition">${animationOptionList([["top-left", "Top left"], ["top-center", "Top center"], ["top-right", "Top right"], ["bottom-left", "Bottom left"], ["bottom-center", "Bottom center"], ["bottom-right", "Bottom right"]], footerSettings.slideNumberPosition || "bottom-right")}</select></div>
         <div class="check-row"><input id="globalDisclaimerEnabled" type="checkbox" ${disclaimer.enabled ? "checked" : ""} /><label for="globalDisclaimerEnabled">Show disclaimer by default</label></div>
         <div class="field-row"><label for="globalDisclaimerText">Disclaimer text</label><textarea id="globalDisclaimerText" maxlength="1000" placeholder="Confidential and proprietary">${escapeHtml(disclaimer.text || "")}</textarea></div>
         <div class="field-grid">
@@ -871,6 +873,10 @@ function renderGlobalSettings() {
   dom.globalSettingsContent.querySelector("#globalSlideNumberVisible")?.addEventListener("change", (event) => {
     footerSettings.showSlideNumber = event.target.checked;
     renderSlideFurnitureChange("Slide number default updated");
+  });
+  dom.globalSettingsContent.querySelector("#globalSlideNumberPosition")?.addEventListener("change", (event) => {
+    footerSettings.slideNumberPosition = event.target.value;
+    renderSlideFurnitureChange("Slide number position updated");
   });
   dom.globalSettingsContent.querySelector("#globalDisclaimerEnabled")?.addEventListener("change", (event) => {
     disclaimer.enabled = event.target.checked;
@@ -2228,8 +2234,22 @@ function renderSlideInspector(slide) {
   const slideLogoCorner = slide.logoCorner || deckLogo.corner || "bottom-right";
   const footerSettings = deck.theme.master?.footer || {};
   const disclaimerSettings = footerSettings.disclaimer || {};
-  const slideNumberMode = slide.slideNumberVisible == null ? "inherit" : slide.slideNumberVisible ? "show" : "hide";
-  const disclaimerMode = slide.disclaimerVisible == null ? "inherit" : slide.disclaimerVisible ? "show" : "hide";
+  const slideNumberVisible = slide.slideNumberVisible == null ? footerSettings.showSlideNumber !== false : Boolean(slide.slideNumberVisible);
+  const slideNumberPosition = slide.slideNumberPosition || footerSettings.slideNumberPosition || "bottom-right";
+  const disclaimerVisible = slide.disclaimerVisible == null ? Boolean(disclaimerSettings.enabled) : Boolean(slide.disclaimerVisible);
+  const disclaimerPosition = slide.disclaimerPosition || disclaimerSettings.position || "bottom-center";
+  const usesDeckBackground = slide.backgroundUseDeckDefault === true;
+  const backgroundSlide = usesDeckBackground
+    ? {
+        ...slide,
+        backgroundType: deck.theme.defaultBackground?.type || "color",
+        background: deck.theme.defaultBackground?.color || "#ffffff",
+        backgroundGradientStart: deck.theme.defaultBackground?.gradientStart || deck.theme.colors.primary,
+        backgroundGradientEnd: deck.theme.defaultBackground?.gradientEnd || deck.theme.colors.accent,
+        backgroundGradientAngle: deck.theme.defaultBackground?.gradientAngle ?? 135,
+      }
+    : slide;
+  const furniturePositions = [["top-left", "Top left"], ["top-center", "Top center"], ["top-right", "Top right"], ["bottom-left", "Bottom left"], ["bottom-center", "Bottom center"], ["bottom-right", "Bottom right"]];
   dom.inspector.innerHTML = `
     <section class="inspector-section">
       <strong>Slide</strong>
@@ -2244,41 +2264,55 @@ function renderSlideInspector(slide) {
       <small>${slide.logoVisible == null && !slide.logoCorner ? "Using deck defaults" : "This slide has a logo override"}</small>
     </section>` : ""}
     <section class="inspector-section">
-      <strong>Slide numbers & disclaimer</strong>
-      <div class="field-row"><label for="slideNumberVisibilityInput">Slide number</label><select id="slideNumberVisibilityInput">${animationOptionList([["inherit", `Use deck default (${footerSettings.showSlideNumber !== false ? "shown" : "hidden"})`], ["show", "Show on this slide"], ["hide", "Hide on this slide"]], slideNumberMode)}</select></div>
-      <div class="field-row"><label for="slideDisclaimerVisibilityInput">Disclaimer</label><select id="slideDisclaimerVisibilityInput">${animationOptionList([["inherit", `Use deck default (${disclaimerSettings.enabled ? "shown" : "hidden"})`], ["show", "Show on this slide"], ["hide", "Hide on this slide"]], disclaimerMode)}</select></div>
+      <strong>Slide number</strong>
+      <div class="check-row"><input id="slideNumberVisibleInput" type="checkbox" ${slideNumberVisible ? "checked" : ""} /><label for="slideNumberVisibleInput">Show slide number</label></div>
+      <div class="field-row"><label for="slideNumberPositionInput">Position</label><select id="slideNumberPositionInput">${animationOptionList(furniturePositions, slideNumberPosition)}</select></div>
+      <button id="resetSlideNumberBtn" type="button">Use deck defaults</button>
+      <small>${slide.slideNumberVisible == null && !slide.slideNumberPosition ? "Using deck defaults" : "This slide has a slide-number override"}</small>
+    </section>
+    <section class="inspector-section">
+      <strong>Disclaimer</strong>
+      <div class="check-row"><input id="slideDisclaimerVisibleInput" type="checkbox" ${disclaimerVisible ? "checked" : ""} /><label for="slideDisclaimerVisibleInput">Show disclaimer</label></div>
+      <div class="field-row"><label for="slideDisclaimerPositionInput">Position</label><select id="slideDisclaimerPositionInput">${animationOptionList(furniturePositions, disclaimerPosition)}</select></div>
+      <button id="resetSlideDisclaimerBtn" type="button">Use deck defaults</button>
+      <small>${slide.disclaimerVisible == null && !slide.disclaimerPosition ? "Using deck defaults" : "This slide has a disclaimer override"}</small>
       <small>${disclaimerSettings.text ? "The disclaimer sits below normal slide elements." : "Add disclaimer text in Global deck settings."}</small>
     </section>
     <section class="inspector-section">
       <strong>Background</strong>
+      <div class="check-row"><input id="useDeckBackgroundInput" type="checkbox" ${usesDeckBackground ? "checked" : ""} /><label for="useDeckBackgroundInput">Use deck default background</label></div>
+      ${usesDeckBackground ? "" : `
       <div class="field-row"><label for="backgroundTypeInput">Style</label><select id="backgroundTypeInput">
-        ${animationOptionList([["color", "Solid color"], ["gradient", "Gradient"], ["image", "Image"], ["animated", "Animated effect"]], slide.backgroundType || "color")}
+        ${animationOptionList([["color", "Solid color"], ["gradient", "Gradient"], ["image", "Image"], ["animated", "Animated effect"]], backgroundSlide.backgroundType || "color")}
       </select></div>
-      ${slide.backgroundType === "gradient" ? `
+      ${backgroundSlide.backgroundType === "gradient" ? `
         <div class="field-grid">
-          ${backgroundColorControlMarkup("gradientStartInput", "Start", slide.backgroundGradientStart || deck.theme.colors.primary, "backgroundGradientStart", "backgroundGradientStartStyleId", slide.backgroundGradientStartStyleId)}
-          ${backgroundColorControlMarkup("gradientEndInput", "End", slide.backgroundGradientEnd || deck.theme.colors.accent, "backgroundGradientEnd", "backgroundGradientEndStyleId", slide.backgroundGradientEndStyleId)}
+          ${backgroundColorControlMarkup("gradientStartInput", "Start", backgroundSlide.backgroundGradientStart || deck.theme.colors.primary, "backgroundGradientStart", "backgroundGradientStartStyleId", backgroundSlide.backgroundGradientStartStyleId)}
+          ${backgroundColorControlMarkup("gradientEndInput", "End", backgroundSlide.backgroundGradientEnd || deck.theme.colors.accent, "backgroundGradientEnd", "backgroundGradientEndStyleId", backgroundSlide.backgroundGradientEndStyleId)}
         </div>
-        <div class="field-row"><label for="gradientAngleInput">Angle</label><input id="gradientAngleInput" type="range" min="0" max="360" step="1" value="${Number(slide.backgroundGradientAngle) || 0}" /><span>${Math.round(Number(slide.backgroundGradientAngle) || 0)}°</span></div>
-      ` : slide.backgroundType === "image" ? `
-        <div class="field-row"><label>Image</label><button id="chooseBackgroundImageBtn" type="button">${slide.backgroundImage ? "Replace image" : "Choose image"}</button>${slide.backgroundImage ? `<button id="removeBackgroundImageBtn" type="button">Remove image</button>` : ""}</div>
-        <div class="field-row"><label for="backgroundImageFitInput">Fit</label><select id="backgroundImageFitInput">${animationOptionList([["cover", "Fill slide (crop)"], ["contain", "Fit entire image"]], slide.backgroundImageFit || "cover")}</select><small>Images always retain their proportions.</small></div>
-      ` : slide.backgroundType === "animated" ? `
-        <div class="field-row"><label for="backgroundShaderInput">Effect</label><select id="backgroundShaderInput">${animationOptionList(backgroundShaderOptions.filter((item) => item.value !== "none").map((item) => [item.value, item.label]), slide.backgroundShader || "aurora")}</select></div>
+        <div class="field-row"><label for="gradientAngleInput">Angle</label><input id="gradientAngleInput" type="range" min="0" max="360" step="1" value="${Number(backgroundSlide.backgroundGradientAngle) || 0}" /><span>${Math.round(Number(backgroundSlide.backgroundGradientAngle) || 0)}°</span></div>
+      ` : backgroundSlide.backgroundType === "image" ? `
+        <div class="field-row"><label>Image</label><button id="chooseBackgroundImageBtn" type="button">${backgroundSlide.backgroundImage ? "Replace image" : "Choose image"}</button>${backgroundSlide.backgroundImage ? `<button id="removeBackgroundImageBtn" type="button">Remove image</button>` : ""}</div>
+        <div class="field-row"><label for="backgroundImageFitInput">Fit</label><select id="backgroundImageFitInput">${animationOptionList([["cover", "Fill slide (crop)"], ["contain", "Fit entire image"]], backgroundSlide.backgroundImageFit || "cover")}</select><small>Images always retain their proportions.</small></div>
+      ` : backgroundSlide.backgroundType === "animated" ? `
+        <div class="field-row"><label for="backgroundShaderInput">Effect</label><select id="backgroundShaderInput">${animationOptionList(backgroundShaderOptions.filter((item) => item.value !== "none").map((item) => [item.value, item.label]), backgroundSlide.backgroundShader || "aurora")}</select></div>
         <div class="field-grid">
-          ${backgroundColorControlMarkup("backgroundEffectColorAInput", "Effect color 1", slide.backgroundEffectColorA || deck.theme.colors.primary, "backgroundEffectColorA", "backgroundEffectColorAStyleId", slide.backgroundEffectColorAStyleId)}
-          ${backgroundColorControlMarkup("backgroundEffectColorBInput", "Effect color 2", slide.backgroundEffectColorB || deck.theme.colors.accent, "backgroundEffectColorB", "backgroundEffectColorBStyleId", slide.backgroundEffectColorBStyleId)}
+          ${backgroundColorControlMarkup("backgroundEffectColorAInput", "Effect color 1", backgroundSlide.backgroundEffectColorA || deck.theme.colors.primary, "backgroundEffectColorA", "backgroundEffectColorAStyleId", backgroundSlide.backgroundEffectColorAStyleId)}
+          ${backgroundColorControlMarkup("backgroundEffectColorBInput", "Effect color 2", backgroundSlide.backgroundEffectColorB || deck.theme.colors.accent, "backgroundEffectColorB", "backgroundEffectColorBStyleId", backgroundSlide.backgroundEffectColorBStyleId)}
         </div>
         <div class="field-grid">
-          <div class="field-row"><label for="backgroundShaderIntensityInput">Intensity (%)</label><input id="backgroundShaderIntensityInput" type="number" min="0" max="100" step="1" value="${Math.round((Number.isFinite(Number(slide.backgroundShaderIntensity)) ? Number(slide.backgroundShaderIntensity) : 0.5) * 100)}" /></div>
-          <div class="field-row"><label for="backgroundShaderSpeedInput">Speed</label><input id="backgroundShaderSpeedInput" type="number" min="0.1" max="3" step="0.1" value="${Number(slide.backgroundShaderSpeed) || 1}" /></div>
+          <div class="field-row"><label for="backgroundShaderIntensityInput">Intensity (%)</label><input id="backgroundShaderIntensityInput" type="number" min="0" max="100" step="1" value="${Math.round((Number.isFinite(Number(backgroundSlide.backgroundShaderIntensity)) ? Number(backgroundSlide.backgroundShaderIntensity) : 0.5) * 100)}" /></div>
+          <div class="field-row"><label for="backgroundShaderSpeedInput">Speed</label><input id="backgroundShaderSpeedInput" type="number" min="0.1" max="3" step="0.1" value="${Number(backgroundSlide.backgroundShaderSpeed) || 1}" /></div>
         </div>
-      ` : backgroundColorControlMarkup("slideBgInput", "Color", slide.background || "#ffffff", "background", "backgroundStyleId", slide.backgroundStyleId)}
-      <div class="check-row"><input id="backgroundOverlayEnabledInput" type="checkbox" ${slide.backgroundOverlayEnabled ? "checked" : ""} /><label for="backgroundOverlayEnabledInput">Overlay</label></div>
-      ${slide.backgroundOverlayEnabled ? `<div class="field-grid">
-        ${backgroundColorControlMarkup("backgroundOverlayColorInput", "Color", slide.backgroundOverlayColor || "#000000", "backgroundOverlayColor", "backgroundOverlayColorStyleId", slide.backgroundOverlayColorStyleId)}
-        <div class="field-row"><label for="backgroundOverlayOpacityInput">Opacity (%)</label><input id="backgroundOverlayOpacityInput" type="number" min="0" max="100" step="1" value="${Math.round((Number(slide.backgroundOverlayOpacity) || 0) * 100)}" /></div>
+      ` : backgroundColorControlMarkup("slideBgInput", "Color", backgroundSlide.background || "#ffffff", "background", "backgroundStyleId", backgroundSlide.backgroundStyleId)}
+      <div class="check-row"><input id="backgroundOverlayEnabledInput" type="checkbox" ${backgroundSlide.backgroundOverlayEnabled ? "checked" : ""} /><label for="backgroundOverlayEnabledInput">Overlay</label></div>
+      ${backgroundSlide.backgroundOverlayEnabled ? `<div class="field-grid">
+        ${backgroundColorControlMarkup("backgroundOverlayColorInput", "Color", backgroundSlide.backgroundOverlayColor || "#000000", "backgroundOverlayColor", "backgroundOverlayColorStyleId", backgroundSlide.backgroundOverlayColorStyleId)}
+        <div class="field-row"><label for="backgroundOverlayOpacityInput">Opacity (%)</label><input id="backgroundOverlayOpacityInput" type="number" min="0" max="100" step="1" value="${Math.round((Number(backgroundSlide.backgroundOverlayOpacity) || 0) * 100)}" /></div>
       </div>` : ""}
+      `}
+      <button id="resetSlideBackgroundBtn" type="button">Use deck defaults</button>
+      <small>${usesDeckBackground ? "Using deck defaults" : "This slide has a background override"}</small>
     </section>
     <section class="inspector-section">
       <strong>Canvas</strong>
@@ -2325,18 +2359,47 @@ function renderSlideInspector(slide) {
     renderAll();
   });
   const setSlideFurnitureOverride = (property, value, message) => {
-    slide[property] = value === "inherit" ? null : value === "show";
+    slide[property] = value;
     markChanged(message);
     renderCanvas();
     renderSlides();
     if (presenterOpen) renderPresenter();
     if (audienceOpen) renderAudience();
   };
-  document.querySelector("#slideNumberVisibilityInput")?.addEventListener("change", (event) => {
-    setSlideFurnitureOverride("slideNumberVisible", event.target.value, "Slide number override updated");
+  document.querySelector("#slideNumberVisibleInput")?.addEventListener("change", (event) => {
+    setSlideFurnitureOverride("slideNumberVisible", event.target.checked, "Slide number override updated");
   });
-  document.querySelector("#slideDisclaimerVisibilityInput")?.addEventListener("change", (event) => {
-    setSlideFurnitureOverride("disclaimerVisible", event.target.value, "Slide disclaimer override updated");
+  document.querySelector("#slideNumberPositionInput")?.addEventListener("change", (event) => {
+    setSlideFurnitureOverride("slideNumberPosition", event.target.value, "Slide number position updated");
+  });
+  document.querySelector("#resetSlideNumberBtn")?.addEventListener("click", () => {
+    slide.slideNumberVisible = null;
+    slide.slideNumberPosition = null;
+    markChanged("Slide number reset to deck defaults");
+    renderAll();
+  });
+  document.querySelector("#slideDisclaimerVisibleInput")?.addEventListener("change", (event) => {
+    setSlideFurnitureOverride("disclaimerVisible", event.target.checked, "Slide disclaimer override updated");
+  });
+  document.querySelector("#slideDisclaimerPositionInput")?.addEventListener("change", (event) => {
+    setSlideFurnitureOverride("disclaimerPosition", event.target.value, "Slide disclaimer position updated");
+  });
+  document.querySelector("#resetSlideDisclaimerBtn")?.addEventListener("click", () => {
+    slide.disclaimerVisible = null;
+    slide.disclaimerPosition = null;
+    markChanged("Slide disclaimer reset to deck defaults");
+    renderAll();
+  });
+  document.querySelector("#useDeckBackgroundInput")?.addEventListener("change", (event) => {
+    slide.backgroundUseDeckDefault = event.target.checked;
+    if (!slide.backgroundUseDeckDefault) applyDeckDefaultBackground(slide);
+    markChanged(slide.backgroundUseDeckDefault ? "Using deck default background" : "Slide background override enabled");
+    renderAll();
+  });
+  document.querySelector("#resetSlideBackgroundBtn")?.addEventListener("click", () => {
+    slide.backgroundUseDeckDefault = true;
+    markChanged("Slide background reset to deck defaults");
+    renderAll();
   });
   document.querySelector("#copyAudienceJoinUrlBtn")?.addEventListener("click", async (event) => {
     const button = event.currentTarget;
@@ -2349,6 +2412,7 @@ function renderSlideInspector(slide) {
     }, 1600);
   });
   document.querySelector("#backgroundTypeInput")?.addEventListener("change", (event) => {
+    slide.backgroundUseDeckDefault = false;
     slide.backgroundType = event.target.value;
     if (slide.backgroundType === "animated" && (!slide.backgroundShader || slide.backgroundShader === "none")) slide.backgroundShader = "aurora";
     if (slide.backgroundType !== "animated") slide.backgroundShader = "none";
@@ -2466,7 +2530,7 @@ function elementTypeHeading(element) {
     icon: "Icon",
     chart: "Chart",
     table: "Table",
-    divider: "Divider",
+    divider: "Line",
     engagement: "Engagement",
     countdown: "Countdown",
     embed: "YouTube video",
@@ -2830,6 +2894,7 @@ function elementInspectorFields(element) {
           <div class="field-row"><label for="fillInput">Fill</label><input id="fillInput" type="color" value="${element.fill || "#ffffff"}" /></div>
           <div class="field-row"><label for="strokeInput">Stroke</label><input id="strokeInput" type="color" value="${element.stroke || "#ffffff"}" /></div>
           <div class="field-row"><label for="strokeWidthInput">Stroke width</label><input id="strokeWidthInput" type="number" value="${element.strokeWidth || 0}" /></div>
+          <div class="field-row"><label for="lineRadiusInput">Corner radius</label><input id="lineRadiusInput" type="number" min="0" max="${Math.max(0, Math.floor(Math.min(element.w, element.h) / 2))}" step="1" value="${Math.max(0, Number(element.radius) || 0)}" /></div>
         </div>
       </section>`;
   }
@@ -2984,6 +3049,7 @@ function bindTypeFields(element) {
       renderAll();
     });
     bindNumber("#shapeRadiusInput", (value) => (element.radius = clamp(value, 0, 200)));
+    bindNumber("#lineRadiusInput", (value) => (element.radius = clamp(value, 0, Math.min(element.w, element.h) / 2)));
   }
 
   if (element.type === "icon") {

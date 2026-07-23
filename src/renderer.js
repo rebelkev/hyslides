@@ -99,6 +99,21 @@ export function drawSlide(ctx, slide, deck, options = {}) {
 }
 
 function drawSlideBackground(ctx, slide, deck) {
+  slide = slide?.backgroundUseDeckDefault
+    ? {
+        ...slide,
+        backgroundType: deck?.theme?.defaultBackground?.type || "color",
+        background: deck?.theme?.defaultBackground?.color || deck?.theme?.colors?.background || "#ffffff",
+        backgroundGradientStart: deck?.theme?.defaultBackground?.gradientStart || deck?.theme?.colors?.primary,
+        backgroundGradientEnd: deck?.theme?.defaultBackground?.gradientEnd || deck?.theme?.colors?.accent,
+        backgroundGradientAngle: deck?.theme?.defaultBackground?.gradientAngle ?? 135,
+        backgroundStyleId: null,
+        backgroundGradientStartStyleId: null,
+        backgroundGradientEndStyleId: null,
+        backgroundOverlayEnabled: false,
+        backgroundShader: "none",
+      }
+    : slide;
   const type = slide.backgroundType || (slide.backgroundImage ? "image" : "color");
   ctx.fillStyle = slideBackgroundColor(slide, deck, "background", "backgroundStyleId", deck.theme.colors.background);
   ctx.fillRect(0, 0, SLIDE_SIZE.width, SLIDE_SIZE.height);
@@ -621,7 +636,8 @@ function drawTable(ctx, element, deck) {
 
 function drawDivider(ctx, element) {
   ctx.fillStyle = element.fill || "#d94b3d";
-  roundedRect(ctx, 0, 0, element.w, element.h, element.h / 2);
+  const radius = Math.max(0, Math.min(Number(element.radius) || 0, element.w / 2, element.h / 2));
+  roundedRect(ctx, 0, 0, element.w, element.h, radius);
   ctx.fill();
 }
 
@@ -853,7 +869,7 @@ function drawSlideFurniture(ctx, slide, deck, explicitSlideIndex = null) {
       || {};
     const fontSize = Math.max(8, Number(style.fontSize) || 16);
     const lineHeight = fontSize * Math.max(0.8, Number(style.lineHeight) || 1.2);
-    const position = String(disclaimer.position || "bottom-center");
+    const position = String(slide?.disclaimerPosition || disclaimer.position || "bottom-center");
     const horizontal = position.endsWith("left") ? "left" : position.endsWith("right") ? "right" : "center";
     const maxWidth = SLIDE_SIZE.width * 0.72;
     const x = horizontal === "left" ? 40 : horizontal === "right" ? SLIDE_SIZE.width - 40 : SLIDE_SIZE.width / 2;
@@ -869,11 +885,15 @@ function drawSlideFurniture(ctx, slide, deck, explicitSlideIndex = null) {
   }
 
   if (slideNumberVisible(slide, deck) && resolvedSlideIndex >= 0) {
+    const position = String(slide?.slideNumberPosition || footer.slideNumberPosition || "bottom-right");
+    const horizontal = position.endsWith("left") ? "left" : position.endsWith("center") ? "center" : "right";
+    const x = horizontal === "left" ? 54 : horizontal === "center" ? SLIDE_SIZE.width / 2 : SLIDE_SIZE.width - 54;
+    const y = position.startsWith("top") ? 30 : SLIDE_SIZE.height - 30;
     ctx.fillStyle = footer.color || deck?.theme?.colors?.muted || "#637083";
     ctx.font = `600 14px ${deck?.theme?.fonts?.body || "Inter"}, Arial, sans-serif`;
-    ctx.textAlign = "right";
-    ctx.textBaseline = "bottom";
-    ctx.fillText(String(resolvedSlideIndex + 1), SLIDE_SIZE.width - 54, SLIDE_SIZE.height - 30);
+    ctx.textAlign = horizontal;
+    ctx.textBaseline = position.startsWith("top") ? "top" : "bottom";
+    ctx.fillText(String(resolvedSlideIndex + 1), x, y);
   }
 }
 
