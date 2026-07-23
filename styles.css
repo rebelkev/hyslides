@@ -1100,6 +1100,10 @@ label {
   padding-bottom: 10px;
 }
 
+.element-shared-properties {
+  padding-top: 2px;
+}
+
 .element-heading-row {
   align-items: center;
   display: flex;
@@ -1174,6 +1178,54 @@ label {
 .format-bullets {
   font-size: 22px;
   line-height: 1;
+}
+
+.compact-alignment-field {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.compact-alignment-field > span {
+  color: #505b6d;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.alignment-button-group {
+  background: #f4f6fa;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: inline-grid;
+  gap: 3px;
+  grid-template-columns: repeat(3, 34px);
+  padding: 3px;
+}
+
+.alignment-button {
+  background: transparent;
+  border-color: transparent;
+  height: 32px;
+  min-height: 32px;
+  min-width: 0;
+  padding: 0;
+  width: 34px;
+}
+
+.alignment-button:hover {
+  background: #e7efff;
+  color: #1742ad;
+}
+
+.alignment-button.active {
+  background: #dfe9ff;
+  border-color: #91adff;
+  color: #1742ad;
+}
+
+.alignment-button svg {
+  height: 17px;
+  width: 17px;
 }
 
 .field-row {

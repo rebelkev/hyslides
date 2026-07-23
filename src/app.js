@@ -2293,9 +2293,7 @@ function renderElementInspector(element) {
         <strong>${escapeHtml(elementTypeHeading(element))}</strong>
       </div>
     </section>
-    ${elementInspectorFields(element)}
-    ${brandColorElementSection([element])}
-    <section class="inspector-section">
+    <section class="inspector-section element-shared-properties">
       <div class="field-row"><label for="nameInput">Name</label><input id="nameInput" value="${attr(element.name)}" /></div>
       <div class="field-grid">
         <div class="field-row"><label for="rotationInput">Rotation</label><input id="rotationInput" type="number" value="${Math.round(element.rotation || 0)}" /></div>
@@ -2304,8 +2302,9 @@ function renderElementInspector(element) {
           <input id="opacityValue" type="number" min="0" max="100" step="1" value="${opacityPercent(element.opacity)}" />
         </div>
       </div>
-      ${element.type === "text" ? `<div class="check-row"><input id="autoHeightInput" type="checkbox" ${element.autoHeight !== false ? "checked" : ""} /><label for="autoHeightInput">Automatically fit height to text</label></div>` : ""}
     </section>
+    ${elementInspectorFields(element)}
+    ${brandColorElementSection([element])}
     <section class="inspector-section">
       <strong>Animation</strong>
       <div class="field-row"><label for="animationEffectInput">Effect</label><select id="animationEffectInput">${animationOptionList([["none", "None"], ["appear", "Appear"], ["fadeIn", "Fade in"]], animation.effect)}</select></div>
@@ -2363,6 +2362,23 @@ function elementTypeHeading(element) {
 function elementInspectorFields(element) {
   if (element.type === "text") {
     const typography = resolveTextTypography(element, deck);
+    const textAlignment = ["left", "center", "right"].includes(element.align) ? element.align : "left";
+    const alignmentControl = `
+      <div class="compact-alignment-field">
+        <span>Align</span>
+        <div class="alignment-button-group" role="group" aria-label="Text alignment">
+          ${[
+            ["left", "align-left", "Align left"],
+            ["center", "align-center", "Align center"],
+            ["right", "align-right", "Align right"],
+          ].map(([value, icon, label]) => `
+            <button class="alignment-button ${textAlignment === value ? "active" : ""}" type="button"
+              data-text-align="${value}" aria-label="${label}" title="${label}"
+              aria-pressed="${textAlignment === value}">
+              <i data-lucide="${icon}" aria-hidden="true"></i>
+            </button>`).join("")}
+        </div>
+      </div>`;
     const typographyOptions = Object.entries(deck.theme.typographyStyles || {}).map(([id, style]) =>
       `<option value="${attr(id)}" ${element.typographyStyleId === id ? "selected" : ""}>${escapeHtml(style.name || id)}</option>`
     ).join("");
@@ -2370,6 +2386,7 @@ function elementInspectorFields(element) {
       <section class="inspector-section">
         <strong>Text</strong>
         <div class="field-row"><label for="textInput">Content</label><textarea id="textInput">${escapeHtml(element.text || "")}</textarea></div>
+        <div class="check-row"><input id="autoHeightInput" type="checkbox" ${element.autoHeight !== false ? "checked" : ""} /><label for="autoHeightInput">Automatically fit height to text</label></div>
         <div class="field-row"><label for="typographyStyleInput">Typography style</label><select id="typographyStyleInput">${typographyOptions}</select></div>
         <div class="check-row"><input id="useGlobalTypographyInput" type="checkbox" ${element.useGlobalTypography !== false ? "checked" : ""} /><label for="useGlobalTypographyInput">Use global style</label></div>
         ${element.useGlobalTypography !== false ? `<p class="field-help">${escapeHtml(typography.fontFamily)} · ${typography.fontSize}px · ${typography.fontWeight}. Edit this style in Global Settings, or turn off “Use global style” for custom formatting.</p>` : ""}
@@ -2385,8 +2402,8 @@ function elementInspectorFields(element) {
           <div class="field-row"><label for="fontWeightInput">Weight</label><input id="fontWeightInput" type="number" value="${element.fontWeight}" /></div>
           <div class="field-row"><label for="lineHeightInput">Line height</label><input id="lineHeightInput" type="text" inputmode="decimal" value="${formatLineHeight(element.lineHeight)}" /></div>
           <div class="field-row"><label for="textColorInput">Color</label><input id="textColorInput" type="color" value="${element.color}" /></div>
-          <div class="field-row"><label for="alignInput">Align</label><select id="alignInput">${optionList(["left", "center", "right"], element.align)}</select></div>
-        </div>` : `<div class="field-row"><label for="alignInput">Align</label><select id="alignInput">${optionList(["left", "center", "right"], element.align)}</select></div>`}
+        </div>` : ""}
+        ${alignmentControl}
       </section>`;
   }
 
@@ -2521,7 +2538,11 @@ function bindTypeFields(element) {
       element.brandColorStyleId = null;
       element.color = value;
     });
-    bindValue("#alignInput", (value) => (element.align = value));
+    document.querySelectorAll("[data-text-align]").forEach((button) => button.addEventListener("click", () => {
+      element.align = button.dataset.textAlign;
+      markChanged("Text alignment updated");
+      renderAll();
+    }));
     bindTextFormatButton("#boldToggle", () => {
       element.fontWeight = (element.fontWeight || 400) >= 700 ? 500 : 800;
     });
