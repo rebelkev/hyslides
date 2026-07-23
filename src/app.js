@@ -190,7 +190,6 @@ let remoteControllerPublishTimer = 0;
 let remoteControllerCommandsPolling = false;
 let audienceOpen = false;
 let participantQnaOpen = false;
-let remoteSelectedSlideIndex = null;
 let leftRailTab = "slides";
 let inspectorTab = "properties";
 const globalSettingsOpenSections = new Set(["audience"]);
@@ -6589,9 +6588,6 @@ function showRemoteControllerError(error) {
 function renderRemoteController(state) {
   const slides = Array.isArray(state.slides) ? state.slides : [];
   const index = clamp(Number(state.activeSlideIndex) || 0, 0, Math.max(0, slides.length - 1));
-  if (remoteSelectedSlideIndex === null || !slides[remoteSelectedSlideIndex]) {
-    remoteSelectedSlideIndex = index;
-  }
   const current = slides[index] || {};
   document.querySelector("#remoteDeckTitle").textContent = state.deckTitle || "HySlides";
   const status = document.querySelector("#remoteConnectionStatus");
@@ -6621,21 +6617,17 @@ function renderRemoteSlideStrip(container, slides, activeIndex, compact) {
   container.replaceChildren();
   slides.forEach((slide, index) => {
     const card = document.createElement("article");
-    const selected = index === remoteSelectedSlideIndex;
-    card.className = `remote-slide-card${index === activeIndex ? " active" : ""}${selected ? " selected" : ""}${slide.included ? "" : " skipped"}`;
+    const current = index === activeIndex;
+    card.className = `remote-slide-card${current ? " current" : ""}${slide.included ? "" : " skipped"}`;
     card.innerHTML = `
-      <button type="button" class="remote-slide-select" aria-expanded="${selected}" aria-label="Select slide ${index + 1}">
+      <div class="remote-slide-preview">
         <img src="${attr(slide.thumbnail || "")}" alt=""><strong>${index + 1}. ${escapeHtml(slide.title || "")}</strong>
-      </button>
-      <span class="remote-slide-state">${index === activeIndex ? "On screen" : slide.included ? "Included" : "Skipped"}</span>
-      ${selected ? `<div class="remote-slide-actions">
-        <button type="button" data-remote-slide-action="jump" ${slide.included ? "" : "disabled"}>Jump to slide</button>
-        <button type="button" data-remote-slide-action="toggle">${slide.included ? "Skip slide" : "Include slide"}</button>
-      </div>` : ""}`;
-    card.querySelector(".remote-slide-select").addEventListener("click", () => {
-      remoteSelectedSlideIndex = index;
-      renderRemoteSlideStrip(container, slides, activeIndex, compact);
-    });
+      </div>
+      <span class="remote-slide-state">${current ? "Current slide" : slide.included ? "Included" : "Skipped"}</span>
+      ${current ? "" : `<div class="remote-slide-actions">
+        <button type="button" data-remote-slide-action="jump" ${slide.included ? "" : "disabled"}>Jump to…</button>
+        <button type="button" data-remote-slide-action="toggle">${slide.included ? "Skip" : "Include"}</button>
+      </div>`}`;
     card.querySelector('[data-remote-slide-action="jump"]')?.addEventListener("click", () => {
       remoteControllerState.send("goTo", { slideIndex: index });
     });
@@ -6644,33 +6636,51 @@ function renderRemoteSlideStrip(container, slides, activeIndex, compact) {
     });
     container.append(card);
   });
-  if (compact) container.querySelector(".selected, .active")?.scrollIntoView({ block: "nearest", inline: "center" });
+  if (compact) container.querySelector(".current")?.scrollIntoView({ block: "nearest", inline: "center" });
 }
 
 function renderRemoteQuestions(questions) {
   const list = document.querySelector("#remoteQnaList");
   list.replaceChildren();
   const visible = questions.filter((question) => question.status !== "deleted");
-  const unansweredCount = visible.filter((question) => !question.answered).length;
+  const unanswered = visible.filter((question) => !question.answered);
+  const answered = visible.filter((question) => question.answered);
+  const unansweredCount = unanswered.length;
   document.querySelector("#remoteQnaIndicator")?.classList.toggle("hidden", unansweredCount === 0);
   if (!visible.length) {
     list.innerHTML = "<p>No audience questions yet.</p>";
     return;
   }
-  visible.forEach((question) => {
+  const renderGroup = (label, items, emptyMessage) => {
+    const section = document.createElement("section");
+    section.className = "remote-qna-group";
+    section.innerHTML = `<header><h3>${label}</h3><span>${items.length}</span></header>`;
+    if (!items.length) {
+      section.insertAdjacentHTML("beforeend", `<p class="remote-qna-empty">${emptyMessage}</p>`);
+      list.append(section);
+      return;
+    }
+    const groupList = document.createElement("div");
+    groupList.className = "remote-qna-group-list";
+    items.forEach((question) => {
     const row = document.createElement("article");
-    row.className = "remote-qna-item";
+    row.className = `remote-qna-item${question.visible ? " displayed" : ""}`;
     row.dataset.questionId = question.id;
     row.innerHTML = `
       <strong>${escapeHtml(question.text || "")}</strong>
-      <span>${Number(question.upvotes ?? question.votes ?? 0)} upvotes · ${question.answered ? "Answered" : "Unanswered"}</span>
+      <span>${Number(question.upvotes ?? question.votes ?? 0)} upvotes${question.visible ? " · On screen" : ""}</span>
       <div class="remote-qna-actions">
         <button type="button" data-remote-question-action="${question.visible ? "hide" : "show"}">${question.visible ? "Hide" : "Display"}</button>
         <button type="button" data-remote-question-action="${question.answered ? "unanswered" : "answered"}">${question.answered ? "Reopen" : "Mark answered"}</button>
         <button type="button" data-remote-question-action="delete">Delete</button>
       </div>`;
-    list.append(row);
-  });
+      groupList.append(row);
+    });
+    section.append(groupList);
+    list.append(section);
+  };
+  renderGroup("Unanswered", unanswered, "No unanswered questions.");
+  renderGroup("Answered", answered, "No answered questions.");
 }
 
 function clearDeckEngagementResults(targetDeck = deck) {

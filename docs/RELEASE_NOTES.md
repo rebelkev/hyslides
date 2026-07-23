@@ -6,7 +6,8 @@
 
 - Simplified the phone controller to focused Control, Live, and Q&A tabs.
 - Kept the current slide, previous/next controls, expandable notes, and a horizontally scrollable slide strip together on the Control tab.
-- Replaced cramped carousel checkboxes with a tap-first slide action card: select a slide, then choose **Jump to slide** or **Skip/Include slide**.
+- Replaced the tap-first carousel interaction with persistent **Jump to…** and **Skip/Include** controls beneath every non-current slide. The current slide now has a stronger blue outline and omits redundant actions.
+- Grouped Mobile Presenter Remote Q&A into clearly labeled Unanswered and Answered sections while retaining display/hide, answer/reopen, and delete controls for both groups.
 - Fixed a broken command dispatcher that prevented every Mobile Presenter Remote action from reaching the live Presenter View.
 - Added **Connect phone** to desktop Presenter View, generating a private QR code and short-lived controller link for a separate phone or tablet.
 - Added secure D1-backed controller state and command queues. Controller links are scoped to the current session, stored as token hashes, expire after eight hours, and are revoked when the session ends.

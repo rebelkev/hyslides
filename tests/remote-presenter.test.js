@@ -56,8 +56,19 @@ test("remote controller credentials are scoped, hashed, expiring, and revoked on
 });
 
 test("remote Q&A uses the canonical answered flag and compact cards", () => {
-  assert.match(app, /question\.answered \? "Answered" : "Unanswered"/);
-  assert.match(app, /row\.className = "remote-qna-item"/);
+  assert.match(app, /renderGroup\("Unanswered", unanswered/);
+  assert.match(app, /renderGroup\("Answered", answered/);
+  assert.match(app, /data-remote-question-action="\$\{question\.visible \? "hide" : "show"\}"/);
+  assert.match(app, /data-remote-question-action="\$\{question\.answered \? "unanswered" : "answered"\}"/);
   assert.match(styles, /\.remote-qna-list \{ align-content: start;/);
+  assert.match(styles, /\.remote-qna-group \+ \.remote-qna-group/);
   assert.match(styles, /\.presenter-qna-list \{ align-content: start;/);
+});
+
+test("remote carousel gives every non-current slide concise persistent actions", () => {
+  assert.match(app, /\$\{current \? "" : `<div class="remote-slide-actions">/);
+  assert.match(app, />Jump to…<\/button>/);
+  assert.match(app, /\$\{slide\.included \? "Skip" : "Include"\}/);
+  assert.match(app, /container\.querySelector\("\.current"\)/);
+  assert.match(styles, /\.remote-slide-card\.current/);
 });

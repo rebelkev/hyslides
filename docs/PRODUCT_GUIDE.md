@@ -35,7 +35,7 @@ Pair a phone from Desktop Presenter View using **Connect phone**. The controller
 - **Live:** participant and response totals, Black Screen, response clearing, session controls, and timer controls. An active timer appears in this tab with one-minute adjustment and removal controls.
 - **Q&A:** unanswered and answered questions with display, answer/reopen, and delete actions. A red indicator appears on the tab while unanswered questions remain.
 
-In desktop Presenter View, select **Connect phone**. Scan the private QR code with the presenter's phone or copy its link. The focused Mobile Presenter Remote provides Control, Live, and Q&A tabs without exposing Editor View. Tap a slide in the Control carousel to reveal explicit **Jump to slide** and **Skip/Include slide** actions.
+In desktop Presenter View, select **Connect phone**. Scan the private QR code with the presenter's phone or copy its link. The focused Mobile Presenter Remote provides Control, Live, and Q&A tabs without exposing Editor View. The current slide has a distinct blue outline and no redundant actions. Every other slide carries persistent **Jump to…** and **Skip/Include** controls beneath its preview. Q&A is grouped into Unanswered and Answered sections while keeping display, hide, answer/reopen, and delete controls available.
 
 The private link controls only the current session instance. It expires after eight hours or immediately when the session ends. Do not share it with participants.
 
