@@ -20,8 +20,8 @@ export function resolveTextTypography(element, deck) {
 
 export async function preloadSlideImages(slide, deck = null) {
   const images = slide.elements
-    .filter((element) => element.type === "image" && element.src)
-    .map((element) => loadImage(element.src).catch(() => null));
+    .filter((element) => (element.type === "image" && element.src) || (element.type === "icon" && element.iconSrc))
+    .map((element) => loadImage(element.type === "icon" ? element.iconSrc : element.src).catch(() => null));
   if (slide.backgroundImage) images.push(loadImage(slide.backgroundImage).catch(() => null));
   if (deck?.theme?.logo?.src && slideLogoVisible(slide, deck)) images.push(loadImage(deck.theme.logo.src).catch(() => null));
   await Promise.all(images);
@@ -495,38 +495,51 @@ function drawImageElement(ctx, element) {
 }
 
 function drawIcon(ctx, element) {
-  const size = Math.min(element.w, element.h);
-  const cx = element.w / 2;
-  const cy = element.h / 2;
-  ctx.strokeStyle = element.stroke || "#1d232a";
-  ctx.fillStyle = element.fill || "#2454d6";
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  ctx.lineWidth = element.strokeWidth || 2;
-
-  if (element.icon === "check") {
+  const frame = element.iconFrame || "none";
+  if (frame !== "none") {
+    ctx.fillStyle = element.frameFill || "#e8efff";
     ctx.beginPath();
-    ctx.moveTo(cx - size * 0.28, cy);
-    ctx.lineTo(cx - size * 0.06, cy + size * 0.22);
-    ctx.lineTo(cx + size * 0.32, cy - size * 0.24);
-    ctx.stroke();
+    if (frame === "circle") {
+      ctx.ellipse(element.w / 2, element.h / 2, element.w / 2, element.h / 2, 0, 0, Math.PI * 2);
+    } else {
+      roundedRect(ctx, 0, 0, element.w, element.h, frame === "rounded" ? Math.min(element.w, element.h) * 0.18 : 0);
+    }
+    ctx.fill();
+  }
+
+  const image = imageCache.get(element.iconSrc)?.image;
+  if (image) {
+    const paddingPercent = Math.max(0, Math.min(40, Number(element.padding) || 0));
+    const insetX = element.w * paddingPercent / 100;
+    const insetY = element.h * paddingPercent / 100;
+    const width = Math.max(1, element.w - insetX * 2);
+    const height = Math.max(1, element.h - insetY * 2);
+    ctx.save();
+    ctx.translate(element.flipHorizontal ? element.w : 0, element.flipVertical ? element.h : 0);
+    ctx.scale(element.flipHorizontal ? -1 : 1, element.flipVertical ? -1 : 1);
+    ctx.drawImage(image, insetX, insetY, width, height);
+    ctx.restore();
     return;
   }
 
+  // Legacy fallback for decks saved before searchable Lucide icons were introduced.
+  const size = Math.min(element.w, element.h);
+  const cx = element.w / 2;
+  const cy = element.h / 2;
+  ctx.strokeStyle = element.fill || "#2454d6";
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.lineWidth = Math.max(2, size * 0.055);
   ctx.beginPath();
-  for (let i = 0; i < 8; i += 1) {
-    const angle = (Math.PI * 2 * i) / 8;
-    const r = i % 2 === 0 ? size * 0.42 : size * 0.16;
-    const x = cx + Math.cos(angle) * r;
-    const y = cy + Math.sin(angle) * r;
-    if (i === 0) {
-      ctx.moveTo(x, y);
-    } else {
-      ctx.lineTo(x, y);
-    }
+  for (let i = 0; i < 16; i += 1) {
+    const angle = -Math.PI / 2 + (Math.PI * 2 * i) / 16;
+    const radius = i % 2 === 0 ? size * 0.42 : size * 0.19;
+    const x = cx + Math.cos(angle) * radius;
+    const y = cy + Math.sin(angle) * radius;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
   }
   ctx.closePath();
-  ctx.fill();
   ctx.stroke();
 }
 

@@ -193,3 +193,6 @@ Participants can submit Q&A at any time during an active session; a dedicated Q&
 - Presenter View v1 is complete. Its responsive mobile layout supports core controls and Q&A moderation, but touch-focused gestures and pace coaching are future enhancements.
 - User accounts, server-backed deck libraries, admin template management, and collaboration are planned rather than complete.
 - PowerPoint import does not reproduce every master, SmartArt, media, transition, or animation feature. Fonts that are unavailable in the viewer's browser use a browser fallback and are called out in the import summary.
+# Icon library
+
+Add an **Icon** from the element toolbar, then use the Properties panel to search the Lucide icon library. Icons can be recolored, given a custom line weight, placed in an optional circle or square frame, padded, flipped, and linked to a global color style. Icons that communicate information can receive an accessible label; purely decorative icons remain hidden from assistive technology.

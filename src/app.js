@@ -2392,6 +2392,7 @@ function renderSlideInspector(slide) {
 }
 
 function renderElementInspector(element) {
+  if (element.type === "icon" && !element.iconSrc) refreshIconAsset(element);
   const animation = normalizedAnimation(element);
   dom.inspector.innerHTML = `
     <section class="inspector-section element-inspector-heading">
@@ -2473,6 +2474,187 @@ function elementTypeHeading(element) {
   return labels[element.type] || "Element";
 }
 
+const RECOMMENDED_ICON_NAMES = [
+  "activity", "airplay", "award", "badge-check", "bar-chart-3", "bell", "book-open",
+  "briefcase-business", "building-2", "calendar-days", "chart-no-axes-combined", "check",
+  "check-circle-2", "circle-dollar-sign", "circle-help", "clipboard-check", "clock-3",
+  "cloud", "code-2", "coffee", "credit-card", "database", "download", "external-link",
+  "eye", "file-check-2", "file-text", "filter", "flag", "folder-open", "globe-2",
+  "graduation-cap", "handshake", "heart", "house", "image", "info", "key-round",
+  "landmark", "laptop", "lightbulb", "link", "lock-keyhole", "mail", "map-pin",
+  "megaphone", "message-circle", "monitor", "package-check", "panel-top", "phone",
+  "pie-chart", "presentation", "rocket", "search", "settings", "shield-check",
+  "shopping-cart", "sparkles", "star", "target", "thumbs-up", "timer", "trending-up",
+  "trophy", "upload", "user-check", "users", "video", "wifi", "workflow", "wrench",
+];
+
+function lucideCatalogNames() {
+  const names = Object.keys(window.lucide?.icons || {})
+    .map((name) => name
+      .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+      .replace(/([A-Z])([A-Z][a-z])/g, "$1-$2")
+      .toLowerCase())
+    .filter((name) => !name.endsWith("-icon"));
+  return [...new Set(names)].sort();
+}
+
+function iconDisplayName(name) {
+  return String(name || "icon")
+    .split("-")
+    .map((part) => part ? part[0].toUpperCase() + part.slice(1) : "")
+    .join(" ");
+}
+
+function iconPickerResults(query = "") {
+  const normalizedQuery = query.trim().toLowerCase();
+  const catalog = lucideCatalogNames();
+  if (!normalizedQuery) {
+    return RECOMMENDED_ICON_NAMES.filter((name) => catalog.includes(name) || !catalog.length);
+  }
+  return catalog
+    .filter((name) => name.includes(normalizedQuery) || iconDisplayName(name).toLowerCase().includes(normalizedQuery))
+    .slice(0, 120);
+}
+
+function renderIconPickerGrid(element, query = "") {
+  const results = iconPickerResults(query);
+  if (!results.length) {
+    return `<p class="icon-picker-empty">No icons found. Try a broader term such as “chart,” “people,” “security,” or “arrow.”</p>`;
+  }
+  return results.map((name) => `
+    <button class="icon-choice ${element.icon === name ? "selected" : ""}" type="button"
+      data-icon-choice="${attr(name)}" title="${attr(iconDisplayName(name))}"
+      aria-label="Use ${attr(iconDisplayName(name))}" aria-pressed="${element.icon === name}">
+      <i data-lucide="${attr(name)}" aria-hidden="true"></i>
+      <span>${escapeHtml(iconDisplayName(name))}</span>
+    </button>`).join("");
+}
+
+function iconInspectorFields(element) {
+  return `
+    <section class="inspector-section icon-library-section">
+      <strong>Icon</strong>
+      <div class="selected-icon-summary">
+        <span class="selected-icon-preview"><i data-lucide="${attr(element.icon || "sparkles")}" aria-hidden="true"></i></span>
+        <span><strong>${escapeHtml(iconDisplayName(element.icon || "sparkles"))}</strong><small>Lucide Icons · MIT licensed</small></span>
+      </div>
+      <div class="field-row">
+        <label for="iconSearchInput">Search icon library</label>
+        <input id="iconSearchInput" type="search" placeholder="Search 1,500+ icons…" autocomplete="off" />
+      </div>
+      <div class="icon-search-suggestions" aria-label="Suggested icon searches">
+        ${["Business", "People", "Data", "Security", "Communication"].map((term) =>
+          `<button type="button" data-icon-search="${term.toLowerCase()}">${term}</button>`).join("")}
+      </div>
+      <div id="iconPickerGrid" class="icon-picker-grid" role="listbox" aria-label="Available icons">
+        ${renderIconPickerGrid(element)}
+      </div>
+    </section>
+    <section class="inspector-section">
+      <strong>Icon style</strong>
+      <div class="field-grid">
+        <div class="field-row"><label for="iconColorInput">Icon color</label><input id="iconColorInput" type="color" value="${element.fill || "#2454d6"}" /></div>
+        <div class="field-row"><label for="iconStrokeWidthInput">Line weight</label><input id="iconStrokeWidthInput" type="number" min="0.75" max="4" step="0.25" value="${Number(element.strokeWidth) || 2}" /></div>
+        <div class="field-row"><label for="iconFrameInput">Frame</label><select id="iconFrameInput">${animationOptionList([
+          ["none", "None"],
+          ["circle", "Circle"],
+          ["rounded", "Rounded square"],
+          ["square", "Square"],
+        ], element.iconFrame || "none")}</select></div>
+        <div class="field-row"><label for="iconFrameFillInput">Frame color</label><input id="iconFrameFillInput" type="color" value="${element.frameFill || "#e8efff"}" /></div>
+        <div class="field-row"><label for="iconPaddingInput">Padding (%)</label><input id="iconPaddingInput" type="number" min="0" max="40" step="1" value="${Math.max(0, Math.min(40, Number(element.padding) || 0))}" /></div>
+      </div>
+      <div class="check-row"><input id="iconFlipHorizontalInput" type="checkbox" ${element.flipHorizontal ? "checked" : ""} /><label for="iconFlipHorizontalInput">Flip horizontally</label></div>
+      <div class="check-row"><input id="iconFlipVerticalInput" type="checkbox" ${element.flipVertical ? "checked" : ""} /><label for="iconFlipVerticalInput">Flip vertically</label></div>
+    </section>
+    <section class="inspector-section">
+      <strong>Accessibility</strong>
+      <div class="check-row"><input id="iconDecorativeInput" type="checkbox" ${element.decorative !== false ? "checked" : ""} /><label for="iconDecorativeInput">Decorative icon</label></div>
+      <div class="field-row ${element.decorative !== false ? "hidden" : ""}" id="iconAltRow"><label for="iconAltInput">Accessible label</label><input id="iconAltInput" value="${attr(element.alt || "")}" placeholder="Example: Quarterly growth" /></div>
+      <p class="field-help">Keep decorative icons hidden from screen readers. Add a concise label when the icon communicates meaning.</p>
+    </section>`;
+}
+
+function lucideIconDataUri(name, color = "#2454d6", strokeWidth = 2) {
+  const holder = document.createElement("span");
+  holder.style.cssText = "position:absolute;left:-9999px;top:-9999px";
+  holder.innerHTML = `<i data-lucide="${attr(name || "sparkles")}"></i>`;
+  document.body.append(holder);
+  window.lucide?.createIcons({
+    attrs: {
+      color,
+      stroke: color,
+      fill: "none",
+      width: 24,
+      height: 24,
+      "stroke-width": Math.max(0.75, Math.min(4, Number(strokeWidth) || 2)),
+    },
+  });
+  const svg = holder.querySelector("svg");
+  if (!svg) {
+    holder.remove();
+    return "";
+  }
+  svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  svg.setAttribute("width", "24");
+  svg.setAttribute("height", "24");
+  const serialized = new XMLSerializer().serializeToString(svg);
+  holder.remove();
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(serialized)}`;
+}
+
+function refreshIconAsset(element) {
+  element.icon = element.icon || "sparkles";
+  element.iconSrc = lucideIconDataUri(element.icon, element.fill || "#2454d6", element.strokeWidth || 2);
+}
+
+function bindIconInspector(element) {
+  const rerenderPicker = (query = "") => {
+    const grid = document.querySelector("#iconPickerGrid");
+    if (!grid) return;
+    grid.innerHTML = renderIconPickerGrid(element, query);
+    window.lucide?.createIcons({ attrs: { "stroke-width": 1.8 } });
+    bindIconChoices(element);
+  };
+  const searchInput = document.querySelector("#iconSearchInput");
+  searchInput?.addEventListener("input", () => rerenderPicker(searchInput.value));
+  document.querySelectorAll("[data-icon-search]").forEach((button) => button.addEventListener("click", () => {
+    if (searchInput) searchInput.value = button.dataset.iconSearch;
+    rerenderPicker(button.dataset.iconSearch);
+    searchInput?.focus();
+  }));
+  bindIconChoices(element);
+  bindValue("#iconColorInput", (value) => {
+    element.brandColorStyleId = null;
+    element.fill = value;
+    refreshIconAsset(element);
+  });
+  bindNumber("#iconStrokeWidthInput", (value) => {
+    element.strokeWidth = Math.max(0.75, Math.min(4, value));
+    refreshIconAsset(element);
+  });
+  bindValue("#iconFrameInput", (value) => (element.iconFrame = value));
+  bindValue("#iconFrameFillInput", (value) => (element.frameFill = value));
+  bindNumber("#iconPaddingInput", (value) => (element.padding = Math.max(0, Math.min(40, value))));
+  bindToggle("#iconFlipHorizontalInput", (value) => (element.flipHorizontal = value));
+  bindToggle("#iconFlipVerticalInput", (value) => (element.flipVertical = value));
+  bindToggle("#iconDecorativeInput", (value) => {
+    element.decorative = value;
+    document.querySelector("#iconAltRow")?.classList.toggle("hidden", value);
+  });
+  bindValue("#iconAltInput", (value) => (element.alt = value));
+}
+
+function bindIconChoices(element) {
+  document.querySelectorAll("[data-icon-choice]").forEach((button) => button.addEventListener("click", () => {
+    element.icon = button.dataset.iconChoice;
+    element.name = element.name === "Icon" || !element.name ? iconDisplayName(element.icon) : element.name;
+    refreshIconAsset(element);
+    markChanged(`${iconDisplayName(element.icon)} icon selected`);
+    renderAll();
+  }));
+}
+
 function elementInspectorFields(element) {
   if (element.type === "text") {
     const typography = resolveTextTypography(element, deck);
@@ -2542,7 +2724,11 @@ function elementInspectorFields(element) {
       </section>`;
   }
 
-  if (element.type === "divider" || element.type === "icon") {
+  if (element.type === "icon") {
+    return iconInspectorFields(element);
+  }
+
+  if (element.type === "divider") {
     return `
       <section class="inspector-section">
         <strong>Style</strong>
@@ -2691,7 +2877,7 @@ function bindTypeFields(element) {
     });
   }
 
-  if (element.type === "shape" || element.type === "divider" || element.type === "icon") {
+  if (element.type === "shape" || element.type === "divider") {
     bindValue("#fillInput", (value) => {
       element.brandColorStyleId = null;
       element.fill = value;
@@ -2704,6 +2890,10 @@ function bindTypeFields(element) {
       renderAll();
     });
     bindNumber("#shapeRadiusInput", (value) => (element.radius = clamp(value, 0, 200)));
+  }
+
+  if (element.type === "icon") {
+    bindIconInspector(element);
   }
 
   if (element.type === "image") {
@@ -3071,6 +3261,7 @@ function setElementBrandColor(element, color) {
   else if (element.type === "table") element.headerFill = color;
   else if (element.type === "engagement") element.accent = color;
   else element.fill = color;
+  if (element.type === "icon") refreshIconAsset(element);
 }
 
 function engagementOptionEditor(engagement, scope) {
@@ -3463,6 +3654,7 @@ function addElement(type) {
     return;
   }
   const element = createElement(type, center);
+  if (type === "icon") refreshIconAsset(element);
   currentSlide().elements.push(element);
   selectedIds = [element.id];
   markChanged(`${type} added`);

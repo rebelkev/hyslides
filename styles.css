@@ -1148,6 +1148,126 @@ label {
   width: 34px;
 }
 
+.icon-library-section {
+  gap: 9px;
+}
+
+.selected-icon-summary {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: flex;
+  gap: 10px;
+  padding: 9px;
+}
+
+.selected-icon-summary > span:last-child {
+  display: grid;
+  gap: 2px;
+}
+
+.selected-icon-summary small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.selected-icon-preview {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--blue);
+  display: inline-flex;
+  flex: 0 0 42px;
+  height: 42px;
+  justify-content: center;
+}
+
+.selected-icon-preview svg {
+  height: 24px;
+  width: 24px;
+}
+
+.icon-search-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.icon-search-suggestions button {
+  background: #f8fafc;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 10px;
+  min-height: 27px;
+  padding: 4px 8px;
+}
+
+.icon-search-suggestions button:hover {
+  background: #edf3ff;
+  border-color: #85a4ff;
+  color: #183f9f;
+}
+
+.icon-picker-grid {
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 5px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  max-height: 244px;
+  overflow: auto;
+  padding: 6px;
+}
+
+.icon-choice {
+  align-items: center;
+  background: #fff;
+  border-radius: 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  justify-content: center;
+  min-height: 58px;
+  min-width: 0;
+  padding: 6px 3px;
+}
+
+.icon-choice:hover,
+.icon-choice.selected {
+  background: #edf3ff;
+  border-color: #85a4ff;
+  color: #183f9f;
+}
+
+.icon-choice.selected {
+  box-shadow: 0 0 0 2px #dce6ff;
+}
+
+.icon-choice svg {
+  height: 21px;
+  width: 21px;
+}
+
+.icon-choice span {
+  font-size: 8px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.icon-picker-empty {
+  color: var(--muted);
+  font-size: 11px;
+  grid-column: 1 / -1;
+  line-height: 1.4;
+  margin: 0;
+  padding: 12px 8px;
+}
+
 .element-lock-toggle:hover {
   background: #e8efff;
   border-color: var(--blue);

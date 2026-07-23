@@ -173,3 +173,8 @@
 
 - Established Editor View, Presentation View, Participant View, and Presenter View as the canonical product names.
 - Added view-specific browser-tab titles that include the presentation deck name.
+# Searchable corporate icon library
+
+- Replaced the fixed spark icon with the searchable, MIT-licensed Lucide catalog.
+- Added icon color, line weight, frame, frame color, padding, horizontal/vertical flip, and accessibility controls.
+- Icon selections now render consistently on the editor, presenter, presentation, and participant canvases.
