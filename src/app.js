@@ -68,7 +68,12 @@ import {
 } from "./live.js";
 import { youtubeEmbedUrl, youtubeVideoId } from "./embed.js";
 import { resizeBounds } from "./resize.js";
-import { lucideIconSvgDataUri, normalizeLucideIconName, resolveLucideIconNode } from "./icon-assets.js";
+import {
+  lucideIconMarkupSvgDataUri,
+  lucideIconSvgDataUri,
+  normalizeLucideIconName,
+  resolveLucideIconNode,
+} from "./icon-assets.js";
 import { backgroundShaderOptions } from "./backgrounds.js";
 
 const dom = {
@@ -2742,7 +2747,13 @@ function lucideIconDataUri(name, color = "#2454d6", strokeWidth = 2) {
 
 function refreshIconAsset(element) {
   element.icon = element.icon || "sparkles";
-  element.iconSrc = lucideIconDataUri(element.icon, element.fill || "#2454d6", element.strokeWidth || 2);
+  element.iconSrc = element.iconMarkup
+    ? lucideIconMarkupSvgDataUri(
+        element.iconMarkup,
+        element.fill || "#2454d6",
+        element.strokeWidth || 2
+      )
+    : lucideIconDataUri(element.icon, element.fill || "#2454d6", element.strokeWidth || 2);
 }
 
 function bindShapeFillControls(element) {
@@ -2803,7 +2814,6 @@ function bindIconInspector(element) {
       loadMore.textContent = `Load more icons (${Math.max(0, allResults.length - visibleIconLimit).toLocaleString()} remaining)`;
     }
     window.lucide?.createIcons({ attrs: { "stroke-width": 1.8 } });
-    bindIconChoices(element);
   };
   const searchInput = document.querySelector("#iconSearchInput");
   searchInput?.addEventListener("input", () => rerenderPicker({ reset: true }));
@@ -2813,6 +2823,7 @@ function bindIconInspector(element) {
     rerenderPicker();
   });
   rerenderPicker();
+  bindIconChoices(element);
   bindIconColorControls(element);
   bindNumber("#iconStrokeWidthInput", (value) => {
     element.strokeWidth = Math.max(0.75, Math.min(4, value));
@@ -2868,13 +2879,17 @@ function bindIconColorControls(element) {
 }
 
 function bindIconChoices(element) {
-  document.querySelectorAll("[data-icon-choice]").forEach((button) => button.addEventListener("click", () => {
+  document.querySelector("#iconPickerGrid")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-icon-choice]");
+    if (!button) return;
+    const selectedSvg = button.querySelector("svg");
     element.icon = button.dataset.iconChoice;
+    element.iconMarkup = selectedSvg?.innerHTML || "";
     element.name = element.name === "Icon" || !element.name ? iconDisplayName(element.icon) : element.name;
     refreshIconAsset(element);
     markChanged(`${iconDisplayName(element.icon)} icon selected`);
     renderAll();
-  }));
+  });
 }
 
 function elementInspectorFields(element) {

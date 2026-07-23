@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  lucideIconMarkupSvgDataUri,
   lucideIconSvg,
   lucideIconSvgDataUri,
   normalizeLucideIconName,
@@ -80,4 +81,17 @@ test("icon selection resolves normalized Lucide export names to distinct assets"
   assert.notEqual(activity, help);
   assert.match(decodeURIComponent(activity), /M3 12h4l2-7/);
   assert.match(decodeURIComponent(help), /<circle/);
+});
+
+test("clicked icon markup remains distinct and can be recolored without another catalog lookup", () => {
+  const activityMarkup = '<path d="M3 12h4l2-7 4 14 2-7h6"></path>';
+  const helpMarkup = '<circle cx="12" cy="12" r="10"></circle><path d="M9.1 9a3 3 0 1 1 5.83 1c0 2-3 3-3 3"></path>';
+  const activity = lucideIconMarkupSvgDataUri(activityMarkup, "#2454D6", 2);
+  const help = lucideIconMarkupSvgDataUri(helpMarkup, "#8B0C8D", 2.5);
+
+  assert.notEqual(activity, help);
+  assert.match(decodeURIComponent(activity), /M3 12h4l2-7/);
+  assert.match(decodeURIComponent(activity), /stroke="#2454D6"/);
+  assert.match(decodeURIComponent(help), /<circle/);
+  assert.match(decodeURIComponent(help), /stroke="#8B0C8D"/);
 });

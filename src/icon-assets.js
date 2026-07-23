@@ -54,3 +54,12 @@ export function lucideIconSvgDataUri(iconNode, color = "#2454d6", strokeWidth = 
   const svg = lucideIconSvg(iconNode, color, strokeWidth);
   return svg ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}` : "";
 }
+
+export function lucideIconMarkupSvgDataUri(iconMarkup, color = "#2454d6", strokeWidth = 2) {
+  const markup = String(iconMarkup || "").trim();
+  if (!markup || /<(?:script|style|foreignObject)\b/i.test(markup)) return "";
+  const normalizedColor = /^#[0-9a-f]{6}$/i.test(String(color)) ? String(color) : "#2454d6";
+  const normalizedWidth = Math.max(0.75, Math.min(4, Number(strokeWidth) || 2));
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${normalizedColor}" stroke-width="${normalizedWidth}" stroke-linecap="round" stroke-linejoin="round">${markup}</svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}

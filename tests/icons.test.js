@@ -35,6 +35,8 @@ test("icon properties expose searchable Lucide selection and styling controls", 
   assert.match(script, /id="iconDecorativeInput"/);
   assert.match(script, /id="iconAltInput"/);
   assert.match(script, /data-icon-choice/);
+  assert.match(script, /element\.iconMarkup = selectedSvg\?\.innerHTML/);
+  assert.match(script, /document\.querySelector\("#iconPickerGrid"\)\?\.addEventListener\("click"/);
 });
 
 test("canvas renderer uses the selected icon asset and preserves a legacy fallback", async () => {
