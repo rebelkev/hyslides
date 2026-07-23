@@ -2606,6 +2606,174 @@ body.presentation-window .presentation-question-overlay.hidden { display: none; 
   gap: 3px;
 }
 
+.remote-pairing-card {
+  background: var(--paper);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 16px;
+  max-width: 640px;
+  padding: 18px;
+  width: min(92vw, 640px);
+}
+
+.remote-pairing-content {
+  display: grid;
+  gap: 14px;
+}
+
+.remote-pairing-access {
+  align-items: center;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 180px minmax(0, 1fr);
+}
+
+.remote-pairing-access img {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  width: 180px;
+}
+
+.remote-pairing-link { display: grid; gap: 8px; min-width: 0; }
+.remote-pairing-link input { width: 100%; }
+
+body.remote-controller-window {
+  background: #eef2f7;
+  min-width: 0;
+}
+
+body.remote-controller-window > :not(#remoteControllerApp):not(script) {
+  display: none !important;
+}
+
+.remote-controller {
+  color: var(--ink);
+  margin: 0 auto;
+  max-width: 760px;
+  min-height: 100dvh;
+  padding: 12px 12px 90px;
+}
+
+.remote-controller-head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 2px 14px;
+}
+
+.remote-controller-head > div { display: grid; gap: 2px; }
+.remote-controller-head span { color: var(--muted); font-size: 12px; }
+.remote-controller-head strong { font-size: 20px; }
+
+.remote-status {
+  background: #fff3cd;
+  border-radius: 999px;
+  color: #7a4d00 !important;
+  font-weight: 800;
+  padding: 7px 10px;
+}
+
+.remote-status.live { background: #dff6ee; color: #086b5f !important; }
+.remote-status.error { background: #ffe3e3; color: #a42d2d !important; }
+
+.remote-controller-tabs {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(5, 1fr);
+  padding: 4px;
+  position: sticky;
+  top: 8px;
+  z-index: 4;
+}
+
+.remote-controller-tabs button {
+  border: 0;
+  font-size: 11px;
+  min-height: 42px;
+  padding: 6px 3px;
+}
+
+.remote-controller-tabs button.active { background: #e8efff; color: var(--blue); }
+
+.remote-panel {
+  display: none;
+  gap: 14px;
+  padding-top: 14px;
+}
+
+.remote-panel.active { display: grid; }
+.remote-panel h2 { margin: 0; }
+.remote-panel > p { color: var(--muted); margin: -8px 0 0; }
+
+.remote-current-slide,
+.remote-notes,
+.remote-live-summary,
+.remote-qna-item {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.remote-current-slide { display: grid; gap: 10px; }
+.remote-current-slide img { aspect-ratio: 16 / 9; background: #111827; object-fit: contain; width: 100%; }
+.remote-current-slide > div { display: grid; gap: 3px; }
+.remote-current-slide span { color: var(--muted); font-size: 12px; }
+
+.remote-primary-actions,
+.remote-live-actions {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.remote-primary-actions button { min-height: 58px; font-size: 18px; }
+
+.remote-slide-strip {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 2px 2px 12px;
+  scroll-snap-type: x proximity;
+}
+
+.remote-slide-card {
+  background: #fff;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  display: grid;
+  flex: 0 0 156px;
+  gap: 7px;
+  padding: 7px;
+  scroll-snap-align: center;
+}
+
+.remote-slide-card.current { border-color: var(--blue); }
+.remote-slide-card.excluded { opacity: .48; }
+.remote-slide-card img { aspect-ratio: 16 / 9; background: #e9eef5; object-fit: cover; width: 100%; }
+.remote-slide-card button { border: 0; padding: 0; text-align: left; }
+.remote-slide-card label { align-items: center; display: flex; font-size: 12px; gap: 6px; }
+.remote-slide-card input { min-height: auto; width: auto; }
+.remote-notes { min-height: 45vh; white-space: pre-wrap; }
+.remote-live-summary { display: grid; gap: 5px; }
+.remote-live-actions button { min-height: 52px; }
+.remote-live-actions .danger { color: #a42d2d; }
+.remote-qna-list { display: grid; gap: 10px; }
+.remote-qna-item { display: grid; gap: 8px; }
+.remote-qna-item span { color: var(--muted); font-size: 12px; }
+.remote-qna-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+
+@media (max-width: 560px) {
+  .remote-pairing-access { grid-template-columns: 1fr; }
+  .remote-pairing-access img { justify-self: center; }
+}
+
 #sessionHistorySubtitle {
   color: var(--muted);
   font-size: 12px;

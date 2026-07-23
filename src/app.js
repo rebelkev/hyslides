@@ -43,7 +43,10 @@ import {
   audienceCodeFromHash,
   audienceJoinUrl,
   controlLiveSession,
+  createRemoteControllerPairing,
   deleteLiveSession,
+  getRemoteControllerCommands,
+  getRemoteControllerState,
   getLiveSessionHistory,
   getLiveSession,
   isLocalJoinUrl,
@@ -55,11 +58,13 @@ import {
   moderateLiveQuestion,
   normalizeLiveCode,
   publishLiveSession,
+  publishRemoteControllerState,
   registerLiveParticipant,
   renameLiveSession,
   submitLiveResponse,
   submitLiveQuestion,
   voteLiveQuestion,
+  sendRemoteControllerCommand,
 } from "./live.js";
 import { youtubeEmbedUrl, youtubeVideoId } from "./embed.js";
 import { resizeBounds } from "./resize.js";
@@ -161,6 +166,8 @@ let presentationWindow = null;
 let presenterAnimation = createAnimationPlaybackState();
 const presenterWindowMode = location.hash === "#presenter";
 const presentationWindowMode = location.hash === "#presentation";
+const remoteControllerMatch = location.hash.match(/^#remote-(\d{6})-([A-Za-z0-9-]+)$/);
+const remoteControllerMode = Boolean(remoteControllerMatch);
 const presenterChannel = "BroadcastChannel" in window ? new BroadcastChannel("hyslides-presenter") : null;
 const PRESENTATION_CONTROL_STORAGE_KEY = "hyslides.presentationControl";
 let skippedSlideIds = new Set();
@@ -175,6 +182,10 @@ const liveVideoPlayback = new Map();
 let lastVideoTelemetryAt = 0;
 let presenterQnaTab = "unanswered";
 let presenterMobileTab = "control";
+let remoteControllerState = null;
+let remoteControllerPollTimer = 0;
+let remoteControllerPublishTimer = 0;
+let remoteControllerCommandsPolling = false;
 let audienceOpen = false;
 let participantQnaOpen = false;
 let leftRailTab = "slides";
@@ -226,6 +237,12 @@ init();
 
 async function init() {
   upgradeIconButtons();
+  if (remoteControllerMode) {
+    document.body.classList.add("remote-controller-window");
+    document.querySelector("#remoteControllerApp")?.classList.remove("hidden");
+    initRemoteController();
+    return;
+  }
   const saved = await loadCurrentDeck().catch(() => null);
   deck = normalizeDeck(saved || createSeedDeck());
   if (!presenterWindowMode && !presentationWindowMode && !location.hash.startsWith("#audience")) {
@@ -250,6 +267,11 @@ async function init() {
 }
 
 function bindEvents() {
+  document.querySelector("#connectRemoteControllerBtn")?.addEventListener("click", openRemotePairing);
+  document.querySelector("#closeRemotePairingBtn")?.addEventListener("click", closeRemotePairing);
+  document.querySelector("#remotePairingOverlay")?.addEventListener("click", (event) => {
+    if (event.target.id === "remotePairingOverlay") closeRemotePairing();
+  });
   const appMenuButton = document.querySelector("#appMenuBtn");
   const appMenu = document.querySelector("#appMenu");
   const helpOverlay = document.querySelector("#helpFaqOverlay");
@@ -3973,6 +3995,7 @@ async function renderPresenter() {
     renderVideoControls(slide);
     renderPresenterQna();
     queueLivePublish();
+    queueRemoteControllerPublish();
   }
 }
 
@@ -4613,6 +4636,7 @@ async function refreshLiveSession() {
       renderPresenter();
       renderCanvas();
     }
+    await consumeRemoteControllerCommands();
   } catch (error) {
     liveSession.consecutiveFailures += 1;
     liveSession.retryAfter = Date.now() + liveRetryDelay(liveSession.consecutiveFailures);
@@ -6182,6 +6206,250 @@ function beginNewLiveSession(options = {}) {
   liveSession.lifecycleStatus = "active";
   liveSession.lastPublishedSignature = "";
   writeActiveSession();
+}
+
+function closeRemotePairing() {
+  const overlay = document.querySelector("#remotePairingOverlay");
+  overlay?.classList.add("hidden");
+  overlay?.setAttribute("aria-hidden", "true");
+}
+
+async function openRemotePairing() {
+  const overlay = document.querySelector("#remotePairingOverlay");
+  const content = document.querySelector("#remotePairingContent");
+  overlay?.classList.remove("hidden");
+  overlay?.setAttribute("aria-hidden", "false");
+  if (!content) return;
+  content.innerHTML = "<p>Creating a secure controller link…</p>";
+  try {
+    await publishCurrentLiveSession(true);
+    const pairing = await createRemoteControllerPairing(liveSession.code, liveSession.presenterToken);
+    await publishRemoteControllerSnapshot(true);
+    const url = pairing.controllerUrl;
+    content.innerHTML = `
+      <img src="${attr(liveQrImageSrc(url))}" alt="QR code for the private presenter controller">
+      <div>
+        <strong>Scan with the presenter's phone</strong>
+        <p>This link controls this session only. Do not share it with participants.</p>
+        <div class="remote-pairing-link">
+          <input value="${attr(url)}" readonly aria-label="Private presenter controller link">
+          <button type="button" data-copy-remote>Copy</button>
+        </div>
+        <button type="button" data-open-remote>Open controller</button>
+      </div>`;
+    content.querySelector("[data-copy-remote]")?.addEventListener("click", async (event) => {
+      await navigator.clipboard.writeText(url);
+      event.currentTarget.textContent = "Copied";
+    });
+    content.querySelector("[data-open-remote]")?.addEventListener("click", () => window.open(url, "_blank", "noopener"));
+  } catch (error) {
+    content.innerHTML = `<p class="remote-pairing-error">Could not create the controller: ${escapeHtml(error.message)}</p>`;
+  }
+}
+
+function remoteControllerSnapshot() {
+  const thumbnails = [...(dom.presenterSlideList?.querySelectorAll("canvas") || [])];
+  return {
+    deckId: deck.id,
+    deckTitle: deck.title || "Untitled presentation",
+    activeSlideIndex,
+    blackout: presentationBlackout,
+    participantCount: liveSession.participantCount,
+    responseCount: liveSession.responseCount,
+    status: liveSession.lifecycleStatus,
+    slides: deck.slides.map((slide, index) => ({
+      id: slide.id,
+      title: slide.title || `Slide ${index + 1}`,
+      notes: slide.notes || "",
+      included: !skippedSlideIds.has(slide.id),
+      thumbnail: thumbnails[index]?.toDataURL("image/jpeg", 0.58) || "",
+    })),
+  };
+}
+
+function queueRemoteControllerPublish(force = false) {
+  if (!presenterWindowMode || !liveSession.backendAvailable || !liveSession.code) return;
+  clearTimeout(remoteControllerPublishTimer);
+  remoteControllerPublishTimer = window.setTimeout(() => publishRemoteControllerSnapshot(), force ? 0 : 300);
+}
+
+async function publishRemoteControllerSnapshot() {
+  if (!presenterWindowMode || !liveSession.backendAvailable || !liveSession.code) return;
+  try {
+    await publishRemoteControllerState(liveSession.code, remoteControllerSnapshot(), liveSession.presenterToken);
+  } catch {
+    // The normal live-session status remains the authoritative connection indicator.
+  }
+}
+
+async function consumeRemoteControllerCommands() {
+  if (!presenterWindowMode || remoteControllerCommandsPolling || !liveSession.backendAvailable) return;
+  remoteControllerCommandsPolling = true;
+  try {
+    const result = await getRemoteControllerCommands(liveSession.code, liveSession.presenterToken);
+    for (const command of result.commands || []) await executeRemoteControllerCommand(command);
+  } catch {
+    // Live polling will retry on its normal cadence.
+  } finally {
+    remoteControllerCommandsPolling = false;
+  }
+}
+
+async function executeRemoteControllerCommand(command) {
+  if (command.action === "next") advancePresenter();
+  else if (command.action === "previous") stepSlide(-1);
+  else if (command.action === "goTo") {
+    const index = clamp(Math.round(Number(command.slideIndex) || 0), 0, deck.slides.length - 1);
+    if (!skippedSlideIds.has(deck.slides[index].id)) {
+      activeSlideIndex = index;
+      syncPresenterSlideChange();
+    }
+  } else if (command.action === "toggleIncluded") {
+    const slide = deck.slides[clamp(Math.round(Number(command.slideIndex) || 0), 0, deck.slides.length - 1)];
+    if (slide) {
+      if (command.included) skippedSlideIds.delete(slide.id);
+      else skippedSlideIds.add(slide.id);
+      presenterChannel?.postMessage({ type: "skip-state", skippedSlideIds: [...skippedSlideIds] });
+      await renderPresenter();
+    }
+  } else if (command.action === "blackout") togglePresentationBlackout();
+  else if (command.action === "clearResponses") await runLiveControl("clearSlide");
+  else if (command.action === "addTimer") insertCountdownFromPresenter();
+  else if (command.action === "newSession") {
+    beginNewLiveSession();
+    queueLivePublish(true);
+    await renderPresenter();
+  } else if (command.action === "endSession") await runLiveControl("end");
+  else if (command.action === "moderateQuestion" && command.questionId) {
+    const state = await moderateLiveQuestion(
+      liveSession.code,
+      command.questionId,
+      command.moderationAction,
+      liveSession.presenterToken
+    );
+    applyLiveStateToCurrentSlide(state);
+    await renderPresenter();
+  }
+  queueRemoteControllerPublish(true);
+}
+
+function initRemoteController() {
+  const code = remoteControllerMatch?.[1] || "";
+  const token = remoteControllerMatch?.[2] || "";
+  document.title = "Presenter Remote — HySlides";
+  document.querySelectorAll("[data-remote-tab]").forEach((button) => button.addEventListener("click", () => {
+    document.querySelectorAll("[data-remote-tab]").forEach((item) => item.classList.toggle("active", item === button));
+    document.querySelectorAll("[data-remote-panel]").forEach((panel) => panel.classList.toggle("active", panel.dataset.remotePanel === button.dataset.remoteTab));
+  }));
+  const send = (action, payload = {}) => sendRemoteCommand(code, token, { action, ...payload }).then(() => {
+    window.setTimeout(refreshRemoteController, 250);
+  }).catch(showRemoteControllerError);
+  document.querySelector("#remotePreviousBtn")?.addEventListener("click", () => send("previous"));
+  document.querySelector("#remoteNextBtn")?.addEventListener("click", () => send("next"));
+  document.querySelector("#remoteBlackoutBtn")?.addEventListener("click", () => send("blackout"));
+  document.querySelector("#remoteClearResponsesBtn")?.addEventListener("click", () => {
+    if (confirm("Clear responses to the current slide?")) send("clearResponses");
+  });
+  document.querySelector("#remoteAddTimerBtn")?.addEventListener("click", () => send("addTimer"));
+  document.querySelector("#remoteNewSessionBtn")?.addEventListener("click", () => {
+    if (confirm("Start a new session and clear current responses?")) send("newSession");
+  });
+  document.querySelector("#remoteEndSessionBtn")?.addEventListener("click", () => {
+    if (confirm("End this live session? This controller link will expire.")) send("endSession");
+  });
+  document.querySelector("#remoteQnaList")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-remote-question-action]");
+    if (button) send("moderateQuestion", {
+      questionId: button.closest("[data-question-id]").dataset.questionId,
+      moderationAction: button.dataset.remoteQuestionAction,
+    });
+  });
+  remoteControllerState = { code, token, send };
+  refreshRemoteController();
+  remoteControllerPollTimer = window.setInterval(refreshRemoteController, 1000);
+}
+
+async function refreshRemoteController() {
+  if (!remoteControllerState) return;
+  try {
+    const state = await getRemoteControllerState(remoteControllerState.code, remoteControllerState.token);
+    renderRemoteController(state);
+  } catch (error) {
+    showRemoteControllerError(error);
+    if (/expired|unauthorized|ended/i.test(error.message)) clearInterval(remoteControllerPollTimer);
+  }
+}
+
+function showRemoteControllerError(error) {
+  const status = document.querySelector("#remoteConnectionStatus");
+  if (status) {
+    status.textContent = /expired|unauthorized|ended/i.test(error.message) ? "Expired" : "Reconnecting";
+    status.classList.add("error");
+  }
+}
+
+function renderRemoteController(state) {
+  const slides = Array.isArray(state.slides) ? state.slides : [];
+  const index = clamp(Number(state.activeSlideIndex) || 0, 0, Math.max(0, slides.length - 1));
+  const current = slides[index] || {};
+  document.querySelector("#remoteDeckTitle").textContent = state.deckTitle || "HySlides";
+  const status = document.querySelector("#remoteConnectionStatus");
+  status.textContent = state.live?.status === "active" ? "Live" : state.live?.status || "Connected";
+  status.classList.remove("error");
+  document.querySelector("#remoteCurrentThumbnail").src = current.thumbnail || "";
+  document.querySelector("#remoteSlidePosition").textContent = slides.length ? `Slide ${index + 1} of ${slides.length}` : "No slides";
+  document.querySelector("#remoteCurrentTitle").textContent = current.title || "Waiting for presenter…";
+  document.querySelector("#remoteNotes").textContent = current.notes || "No notes for this slide.";
+  const blackout = document.querySelector("#remoteBlackoutBtn");
+  blackout.setAttribute("aria-pressed", String(Boolean(state.blackout)));
+  blackout.textContent = state.blackout ? "Resume screen" : "Black screen";
+  document.querySelector("#remoteLiveSummary").innerHTML = `
+    <strong>${Number(state.live?.participantCount || state.participantCount || 0)} connected</strong>
+    <span>${Number(state.live?.responseCount || state.responseCount || 0)} responses on this slide</span>`;
+  renderRemoteSlideStrip(document.querySelector("#remoteQuickSlides"), slides, index, true);
+  renderRemoteSlideStrip(document.querySelector("#remoteAllSlides"), slides, index, false);
+  renderRemoteQuestions(state.live?.questions || []);
+}
+
+function renderRemoteSlideStrip(container, slides, activeIndex, compact) {
+  if (!container) return;
+  container.replaceChildren();
+  slides.forEach((slide, index) => {
+    const card = document.createElement("article");
+    card.className = `remote-slide-card${index === activeIndex ? " active" : ""}${slide.included ? "" : " skipped"}`;
+    card.innerHTML = `
+      <button type="button" class="remote-slide-jump" aria-label="Jump to slide ${index + 1}">
+        <img src="${attr(slide.thumbnail || "")}" alt=""><strong>${index + 1}. ${escapeHtml(slide.title || "")}</strong>
+      </button>
+      <label><input type="checkbox" ${slide.included ? "checked" : ""}> ${slide.included ? "Included" : "Skipped"}</label>`;
+    card.querySelector(".remote-slide-jump").addEventListener("click", () => remoteControllerState.send("goTo", { slideIndex: index }));
+    card.querySelector("input").addEventListener("change", (event) => remoteControllerState.send("toggleIncluded", { slideIndex: index, included: event.target.checked }));
+    container.append(card);
+  });
+  if (compact) container.querySelector(".active")?.scrollIntoView({ block: "nearest", inline: "center" });
+}
+
+function renderRemoteQuestions(questions) {
+  const list = document.querySelector("#remoteQnaList");
+  list.replaceChildren();
+  const visible = questions.filter((question) => question.status !== "deleted");
+  if (!visible.length) {
+    list.innerHTML = "<p>No audience questions yet.</p>";
+    return;
+  }
+  visible.forEach((question) => {
+    const row = document.createElement("article");
+    row.dataset.questionId = question.id;
+    row.innerHTML = `
+      <strong>${escapeHtml(question.text || "")}</strong>
+      <span>${Number(question.votes || 0)} upvotes · ${escapeHtml(question.status || "unanswered")}</span>
+      <div>
+        <button type="button" data-remote-question-action="${question.visible ? "hide" : "show"}">${question.visible ? "Hide" : "Display"}</button>
+        <button type="button" data-remote-question-action="${question.answered ? "unanswered" : "answered"}">${question.answered ? "Reopen" : "Mark answered"}</button>
+        <button type="button" data-remote-question-action="delete">Delete</button>
+      </div>`;
+    list.append(row);
+  });
 }
 
 function clearDeckEngagementResults(targetDeck = deck) {

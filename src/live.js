@@ -240,6 +240,42 @@ export function controlLiveSession(code, action, presenterToken) {
   });
 }
 
+export function createRemoteControllerPairing(code, presenterToken) {
+  return requestJson(`${LIVE_API_BASE}/${encodeURIComponent(normalizeLiveCode(code))}/remote/pair`, {
+    method: "POST",
+    headers: presenterHeaders(presenterToken),
+    body: "{}",
+  });
+}
+
+export function publishRemoteControllerState(code, state, presenterToken) {
+  return requestJson(`${LIVE_API_BASE}/${encodeURIComponent(normalizeLiveCode(code))}/remote/state`, {
+    method: "PUT",
+    headers: presenterHeaders(presenterToken),
+    body: JSON.stringify(state),
+  });
+}
+
+export function getRemoteControllerState(code, controllerToken) {
+  return requestJson(`${LIVE_API_BASE}/${encodeURIComponent(normalizeLiveCode(code))}/remote/state`, {
+    headers: controllerHeaders(controllerToken),
+  });
+}
+
+export function getRemoteControllerCommands(code, presenterToken) {
+  return requestJson(`${LIVE_API_BASE}/${encodeURIComponent(normalizeLiveCode(code))}/remote/commands`, {
+    headers: presenterHeaders(presenterToken),
+  });
+}
+
+export function sendRemoteControllerCommand(code, controllerToken, command) {
+  return requestJson(`${LIVE_API_BASE}/${encodeURIComponent(normalizeLiveCode(code))}/remote/command`, {
+    method: "POST",
+    headers: controllerHeaders(controllerToken),
+    body: JSON.stringify(command),
+  });
+}
+
 export function liveQrImageSrc(text) {
   try {
     return qrSvgDataUrl(text);
@@ -265,6 +301,10 @@ async function requestJson(url, options = {}) {
 
 function presenterHeaders(token) {
   return token ? { "x-hyslides-presenter-token": token } : {};
+}
+
+function controllerHeaders(token) {
+  return token ? { "x-hyslides-controller-token": token } : {};
 }
 
 function hasSupabaseLive() {

@@ -183,6 +183,7 @@
         </div>
         <div class="presenter-top-actions">
           <button id="resetPresenterTimerBtn" type="button">Reset timer</button>
+          <button id="connectRemoteControllerBtn" type="button">Connect phone</button>
           <button id="openPresentationViewBtn" class="primary" type="button">Open Presentation View</button>
           <button id="closePresenterBtn" type="button" title="Close Presenter View">Close</button>
         </div>
@@ -253,6 +254,67 @@
       </div>
       <div id="presentationLiveStatus" class="presentation-live-status" aria-live="polite">0 connected</div>
     </div>
+
+    <div id="remotePairingOverlay" class="modal-overlay hidden" aria-hidden="true">
+      <section class="remote-pairing-card" role="dialog" aria-modal="true" aria-labelledby="remotePairingTitle">
+        <header class="presenter-head">
+          <div><strong id="remotePairingTitle">Connect mobile controller</strong><span>This private controller expires when the session ends or after 8 hours.</span></div>
+          <button id="closeRemotePairingBtn" type="button">Close</button>
+        </header>
+        <div id="remotePairingContent" class="remote-pairing-content">
+          <p>Creating a secure controller link…</p>
+        </div>
+      </section>
+    </div>
+
+    <main id="remoteControllerApp" class="remote-controller hidden" aria-live="polite">
+      <header class="remote-controller-head">
+        <div><span>HySlides remote</span><strong id="remoteDeckTitle">Connecting…</strong></div>
+        <span id="remoteConnectionStatus" class="remote-status">Connecting</span>
+      </header>
+      <nav class="remote-controller-tabs" role="tablist" aria-label="Remote controller sections">
+        <button class="active" type="button" role="tab" data-remote-tab="control">Control</button>
+        <button type="button" role="tab" data-remote-tab="slides">Slides</button>
+        <button type="button" role="tab" data-remote-tab="notes">Notes</button>
+        <button type="button" role="tab" data-remote-tab="live">Live</button>
+        <button type="button" role="tab" data-remote-tab="qna">Q&amp;A</button>
+      </nav>
+      <section class="remote-panel active" data-remote-panel="control">
+        <div class="remote-current-slide">
+          <img id="remoteCurrentThumbnail" alt="Current slide preview" />
+          <div><span id="remoteSlidePosition">Slide</span><strong id="remoteCurrentTitle">Waiting for presenter…</strong></div>
+        </div>
+        <div class="remote-primary-actions">
+          <button id="remotePreviousBtn" type="button">Previous</button>
+          <button id="remoteNextBtn" class="primary" type="button">Next</button>
+        </div>
+        <button id="remoteBlackoutBtn" type="button" aria-pressed="false">Black screen</button>
+        <div id="remoteQuickSlides" class="remote-slide-strip"></div>
+      </section>
+      <section class="remote-panel" data-remote-panel="slides">
+        <h2>Presentation flow</h2>
+        <p>Tap a slide to jump to it. Use the checkbox to include or skip it.</p>
+        <div id="remoteAllSlides" class="remote-slide-strip"></div>
+      </section>
+      <section class="remote-panel" data-remote-panel="notes">
+        <h2>Speaker notes</h2>
+        <div id="remoteNotes" class="remote-notes">No notes for this slide.</div>
+      </section>
+      <section class="remote-panel" data-remote-panel="live">
+        <h2>Live session</h2>
+        <div id="remoteLiveSummary" class="remote-live-summary"></div>
+        <div class="remote-live-actions">
+          <button id="remoteClearResponsesBtn" type="button">Clear responses</button>
+          <button id="remoteAddTimerBtn" type="button">Add timer</button>
+          <button id="remoteNewSessionBtn" type="button">New session</button>
+          <button id="remoteEndSessionBtn" class="danger" type="button">End session</button>
+        </div>
+      </section>
+      <section class="remote-panel" data-remote-panel="qna">
+        <h2>Audience Q&amp;A</h2>
+        <div id="remoteQnaList" class="remote-qna-list"></div>
+      </section>
+    </main>
 
     <div id="audienceOverlay" class="audience hidden" aria-hidden="true">
       <div class="audience-card">

@@ -115,6 +115,31 @@ async function handleLiveApi(request: Request, env: Env, url: URL): Promise<Resp
       await authorizePresenter(env.DB, request, session.deck_id);
       return json(await controlLiveSession(env.DB, code, session, stringValue(payload.action)));
     }
+    if (parts.length === 5 && parts[3] === "remote" && parts[4] === "pair" && request.method === "POST") {
+      const session = await getLiveSessionRow(env.DB, code);
+      await authorizePresenter(env.DB, request, session.deck_id);
+      return json(await createRemotePairing(env.DB, code, session, url));
+    }
+    if (parts.length === 5 && parts[3] === "remote" && parts[4] === "state" && request.method === "GET") {
+      const session = await authorizeRemoteController(env.DB, request, code);
+      return json(await remoteControllerState(env.DB, code, session));
+    }
+    if (parts.length === 5 && parts[3] === "remote" && parts[4] === "state" && request.method === "PUT") {
+      const session = await getLiveSessionRow(env.DB, code);
+      await authorizePresenter(env.DB, request, session.deck_id);
+      const payload = await readJson(request);
+      return json(await saveRemoteControllerState(env.DB, session, payload));
+    }
+    if (parts.length === 5 && parts[3] === "remote" && parts[4] === "commands" && request.method === "GET") {
+      const session = await getLiveSessionRow(env.DB, code);
+      await authorizePresenter(env.DB, request, session.deck_id);
+      return json(await pendingRemoteCommands(env.DB, session.instance_id));
+    }
+    if (parts.length === 5 && parts[3] === "remote" && parts[4] === "command" && request.method === "POST") {
+      const session = await authorizeRemoteController(env.DB, request, code);
+      const payload = await readJson(request);
+      return json(await queueRemoteCommand(env.DB, session.instance_id, payload));
+    }
     if (parts.length === 4 && parts[3] === "questions" && request.method === "POST") {
       const payload = await readJson(request);
       return json(await submitSessionQuestion(env.DB, code, payload));
@@ -279,6 +304,35 @@ async function ensureLiveSchema(db: D1Database): Promise<void> {
         PRIMARY KEY (instance_id, slide_id, participant_id, kind)
       )`
     ),
+    db.prepare(
+      `CREATE TABLE IF NOT EXISTS hyslides_remote_controller_pairings (
+        token_hash TEXT PRIMARY KEY,
+        access_code TEXT NOT NULL,
+        instance_id TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        expires_at TEXT NOT NULL
+      )`
+    ),
+    db.prepare(
+      `CREATE TABLE IF NOT EXISTS hyslides_remote_controller_state (
+        instance_id TEXT PRIMARY KEY,
+        state_json TEXT NOT NULL,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`
+    ),
+    db.prepare(
+      `CREATE TABLE IF NOT EXISTS hyslides_remote_controller_commands (
+        id TEXT PRIMARY KEY,
+        instance_id TEXT NOT NULL,
+        command_json TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        consumed_at TEXT
+      )`
+    ),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS hyslides_remote_controller_commands_pending_idx
+        ON hyslides_remote_controller_commands (instance_id, consumed_at, created_at)`
+    ),
   ]);
   await ensureColumn(db, "hyslides_live_instance_questions", "participant_id", "TEXT NOT NULL DEFAULT ''");
   await ensureColumn(db, "hyslides_live_instance_questions", "visible", "INTEGER NOT NULL DEFAULT 0");
@@ -369,6 +423,12 @@ async function publishLiveSession(db: D1Database, code: string, payload: Record<
   if (previous?.instance_id && previous.instance_id !== instanceId) {
     statements.push(
       db.prepare(`UPDATE hyslides_live_instances SET status = 'ended', last_active_at = CURRENT_TIMESTAMP WHERE instance_id = ?`)
+        .bind(previous.instance_id),
+      db.prepare(`UPDATE hyslides_remote_controller_pairings SET instance_id = ? WHERE instance_id = ?`)
+        .bind(instanceId, previous.instance_id),
+      db.prepare(`DELETE FROM hyslides_remote_controller_state WHERE instance_id = ?`)
+        .bind(previous.instance_id),
+      db.prepare(`DELETE FROM hyslides_remote_controller_commands WHERE instance_id = ?`)
         .bind(previous.instance_id)
     );
   }
@@ -414,6 +474,9 @@ async function cleanupExpiredSessions(db: D1Database) {
   ).all<{ instance_id: string }>();
   for (const row of expired.results || []) {
     await db.batch([
+      db.prepare(`DELETE FROM hyslides_remote_controller_commands WHERE instance_id = ?`).bind(row.instance_id),
+      db.prepare(`DELETE FROM hyslides_remote_controller_state WHERE instance_id = ?`).bind(row.instance_id),
+      db.prepare(`DELETE FROM hyslides_remote_controller_pairings WHERE instance_id = ?`).bind(row.instance_id),
       db.prepare(`DELETE FROM hyslides_live_instance_participants WHERE instance_id = ?`).bind(row.instance_id),
       db.prepare(`DELETE FROM hyslides_live_instance_submissions WHERE instance_id = ?`).bind(row.instance_id),
       db.prepare(`DELETE FROM hyslides_live_instance_counts WHERE instance_id = ?`).bind(row.instance_id),
@@ -466,6 +529,9 @@ async function renameSessionInstance(db: D1Database, instanceId: string, request
 
 async function deleteSessionInstance(db: D1Database, instanceId: string) {
   await db.batch([
+    db.prepare(`DELETE FROM hyslides_remote_controller_commands WHERE instance_id = ?`).bind(instanceId),
+    db.prepare(`DELETE FROM hyslides_remote_controller_state WHERE instance_id = ?`).bind(instanceId),
+    db.prepare(`DELETE FROM hyslides_remote_controller_pairings WHERE instance_id = ?`).bind(instanceId),
     db.prepare(`DELETE FROM hyslides_live_instance_counts WHERE instance_id = ?`).bind(instanceId),
     db.prepare(`DELETE FROM hyslides_live_instance_question_votes WHERE instance_id = ?`).bind(instanceId),
     db.prepare(`DELETE FROM hyslides_live_instance_questions WHERE instance_id = ?`).bind(instanceId),
@@ -507,6 +573,110 @@ async function authorizeSessionInstance(db: D1Database, request: Request, instan
     throw new Error("Session not found.");
   }
   await authorizePresenter(db, request, instance.deck_id);
+}
+
+async function createRemotePairing(db: D1Database, code: string, session: LiveSessionRow, url: URL) {
+  if (session.status === "ended") throw new Error("This presentation has ended.");
+  const token = `${crypto.randomUUID()}${crypto.randomUUID().replaceAll("-", "")}`;
+  const tokenHash = await sha256(token);
+  await db.batch([
+    db.prepare(
+      `DELETE FROM hyslides_remote_controller_pairings
+        WHERE instance_id = ? OR expires_at <= CURRENT_TIMESTAMP`
+    ).bind(session.instance_id),
+    db.prepare(
+      `INSERT INTO hyslides_remote_controller_pairings
+        (token_hash, access_code, instance_id, created_at, expires_at)
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP, datetime('now', '+8 hours'))`
+    ).bind(tokenHash, code, session.instance_id),
+  ]);
+  const controllerUrl = new URL("/hyslides/index.html", url);
+  controllerUrl.hash = `remote-${code}-${token}`;
+  return {
+    controllerUrl: controllerUrl.toString(),
+    expiresInSeconds: 8 * 60 * 60,
+  };
+}
+
+async function authorizeRemoteController(db: D1Database, request: Request, code: string): Promise<LiveSessionRow> {
+  const token = request.headers.get("x-hyslides-controller-token") || "";
+  if (token.length < 48) throw new Error("Unauthorized remote controller.");
+  const tokenHash = await sha256(token);
+  const pairing = await db.prepare(
+    `SELECT instance_id FROM hyslides_remote_controller_pairings
+      WHERE token_hash = ? AND access_code = ? AND expires_at > CURRENT_TIMESTAMP`
+  ).bind(tokenHash, code).first<{ instance_id: string }>();
+  if (!pairing) throw new Error("Remote controller access has expired.");
+  const session = await getLiveSessionRow(db, code);
+  if (session.instance_id !== pairing.instance_id || session.status === "ended") {
+    throw new Error("Remote controller access has expired.");
+  }
+  return session;
+}
+
+async function saveRemoteControllerState(db: D1Database, session: LiveSessionRow, payload: Record<string, unknown>) {
+  const stateJson = JSON.stringify(payload);
+  if (stateJson.length > 900_000) throw new Error("Remote controller state is too large.");
+  await db.prepare(
+    `INSERT INTO hyslides_remote_controller_state (instance_id, state_json, updated_at)
+      VALUES (?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(instance_id) DO UPDATE SET
+        state_json = excluded.state_json,
+        updated_at = CURRENT_TIMESTAMP`
+  ).bind(session.instance_id, stateJson).run();
+  return { saved: true };
+}
+
+async function remoteControllerState(db: D1Database, code: string, session: LiveSessionRow) {
+  const row = await db.prepare(
+    `SELECT state_json, updated_at FROM hyslides_remote_controller_state WHERE instance_id = ?`
+  ).bind(session.instance_id).first<{ state_json: string; updated_at: string }>();
+  const state = row ? JSON.parse(row.state_json) : {};
+  return {
+    ...state,
+    live: await liveState(db, code, true),
+    updatedAt: row?.updated_at || session.updated_at,
+  };
+}
+
+async function queueRemoteCommand(db: D1Database, instanceId: string, payload: Record<string, unknown>) {
+  const action = stringValue(payload.action);
+  const allowed = new Set([
+    "next", "previous", "goTo", "toggleIncluded", "blackout", "clearResponses",
+    "newSession", "endSession", "addTimer", "moderateQuestion",
+  ]);
+  if (!allowed.has(action)) throw new Error("Remote command is not allowed.");
+  const safePayload = JSON.stringify({
+    action,
+    slideIndex: numberValue(payload.slideIndex),
+    included: Boolean(payload.included),
+    questionId: stringValue(payload.questionId).slice(0, 100),
+    moderationAction: stringValue(payload.moderationAction).slice(0, 24),
+  });
+  const id = crypto.randomUUID();
+  await db.prepare(
+    `INSERT INTO hyslides_remote_controller_commands
+      (id, instance_id, command_json, created_at, consumed_at)
+      VALUES (?, ?, ?, CURRENT_TIMESTAMP, NULL)`
+  ).bind(id, instanceId, safePayload).run();
+  return { accepted: true, id };
+}
+
+async function pendingRemoteCommands(db: D1Database, instanceId: string) {
+  const rows = await db.prepare(
+    `SELECT id, command_json FROM hyslides_remote_controller_commands
+      WHERE instance_id = ? AND consumed_at IS NULL
+      ORDER BY created_at ASC LIMIT 20`
+  ).bind(instanceId).all<{ id: string; command_json: string }>();
+  const ids = (rows.results || []).map((row) => row.id);
+  if (ids.length) {
+    await db.batch(ids.map((id) => db.prepare(
+      `UPDATE hyslides_remote_controller_commands SET consumed_at = CURRENT_TIMESTAMP WHERE id = ?`
+    ).bind(id)));
+  }
+  return {
+    commands: (rows.results || []).map((row) => ({ id: row.id, ...JSON.parse(row.command_json) })),
+  };
 }
 
 async function sha256(value: string) {
@@ -554,6 +724,10 @@ async function controlLiveSession(db: D1Database, code: string, session: LiveSes
     await db.prepare(
       `UPDATE hyslides_live_instances SET status = ?, last_active_at = CURRENT_TIMESTAMP WHERE instance_id = ?`
     ).bind(status, session.instance_id).run();
+    if (action === "end") {
+      await db.prepare(`DELETE FROM hyslides_remote_controller_pairings WHERE instance_id = ?`)
+        .bind(session.instance_id).run();
+    }
   } else if (action === "clearSlide") {
     await db.batch([
       db.prepare(`DELETE FROM hyslides_live_instance_submissions WHERE instance_id = ? AND slide_id = ?`).bind(session.instance_id, session.active_slide_id),

@@ -20,6 +20,7 @@
 - Synchronized Presenter View controls with Presentation View and Participant View.
 - Added end-state previews, session-only slide skipping, timer, black-screen control, notes, counts, results, and session lifecycle controls.
 - Added customizable on-slide countdown timers controlled from Presenter View and synchronized to Presentation and Participant Views.
+- Added a secure cross-device Mobile Presenter Controller with a private QR/link, focused tabs, slide navigation and skipping, notes, live controls, and Q&A moderation.
 
 ## Next Presenter Enhancements
 

@@ -29,6 +29,13 @@
       "when": 1784602800000,
       "tag": "0003_live_security_presence",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1784786400000,
+      "tag": "0004_remote_presenter_controller",
+      "breakpoints": true
     }
   ]
 }

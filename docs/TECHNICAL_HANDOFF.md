@@ -51,6 +51,8 @@ D1 stores session instances, current slide state, slide snapshots, aggregate cou
 
 Presenter tokens are browser-held credentials used to authorize management of a deck’s session history. They are not user accounts.
 
+Mobile presenter controllers use a separate short-lived capability token. The Worker stores only its SHA-256 hash in `hyslides_remote_controller_pairings`; the raw token exists only in the private controller URL. `hyslides_remote_controller_state` holds the compact Presenter snapshot, while `hyslides_remote_controller_commands` is a consumed command queue. Authorization is scoped to one access code and live-session instance, expires after eight hours, and is revoked when that instance ends.
+
 ### Retention
 
 Ended sessions older than 14 days are purged with their participant records, submissions, counts, questions, slide snapshots, metadata, and active-state records. Manual session deletion removes the same associated data immediately.
@@ -60,6 +62,11 @@ Ended sessions older than 14 days are purged with their participant records, sub
 - `GET /api/live/:code` — current participant-facing session state; participant responses never include the session Q&A queue, while a valid presenter token includes the private queue and current featured question
 - `PUT /api/live/:code` — publish presenter state
 - `POST /api/live/:code/responses` — submit a response
+- `POST /api/live/:code/remote/pair` — create a presenter-authorized private controller
+- `PUT /api/live/:code/remote/state` — publish presenter-authorized controller state
+- `GET /api/live/:code/remote/state` — retrieve controller-authorized state
+- `POST /api/live/:code/remote/command` — queue a controller-authorized command
+- `GET /api/live/:code/remote/commands` — consume commands as the presenter
 - `POST /api/live/:code/presence` — participant heartbeat
 - `POST /api/live/:code/control` — session control actions
 - `POST /api/live/:code/questions/:questionId/moderate` — presenter-only display/hide/answered/delete actions

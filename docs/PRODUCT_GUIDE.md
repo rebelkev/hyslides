@@ -27,6 +27,18 @@ The private presentation control interface, available in responsive Desktop and 
 
 Click **Present** in Editor View to open Presenter View in a new tab. Then select **Open Presentation View** to open the clean projected slide show in another tab.
 
+### Mobile Presenter Controller
+
+In desktop Presenter View, select **Connect phone**. Scan the private QR code with the presenter's phone or copy its link. The focused controller page provides Control, Slides, Notes, Live, and Q&A tabs without exposing Editor View.
+
+- Control includes the current preview, Previous, Next, Black Screen, and the quick slide strip.
+- Slides supports direct jumping plus Include/Skip controls.
+- Notes shows the current slide's speaker notes.
+- Live shows participant and response totals plus response clearing, timer insertion, and session controls.
+- Q&A supports Display/Hide, Mark answered, and Delete.
+
+The private link controls only the current session instance. It expires after eight hours or immediately when the session ends. Do not share it with participants.
+
 ### Controlling Presentation Flow
 
 - Every slide appears in the Presenter View filmstrip with an include checkbox.
