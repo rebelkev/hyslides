@@ -75,6 +75,20 @@
   - Respect presentation ownership, team roles, and edit permissions
   - Resolve deck-specific dependencies such as typography styles, color styles, and uploaded media without changing the source slide
 - Admin access and template management
+- Expanded engagement slide types:
+  - **Wheel Spinner**
+    - Editors add, rename, reorder, recolor, and remove up to ten wheel options using the same option-row pattern as Poll
+    - The wheel uses each option’s assigned color and supports deck-level global color styles
+    - Presenter-controlled Spin, Stop, Spin again, and Reset actions, with the selected result synchronized to Presentation and Participant Views
+    - Optional removal of a selected result for drawings without replacement
+    - Session history records each spin, result, timestamp, and whether that result remained eligible
+  - **Open-ended Question**
+    - Accept longer participant responses than Word Cloud while retaining offensive-language filtering and configurable response limits
+    - Display approved or incoming responses as responsive cards that reflow across the slide canvas
+    - Target four cards across on wide layouts and three across when additional reading width is needed, with automatic font sizing and pagination when the canvas fills
+    - Provide Presenter View moderation, display/hide, pin, and clear controls before responses appear publicly
+    - Synchronize the card layout and updates across Presenter, Presentation, and Participant Views
+    - Preserve full responses in Session History and include them in per-session exports
 - Closing Survey:
   - Up to five customizable questions presented together after the presentation
   - Short-text and 1–5 rating question types
