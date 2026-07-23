@@ -49,6 +49,23 @@
   - Include Q&A moderation state, display state, answer state, and upvote count
   - Provide a combined session export plus optional exports for an individual engagement slide
   - Start with CSV and preserve a structured format suitable for future analytics integrations
+- Participant Selection & Assignment:
+  - Select a requested number of connected participants at random and privately notify only their devices
+  - Presenter-selectable outcomes such as **Volunteer**, **Winner**, **You’re up next**, or a custom message
+  - Allow participants to opt into volunteer selection while keeping prize drawings available to all eligible participants
+  - Include or exclude previously selected participants, redraw an individual selection, clear the selection, and maintain a session audit trail
+  - Divide active participants into a requested number of balanced groups and privately display each participant’s group name, number, color, and instructions
+  - Support named roles within groups, such as facilitator, recorder, speaker, timekeeper, or role-play character
+  - Give Presenter View a confirmation step, selection preview, delivery status, and controls to resend or dismiss the device message
+  - Keep selection results private unless the presenter explicitly chooses to reveal them on the Presentation View
+  - Respect reconnecting devices, participant departures, duplicate devices, anonymous participation, and session-level eligibility rules
+- Direct-to-device participant communication built on the same assignment system:
+  - Private activity instructions, clues, prompts, or scenario roles
+  - Personalized question or discussion assignments
+  - “Prepare to speak” and “You’re next” cues without interrupting the projected slide
+  - Breakout-room numbers, seating areas, rotation stations, and return-to-room notices
+  - Silent time warnings, task-complete acknowledgements, and presenter-requested check-ins
+  - Targeted follow-up links or resources for selected groups after an activity
 - User accounts and authentication
 - Server-backed deck library and media storage
 - Cross-presentation slide transfer:
