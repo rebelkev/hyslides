@@ -118,7 +118,7 @@ The **Line** element (previously called Divider) supports fill, stroke, stroke w
 
 Select **Import PowerPoint** in the Editor toolbar to review supported and unsupported features before choosing a `.pptx` file. After import, the same modal reports any conversion notes. PowerPoint guidance no longer occupies every slide’s Properties panel.
 
-When a Shape element is selected, use **Style → Shape type** to choose Rectangle, Rounded rectangle, Ellipse, Triangle, Diamond, or Hexagon. Rounded rectangles additionally expose a numeric Corner radius control.
+When a Shape element is selected, use **Style → Shape type** to choose Rectangle, Rounded rectangle, Ellipse, Triangle, Diamond, or Hexagon. Rounded rectangles additionally expose a numeric Corner radius control. Shape fills support solid color, gradient, proportionally fitted image, and animated effects. Shape color pickers include the deck’s named global color styles.
 
 When a text element is selected, choose its **Typography style** in Properties. Keep **Use global style** enabled so future global changes update that element automatically. Disable it to reveal custom font formatting for that one element. Existing decks retain their current custom typography, while newly added text uses the global Body style by default.
 
@@ -201,4 +201,4 @@ Participants can submit Q&A at any time during an active session; a dedicated Q&
 
 Add an **Icon** from the element toolbar, then use the Properties panel to search the complete Lucide icon library by name or browse common corporate groupings with **Search by Category**. Result counts and progressive loading make the full catalog available without slowing the panel. Icons can be recolored, given a custom line weight, placed in an optional circle or square frame, padded, flipped, and linked to a global color style. Icons that communicate information can receive an accessible label; purely decorative icons remain hidden from assistive technology.
 
-All editor color controls should use the standard HySlides color selector: a custom color picker with named global color styles immediately below it. Icon and frame colors follow this standard and remain linked when a global style changes.
+All editor color controls should use the standard HySlides color selector: a custom color picker with named global color styles immediately below it. Icon and frame colors follow this standard and remain linked when a global style changes. Icon Properties intentionally keeps these controls inside **Icon style** rather than repeating a second Color styles section.

@@ -183,3 +183,6 @@
 - Standardized icon and frame color controls with named global color styles.
 - Added icon color, line weight, frame, frame color, padding, horizontal/vertical flip, and accessibility controls.
 - Icon selections now render consistently on the editor, presenter, presentation, and participant canvases.
+- Removed the duplicate Icon Color styles section and kept named swatches inside the Icon style pickers.
+- Prevented slide-icon color choices from recoloring the Editor toolbar.
+- Added solid, gradient, image, and animated-effect fills to Shape elements.

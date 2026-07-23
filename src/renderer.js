@@ -20,8 +20,8 @@ export function resolveTextTypography(element, deck) {
 
 export async function preloadSlideImages(slide, deck = null) {
   const images = slide.elements
-    .filter((element) => (element.type === "image" && element.src) || (element.type === "icon" && element.iconSrc))
-    .map((element) => loadImage(element.type === "icon" ? element.iconSrc : element.src).catch(() => null));
+    .filter((element) => (element.type === "image" && element.src) || (element.type === "icon" && element.iconSrc) || (element.type === "shape" && element.fillType === "image" && element.fillImage))
+    .map((element) => loadImage(element.type === "icon" ? element.iconSrc : element.type === "shape" ? element.fillImage : element.src).catch(() => null));
   if (slide.backgroundImage) images.push(loadImage(slide.backgroundImage).catch(() => null));
   if (deck?.theme?.logo?.src && slideLogoVisible(slide, deck)) images.push(loadImage(deck.theme.logo.src).catch(() => null));
   await Promise.all(images);
@@ -444,7 +444,6 @@ function drawText(ctx, element, deck) {
 }
 
 function drawShape(ctx, element) {
-  ctx.fillStyle = element.fill || "#e8efff";
   ctx.strokeStyle = element.stroke || "transparent";
   ctx.lineWidth = element.strokeWidth || 0;
 
@@ -481,10 +480,55 @@ function drawShape(ctx, element) {
     roundedRect(ctx, 0, 0, element.w, element.h, Math.max(0, Number(element.radius) || 0));
   }
 
-  ctx.fill();
+  const fillType = element.fillType || "color";
+  if (fillType === "gradient") {
+    const angle = ((Number(element.fillGradientAngle) || 0) - 90) * Math.PI / 180;
+    const radius = Math.abs(element.w * Math.cos(angle)) + Math.abs(element.h * Math.sin(angle));
+    const gradient = ctx.createLinearGradient(
+      element.w / 2 - Math.cos(angle) * radius / 2,
+      element.h / 2 - Math.sin(angle) * radius / 2,
+      element.w / 2 + Math.cos(angle) * radius / 2,
+      element.h / 2 + Math.sin(angle) * radius / 2
+    );
+    gradient.addColorStop(0, element.fillGradientStart || "#2454d6");
+    gradient.addColorStop(1, element.fillGradientEnd || "#0c8b7f");
+    ctx.fillStyle = gradient;
+    ctx.fill();
+  } else if (fillType === "image" && element.fillImage) {
+    ctx.save();
+    ctx.clip();
+    const image = imageCache.get(element.fillImage)?.image;
+    if (image) drawFittedElementImage(ctx, image, element.w, element.h, element.fillImageFit || "cover");
+    else loadImage(element.fillImage).catch(() => {});
+    ctx.restore();
+  } else if (fillType === "animated" && element.fillShader) {
+    ctx.save();
+    ctx.clip();
+    const shader = renderShaderOverlay(element.fillShader, Math.max(1, Math.round(element.w)), Math.max(1, Math.round(element.h)), {
+      time: typeof performance !== "undefined" ? performance.now() / 1000 : 0,
+      speed: element.fillShaderSpeed,
+      intensity: element.fillShaderIntensity,
+      colorA: element.fillEffectColorA || "#2454d6",
+      colorB: element.fillEffectColorB || "#0c8b7f",
+    });
+    if (shader) ctx.drawImage(shader, 0, 0, element.w, element.h);
+    ctx.restore();
+  } else {
+    ctx.fillStyle = element.fill || "#e8efff";
+    ctx.fill();
+  }
   if ((element.strokeWidth || 0) > 0) {
     ctx.stroke();
   }
+}
+
+function drawFittedElementImage(ctx, image, width, height, fit) {
+  const ratio = fit === "contain"
+    ? Math.min(width / image.width, height / image.height)
+    : Math.max(width / image.width, height / image.height);
+  const drawWidth = image.width * ratio;
+  const drawHeight = image.height * ratio;
+  ctx.drawImage(image, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
 }
 
 function drawImageElement(ctx, element) {

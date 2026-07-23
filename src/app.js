@@ -529,10 +529,13 @@ function bindEvents() {
     const file = dom.imageInput.files?.[0];
     if (file) {
       const backgroundSlideId = dom.imageInput.dataset.backgroundSlideId;
+      const shapeFillId = dom.imageInput.dataset.shapeFillId;
       if (backgroundSlideId) setSlideBackgroundFromFile(file, backgroundSlideId);
+      else if (shapeFillId) setShapeFillFromFile(file, shapeFillId);
       else addImageFromFile(file);
     }
     dom.imageInput.dataset.backgroundSlideId = "";
+    dom.imageInput.dataset.shapeFillId = "";
     dom.imageInput.value = "";
   });
 
@@ -1277,7 +1280,8 @@ function startBackgroundEffectLoop() {
   let lastPaint = 0;
   const paint = (time) => {
     const slide = currentSlide();
-    if (slide?.backgroundShader && slide.backgroundShader !== "none" && time - lastPaint >= 40) {
+    const hasAnimatedShape = slide?.elements?.some((element) => element.type === "shape" && element.fillType === "animated" && element.fillShader && element.fillShader !== "none");
+    if (((slide?.backgroundShader && slide.backgroundShader !== "none") || hasAnimatedShape) && time - lastPaint >= 40) {
       if (presenterOpen) drawPresentationCountdownFrame();
       if (!presenterWindowMode && !presentationWindowMode && !audienceOpen) renderCanvas();
       lastPaint = time;
@@ -2483,7 +2487,7 @@ function renderElementInspector(element) {
       </div>
     </section>
     ${elementInspectorFields(element)}
-    ${brandColorElementSection([element])}
+    ${element.type === "icon" ? "" : brandColorElementSection([element])}
     <section class="inspector-section">
       <strong>Animation</strong>
       <div class="field-row"><label for="animationEffectInput">Effect</label><select id="animationEffectInput">${animationOptionList([["none", "None"], ["appear", "Appear"], ["fadeIn", "Fade in"]], animation.effect)}</select></div>
@@ -2516,7 +2520,7 @@ function renderElementInspector(element) {
   bindNumber("#animationDurationInput", (value) => setElementAnimation(element, "durationMs", Math.max(100, value)));
   bindValue("#animationEasingInput", (value) => setElementAnimation(element, "easing", value));
   document.querySelector("#previewElementAnimationBtn")?.addEventListener("click", () => previewElementAnimation(element));
-  bindBrandColorApplication([element]);
+  if (element.type !== "icon") bindBrandColorApplication([element]);
   bindTypeFields(element);
 }
 
@@ -2637,6 +2641,41 @@ function iconColorControlMarkup(inputId, label, value, property, styleProperty, 
   </div>`;
 }
 
+function shapeFillControlsMarkup(element, fillType) {
+  if (fillType === "gradient") {
+    return `<div class="field-grid">
+      ${shapeColorControlMarkup("shapeGradientStartInput", "Start", element.fillGradientStart || "#2454d6", "fillGradientStart")}
+      ${shapeColorControlMarkup("shapeGradientEndInput", "End", element.fillGradientEnd || "#0c8b7f", "fillGradientEnd")}
+      <div class="field-row"><label for="shapeGradientAngleInput">Angle</label><input id="shapeGradientAngleInput" type="number" min="0" max="360" value="${Number(element.fillGradientAngle) || 0}" /></div>
+    </div>`;
+  }
+  if (fillType === "image") {
+    return `<div class="field-grid">
+      <div class="field-row"><label>Image</label><button id="chooseShapeFillImageBtn" type="button">${element.fillImage ? "Replace image" : "Choose image"}</button></div>
+      <div class="field-row"><label for="shapeImageFitInput">Fit</label><select id="shapeImageFitInput">${animationOptionList([["cover", "Fill shape (crop)"], ["contain", "Fit entire image"]], element.fillImageFit || "cover")}</select></div>
+    </div>`;
+  }
+  if (fillType === "animated") {
+    return `<div class="field-row"><label for="shapeShaderInput">Effect</label><select id="shapeShaderInput">${animationOptionList(backgroundShaderOptions.filter((item) => item.value !== "none").map((item) => [item.value, item.label]), element.fillShader || "aurora")}</select></div>
+      <div class="field-grid">
+        ${shapeColorControlMarkup("shapeEffectColorAInput", "Effect color 1", element.fillEffectColorA || "#2454d6", "fillEffectColorA")}
+        ${shapeColorControlMarkup("shapeEffectColorBInput", "Effect color 2", element.fillEffectColorB || "#0c8b7f", "fillEffectColorB")}
+        <div class="field-row"><label for="shapeShaderIntensityInput">Intensity (%)</label><input id="shapeShaderIntensityInput" type="number" min="0" max="100" value="${Math.round((Number(element.fillShaderIntensity) || 0.6) * 100)}" /></div>
+        <div class="field-row"><label for="shapeShaderSpeedInput">Speed</label><input id="shapeShaderSpeedInput" type="number" min="0.1" max="3" step="0.1" value="${Number(element.fillShaderSpeed) || 1}" /></div>
+      </div>`;
+  }
+  return shapeColorControlMarkup("shapeFillColorInput", "Fill color", element.fill || "#e8efff", "fill");
+}
+
+function shapeColorControlMarkup(inputId, label, color, property) {
+  const swatches = brandColorStyles().map((style) => `<button class="background-style-swatch brand-style-chip" type="button" data-shape-color-property="${attr(property)}" data-shape-style-id="${attr(style.id)}"><span class="swatch" style="background:${attr(style.color)}"></span><span>${escapeHtml(style.name)}</span></button>`).join("");
+  return `<div class="field-row shape-color-control"><label>${escapeHtml(label)}</label><details class="background-color-picker">
+    <summary><span class="background-color-preview" style="background:${attr(color)}"></span><span class="background-color-value">${escapeHtml(color.toUpperCase())}</span></summary>
+    <div class="background-color-picker-menu"><label for="${attr(inputId)}">Custom color</label><input id="${attr(inputId)}" type="color" value="${attr(color)}" data-shape-color-input="${attr(property)}" />
+      ${swatches ? `<div class="background-style-swatches"><span class="background-swatch-heading">Theme colors</span>${swatches}</div>` : ""}
+    </div></details></div>`;
+}
+
 function iconInspectorFields(element) {
   return `
     <section class="inspector-section icon-library-section">
@@ -2688,36 +2727,69 @@ function iconInspectorFields(element) {
 }
 
 function lucideIconDataUri(name, color = "#2454d6", strokeWidth = 2) {
-  const holder = document.createElement("span");
-  holder.style.cssText = "position:absolute;left:-9999px;top:-9999px";
-  holder.innerHTML = `<i data-lucide="${attr(name || "sparkles")}"></i>`;
-  document.body.append(holder);
-  window.lucide?.createIcons({
-    attrs: {
+  const iconKey = String(name || "sparkles").split("-").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join("");
+  const iconNode = window.lucide?.icons?.[name] || window.lucide?.icons?.[iconKey] || window.lucide?.icons?.Sparkles;
+  const svg = iconNode && window.lucide?.createElement
+    ? window.lucide.createElement(iconNode, {
       color,
       stroke: color,
       fill: "none",
       width: 24,
       height: 24,
       "stroke-width": Math.max(0.75, Math.min(4, Number(strokeWidth) || 2)),
-    },
-  });
-  const svg = holder.querySelector("svg");
-  if (!svg) {
-    holder.remove();
-    return "";
-  }
+    })
+    : null;
+  if (!svg) return "";
   svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
   svg.setAttribute("width", "24");
   svg.setAttribute("height", "24");
   const serialized = new XMLSerializer().serializeToString(svg);
-  holder.remove();
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(serialized)}`;
 }
 
 function refreshIconAsset(element) {
   element.icon = element.icon || "sparkles";
   element.iconSrc = lucideIconDataUri(element.icon, element.fill || "#2454d6", element.strokeWidth || 2);
+}
+
+function bindShapeFillControls(element) {
+  document.querySelector("#shapeFillTypeInput")?.addEventListener("change", (event) => {
+    element.fillType = event.target.value;
+    markChanged("Shape fill style updated");
+    renderAll();
+  });
+  const pickers = [...document.querySelectorAll(".shape-color-control .background-color-picker")];
+  pickers.forEach((picker) => picker.addEventListener("toggle", () => {
+    if (!picker.open) return;
+    pickers.forEach((other) => { if (other !== picker) other.open = false; });
+  }));
+  document.querySelectorAll("[data-shape-color-input]").forEach((input) => input.addEventListener("input", () => {
+    element[input.dataset.shapeColorInput] = input.value;
+    const picker = input.closest(".background-color-picker");
+    const preview = picker?.querySelector(".background-color-preview");
+    const value = picker?.querySelector(".background-color-value");
+    if (preview) preview.style.background = input.value;
+    if (value) value.textContent = input.value.toUpperCase();
+    markChanged("Shape fill color updated");
+    renderCanvas();
+    renderSlides();
+  }));
+  document.querySelectorAll("[data-shape-style-id]").forEach((button) => button.addEventListener("click", () => {
+    const style = brandColorStyles().find((item) => item.id === button.dataset.shapeStyleId);
+    if (!style) return;
+    element[button.dataset.shapeColorProperty] = style.color;
+    markChanged(`${style.name} applied to shape`);
+    renderAll();
+  }));
+  bindNumber("#shapeGradientAngleInput", (value) => (element.fillGradientAngle = clamp(value, 0, 360)));
+  bindValue("#shapeImageFitInput", (value) => (element.fillImageFit = value));
+  document.querySelector("#chooseShapeFillImageBtn")?.addEventListener("click", () => {
+    dom.imageInput.dataset.shapeFillId = element.id;
+    dom.imageInput.click();
+  });
+  bindValue("#shapeShaderInput", (value) => (element.fillShader = value));
+  bindNumber("#shapeShaderIntensityInput", (value) => (element.fillShaderIntensity = clamp(value / 100, 0, 1)));
+  bindNumber("#shapeShaderSpeedInput", (value) => (element.fillShaderSpeed = clamp(value, 0.1, 3)));
 }
 
 function bindIconInspector(element) {
@@ -2862,6 +2934,7 @@ function elementInspectorFields(element) {
   }
 
   if (element.type === "shape") {
+    const fillType = element.fillType || "color";
     return `
       <section class="inspector-section">
         <strong>Style</strong>
@@ -2873,8 +2946,14 @@ function elementInspectorFields(element) {
           ["diamond", "Diamond"],
           ["hexagon", "Hexagon"],
         ], element.shape || "roundedRect")}</select></div>
+        <div class="field-row"><label for="shapeFillTypeInput">Fill style</label><select id="shapeFillTypeInput">${animationOptionList([
+          ["color", "Solid color"],
+          ["gradient", "Gradient"],
+          ["image", "Image"],
+          ["animated", "Animated effect"],
+        ], fillType)}</select></div>
+        ${shapeFillControlsMarkup(element, fillType)}
         <div class="field-grid">
-          <div class="field-row"><label for="fillInput">Fill</label><input id="fillInput" type="color" value="${element.fill || "#ffffff"}" /></div>
           <div class="field-row"><label for="strokeInput">Stroke</label><input id="strokeInput" type="color" value="${element.stroke || "#ffffff"}" /></div>
           <div class="field-row"><label for="strokeWidthInput">Stroke width</label><input id="strokeWidthInput" type="number" value="${element.strokeWidth || 0}" /></div>
           ${element.shape === "roundedRect" ? `<div class="field-row"><label for="shapeRadiusInput">Corner radius</label><input id="shapeRadiusInput" type="number" min="0" max="200" step="1" value="${Math.max(0, Number(element.radius) || 0)}" /></div>` : ""}
@@ -3050,6 +3129,7 @@ function bindTypeFields(element) {
     });
     bindNumber("#shapeRadiusInput", (value) => (element.radius = clamp(value, 0, 200)));
     bindNumber("#lineRadiusInput", (value) => (element.radius = clamp(value, 0, Math.min(element.w, element.h) / 2)));
+    if (element.type === "shape") bindShapeFillControls(element);
   }
 
   if (element.type === "icon") {
@@ -3871,6 +3951,21 @@ function setSlideBackgroundFromFile(file, slideId) {
     slide.backgroundType = "image";
     slide.backgroundImageFit ||= "cover";
     markChanged("Background image added");
+    renderAll();
+  };
+  reader.readAsDataURL(file);
+}
+
+function setShapeFillFromFile(file, elementId) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const element = currentSlide().elements.find((item) => item.id === elementId && item.type === "shape");
+    if (!element) return;
+    element.fillImage = reader.result;
+    element.fillType = "image";
+    element.fillImageFit ||= "cover";
+    selectedIds = [element.id];
+    markChanged("Shape fill image added");
     renderAll();
   };
   reader.readAsDataURL(file);
