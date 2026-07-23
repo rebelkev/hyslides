@@ -2879,16 +2879,25 @@ function bindIconColorControls(element) {
 }
 
 function bindIconChoices(element) {
-  document.querySelector("#iconPickerGrid")?.addEventListener("click", (event) => {
+  document.querySelector("#iconPickerGrid")?.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-icon-choice]");
     if (!button) return;
+    const inspectorRail = dom.inspector.closest(".rail-right");
+    const railScrollTop = inspectorRail?.scrollTop || 0;
+    const pickerScrollTop = event.currentTarget.scrollTop;
     const selectedSvg = button.querySelector("svg");
     element.icon = button.dataset.iconChoice;
     element.iconMarkup = selectedSvg?.innerHTML || "";
     element.name = element.name === "Icon" || !element.name ? iconDisplayName(element.icon) : element.name;
     refreshIconAsset(element);
     markChanged(`${iconDisplayName(element.icon)} icon selected`);
+    // Load the newly selected SVG before repainting so the canvas transitions
+    // directly from the previous icon to the chosen icon without a fallback flash.
+    await preloadSlideImages(currentSlide(), deck);
     renderAll();
+    if (inspectorRail) inspectorRail.scrollTop = railScrollTop;
+    const nextPicker = document.querySelector("#iconPickerGrid");
+    if (nextPicker) nextPicker.scrollTop = pickerScrollTop;
   });
 }
 

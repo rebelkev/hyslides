@@ -2,6 +2,7 @@
 
 ## Current Development Build
 
+- Kept the icon library and Properties panel at their current scroll positions when trying different icons, and removed the brief default-icon flash by preloading the chosen SVG before repainting.
 - Replaced checkbox visuals throughout HySlides with consistent accessible toggle switches while preserving keyboard and label behavior, and removed the non-interactive icon-library status text.
 - Fixed element color styles being visually overridden by linked global typography colors.
 - Rebuilt icon SVG generation so the selected HEX color is embedded directly without recoloring unrelated interface icons.

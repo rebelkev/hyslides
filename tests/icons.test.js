@@ -37,11 +37,15 @@ test("icon properties expose searchable Lucide selection and styling controls", 
   assert.match(script, /data-icon-choice/);
   assert.match(script, /element\.iconMarkup = selectedSvg\?\.innerHTML/);
   assert.match(script, /document\.querySelector\("#iconPickerGrid"\)\?\.addEventListener\("click"/);
+  assert.match(script, /const pickerScrollTop = event\.currentTarget\.scrollTop/);
+  assert.match(script, /nextPicker\.scrollTop = pickerScrollTop/);
+  assert.match(script, /await preloadSlideImages\(currentSlide\(\), deck\)/);
 });
 
 test("canvas renderer uses the selected icon asset and preserves a legacy fallback", async () => {
   const renderer = await readFile(new URL("src/renderer.js", root), "utf8");
   assert.match(renderer, /element\.type === "icon" && element\.iconSrc/);
   assert.match(renderer, /imageCache\.get\(element\.iconSrc\)/);
+  assert.match(renderer, /if \(element\.iconSrc\)\s*\{[\s\S]*loadImage\(element\.iconSrc\)/);
   assert.match(renderer, /Legacy fallback/);
 });

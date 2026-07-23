@@ -584,7 +584,14 @@ function drawIcon(ctx, element) {
     return;
   }
 
-  // Legacy fallback for decks saved before searchable Lucide icons were introduced.
+  // A modern icon may still be loading. Do not briefly draw the old default
+  // Sparkles artwork while its selected SVG asset is being prepared.
+  if (element.iconSrc) {
+    loadImage(element.iconSrc).catch(() => {});
+    return;
+  }
+
+  // Legacy fallback only for decks saved before icon assets were introduced.
   const size = Math.min(element.w, element.h);
   const cx = element.w / 2;
   const cy = element.h / 2;
