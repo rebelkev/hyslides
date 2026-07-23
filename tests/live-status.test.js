@@ -33,6 +33,7 @@ test("live slides carry deck furniture settings to participant devices", async (
     colors: { muted: "#637083" },
     typographyStyles: { caption: { name: "Caption", fontSize: 16 } },
     master: { footer: { showSlideNumber: true, disclaimer: { enabled: true, text: "Confidential" } } },
+    logo: { src: "https://example.com/logo.svg", corner: "top-right", showOnSlides: true, width: 96 },
   };
   const snapshot = await liveSnapshotForDeck(
     { id: "deck-1", title: "Deck", theme, settings: { audienceCode: "123456" } },
@@ -41,5 +42,7 @@ test("live slides carry deck furniture settings to participant devices", async (
   );
   const participantDeck = liveStateDeck({ ...snapshot, theme: undefined });
   assert.equal(participantDeck.theme.master.footer.disclaimer.text, "Confidential");
+  assert.equal(participantDeck.theme.logo.src, "https://example.com/logo.svg");
+  assert.equal(participantDeck.theme.logo.corner, "top-right");
   assert.notEqual(snapshot.slide.liveTheme, theme);
 });

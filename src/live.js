@@ -74,6 +74,7 @@ export async function liveSnapshotForDeck(deck, slide, activeSlideIndex, instanc
     colors: cloneJson(deck.theme?.colors || {}),
     typographyStyles: cloneJson(deck.theme?.typographyStyles || {}),
     master: cloneJson(deck.theme?.master || {}),
+    logo: cloneJson(deck.theme?.logo || {}),
   };
   liveSlide.liveTheme = liveTheme;
   liveSlide.runtimePresentation = {
@@ -117,6 +118,12 @@ async function compactLiveSlideImages(slide) {
 
 function liveImageReferences(slide) {
   const references = [];
+  if (String(slide.liveTheme?.logo?.src || "").startsWith("data:image/")) {
+    references.push({
+      value: () => slide.liveTheme.logo.src,
+      update: (value) => { slide.liveTheme.logo.src = value; },
+    });
+  }
   if (String(slide.backgroundImage || "").startsWith("data:image/")) {
     references.push({ value: () => slide.backgroundImage, update: (value) => { slide.backgroundImage = value; } });
   }

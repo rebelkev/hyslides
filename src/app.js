@@ -480,9 +480,6 @@ function bindEvents() {
     presenterQnaTab = "answered";
     renderPresenterQna();
   });
-  document.querySelector("#fullscreenPresenterBtn").addEventListener("click", () => {
-    document.documentElement.requestFullscreen?.().catch(() => {});
-  });
   dom.presenterNotes.addEventListener("input", () => {
     currentSlide().notes = dom.presenterNotes.value;
     markChanged("Presenter notes updated");
@@ -5188,7 +5185,7 @@ function renderAudienceQuestionOverlay(question) {
 
 function renderSessionQnaForAudience() {
   const launcher = document.createElement("button");
-  launcher.className = "participant-qna-launcher";
+  launcher.className = `participant-qna-launcher${participantQnaOpen ? " hidden" : ""}`;
   launcher.type = "button";
   launcher.setAttribute("aria-label", "Ask the presenter a question");
   launcher.innerHTML = `<span aria-hidden="true">?</span>`;
@@ -5219,12 +5216,14 @@ function renderSessionQnaForAudience() {
   panel.querySelector(".session-qna-close").addEventListener("click", () => {
     participantQnaOpen = false;
     panel.classList.add("hidden");
+    launcher.classList.remove("hidden");
     launcher.focus();
   });
   launcher.addEventListener("click", () => {
-    participantQnaOpen = !participantQnaOpen;
-    panel.classList.toggle("hidden", !participantQnaOpen);
-    if (participantQnaOpen) panel.querySelector("textarea")?.focus();
+    participantQnaOpen = true;
+    panel.classList.remove("hidden");
+    launcher.classList.add("hidden");
+    panel.querySelector("textarea")?.focus();
   });
   dom.audienceContent.append(panel, launcher);
 }

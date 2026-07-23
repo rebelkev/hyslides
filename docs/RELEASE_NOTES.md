@@ -88,6 +88,9 @@
 
 ### Live Sessions
 
+- Synchronized deck-logo branding into Participant View using the same live slide snapshot and renderer as Presenter and Presentation Views.
+- Removed all navigation controls from the projected Presentation View and removed the unused Full Screen action from Presenter View.
+- Hid the floating participant Q&A launcher whenever its question form is open so it cannot obstruct typing or submission controls.
 - Fixed ended session instances so reopening Presenter View reactivates them on the server, and replaced the ambiguous connectivity label with prominent server-confirmed LIVE, CONNECTING, PAUSED, ENDED, and NOT LIVE badges.
 - Replaced the one-click End Session confirmation with a default-checked action checklist for ending, clearing the live display, starting a new session instance, and returning to slide 1; presenters can resume without making changes.
 - Added QR and six-digit access-code joining.
