@@ -2,6 +2,7 @@
 
 ## Current Development Build
 
+- Replaced checkbox visuals throughout HySlides with consistent accessible toggle switches while preserving keyboard and label behavior, and removed the non-interactive icon-library status text.
 - Fixed element color styles being visually overridden by linked global typography colors.
 - Rebuilt icon SVG generation so the selected HEX color is embedded directly without recoloring unrelated interface icons.
 - Added regression coverage for linked text colors, global typography colors, and exact icon colors.

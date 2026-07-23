@@ -164,6 +164,64 @@ textarea {
   width: 100%;
 }
 
+/* A single accessible switch treatment for every boolean control. The native
+   input remains in place so labels, keyboard use, and change events still work. */
+input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: #7b8188;
+  border: 0;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.14);
+  cursor: pointer;
+  display: inline-block;
+  flex: 0 0 36px;
+  height: 20px;
+  margin: 0;
+  min-height: 20px;
+  padding: 0;
+  position: relative;
+  transition:
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+  vertical-align: middle;
+  width: 36px;
+}
+
+input[type="checkbox"]::before {
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.28);
+  content: "";
+  height: 16px;
+  left: 2px;
+  position: absolute;
+  top: 2px;
+  transition: transform 160ms ease;
+  width: 16px;
+}
+
+input[type="checkbox"]:checked {
+  background: var(--blue);
+  box-shadow: inset 0 0 0 1px rgba(21, 58, 163, 0.24);
+}
+
+input[type="checkbox"]:checked::before {
+  transform: translateX(16px);
+}
+
+input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  input[type="checkbox"],
+  input[type="checkbox"]::before {
+    transition: none;
+  }
+}
+
 textarea {
   min-height: 84px;
   resize: vertical;
@@ -1406,11 +1464,18 @@ label {
   align-items: center;
   display: flex;
   gap: 8px;
+  justify-content: space-between;
+  min-height: 28px;
 }
 
-.check-row input {
-  min-height: auto;
-  width: auto;
+.check-row input[type="checkbox"] {
+  order: 2;
+}
+
+.check-row label {
+  cursor: pointer;
+  margin: 0;
+  order: 1;
 }
 
 .answer-key-list {
@@ -1452,7 +1517,7 @@ label {
   align-items: center;
   display: grid;
   gap: 7px;
-  grid-template-columns: 24px 40px minmax(0, 1fr) 34px;
+  grid-template-columns: 36px 40px minmax(0, 1fr) 34px;
 }
 
 .engagement-option-row input[type="text"] {
@@ -1519,8 +1584,6 @@ label {
 
 .engagement-option-correct {
   justify-self: center;
-  min-height: auto;
-  width: auto;
 }
 
 .engagement-option-number {
@@ -1830,19 +1893,19 @@ label {
 .end-session-heading span { color: var(--muted); line-height: 1.45; }
 .end-session-options { display: grid; gap: 10px; }
 .end-session-options label {
-  align-items: flex-start;
+  align-items: center;
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 10px;
   cursor: pointer;
   display: grid;
   gap: 12px;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: 1fr auto;
   padding: 14px;
 }
 .end-session-options label.disabled { cursor: not-allowed; opacity: 0.52; }
-.end-session-options input { height: 20px; margin-top: 1px; width: 20px; }
-.end-session-options span { display: grid; gap: 3px; }
+.end-session-options input { grid-column: 2; grid-row: 1; }
+.end-session-options span { display: grid; gap: 3px; grid-column: 1; grid-row: 1; }
 .end-session-options small { color: var(--muted); line-height: 1.35; }
 .end-session-actions { display: flex; gap: 10px; justify-content: flex-end; }
 .end-session-actions button { min-width: 140px; }
@@ -1903,10 +1966,10 @@ label {
 .presenter-section-head > div { display: grid; gap: 2px; }
 .presenter-section-head span { color: var(--muted); font-size: 11px; }
 .presenter-slide-list { display: grid; gap: 8px; overflow: auto; padding-right: 3px; }
-.presenter-flow-slide { align-items: start; background: #fff; border: 2px solid transparent; border-radius: 8px; cursor: pointer; display: grid; gap: 7px; grid-template-columns: 20px minmax(0, 1fr); padding: 7px; transition: opacity 160ms ease, border-color 160ms ease, background 160ms ease; }
+.presenter-flow-slide { align-items: start; background: #fff; border: 2px solid transparent; border-radius: 8px; cursor: pointer; display: grid; gap: 7px; grid-template-columns: 36px minmax(0, 1fr); padding: 7px; transition: opacity 160ms ease, border-color 160ms ease, background 160ms ease; }
 .presenter-flow-slide.active { border-color: #1769e8; }
 .presenter-flow-slide.skipped { background: #e5e9ef; filter: grayscale(1); opacity: .48; }
-.presenter-flow-slide input { margin: 2px 0 0; }
+.presenter-flow-slide input { margin-top: 1px; }
 .presenter-flow-slide canvas { background: #fff; display: block; height: auto; width: 100%; }
 .presenter-flow-slide strong { display: block; font-size: 12px; margin-top: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 

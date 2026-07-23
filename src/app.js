@@ -2709,7 +2709,7 @@ function iconInspectorFields(element) {
           ${ICON_CATEGORIES.map(([value, label]) => `<option value="${attr(value)}">${escapeHtml(label)}</option>`).join("")}
         </select>
       </div>
-      <div class="icon-picker-status"><span id="iconResultCount">${iconPickerResults().length.toLocaleString()} icons available</span><span>Search the full library</span></div>
+      <div class="icon-picker-status"><span id="iconResultCount">${iconPickerResults().length.toLocaleString()} icons available</span></div>
       <div id="iconPickerGrid" class="icon-picker-grid" role="listbox" aria-label="Available icons">
         ${renderIconPickerGrid(element)}
       </div>
