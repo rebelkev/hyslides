@@ -233,6 +233,32 @@ const presenterCtx = dom.presenterCanvas.getContext("2d");
 const audienceCtx = dom.audienceCanvas.getContext("2d");
 const nextCtx = dom.nextCanvas.getContext("2d");
 
+function prepareHighResolutionCanvas(canvas, context) {
+  const bounds = canvas.getBoundingClientRect();
+  if (!bounds.width || !bounds.height) {
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    return 1;
+  }
+  const displayScale = Math.max(
+    bounds.width / SLIDE_SIZE.width,
+    bounds.height / SLIDE_SIZE.height
+  );
+  const resolutionScale = Math.max(
+    1,
+    Math.min(3, displayScale * Math.max(1, window.devicePixelRatio || 1))
+  );
+  const width = Math.round(SLIDE_SIZE.width * resolutionScale);
+  const height = Math.round(SLIDE_SIZE.height * resolutionScale);
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+  context.setTransform(resolutionScale, 0, 0, resolutionScale, 0, 0);
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
+  return resolutionScale;
+}
+
 init();
 
 async function init() {
@@ -299,8 +325,16 @@ function bindEvents() {
   document.querySelector("#closeHelpFaqBtn")?.addEventListener("click", closeHelp);
   helpOverlay?.addEventListener("click", (event) => { if (event.target === helpOverlay) closeHelp(); });
   window.addEventListener("resize", () => {
-    if (presentationWindowMode && presenterOpen) syncPresentationEmbeds(currentSlide());
-    if (audienceOpen && audienceLive.state?.slide) syncAudienceEmbeds(audienceLive.state.slide);
+    requestAnimationFrame(() => {
+      if (presenterOpen) renderPresenter();
+      if (audienceOpen) renderAudience();
+    });
+  });
+  document.addEventListener("fullscreenchange", () => {
+    requestAnimationFrame(() => {
+      if (presenterOpen) renderPresenter();
+      if (audienceOpen) renderAudience();
+    });
   });
   window.addEventListener("message", handleYouTubePlayerMessage);
   dom.deckTitle.addEventListener("input", () => {
@@ -3973,6 +4007,7 @@ async function renderPresenter() {
       : `${liveSession.participantCount} connected`;
   }
   updatePresenterConnectionBadge();
+  prepareHighResolutionCanvas(dom.presenterCanvas, presenterCtx);
   await drawSlideAsync(presenterCtx, slide, deck, {
     footer: true,
     revealCorrectAnswers: shouldRevealCorrectAnswers(slide),
@@ -4143,6 +4178,7 @@ function broadcastCountdownState() {
 
 function drawPresentationCountdownFrame() {
   if (!presenterOpen) return;
+  prepareHighResolutionCanvas(dom.presenterCanvas, presenterCtx);
   drawSlide(presenterCtx, currentSlide(), deck, {
     footer: true,
     revealCorrectAnswers: shouldRevealCorrectAnswers(currentSlide()),
@@ -4954,9 +4990,9 @@ async function renderLiveAudience() {
   if (participantBlackout) {
     renderAudienceQuestionOverlay(null);
     dom.audienceEmbedLayer?.replaceChildren();
-    audienceCtx.setTransform(1, 0, 0, 1, 0, 0);
+    prepareHighResolutionCanvas(dom.audienceCanvas, audienceCtx);
     audienceCtx.fillStyle = "#000000";
-    audienceCtx.fillRect(0, 0, dom.audienceCanvas.width, dom.audienceCanvas.height);
+    audienceCtx.fillRect(0, 0, SLIDE_SIZE.width, SLIDE_SIZE.height);
     dom.audienceContent.replaceChildren();
     audienceLive.lastRenderSignature = audienceRenderSignature();
     return;
@@ -4972,6 +5008,7 @@ async function renderLiveAudience() {
     ...liveStateDeck(audienceLive.state),
     slides: [liveSlide],
   });
+  prepareHighResolutionCanvas(dom.audienceCanvas, audienceCtx);
   await drawSlideAsync(audienceCtx, liveSlide, liveDeck, {
     footer: false,
     revealCorrectAnswers: shouldRevealCorrectAnswers(liveSlide),
@@ -5331,6 +5368,7 @@ function drawPresenterAnimationFrame() {
     }
   }
   if (presentationWindowMode) {
+    prepareHighResolutionCanvas(dom.presenterCanvas, presenterCtx);
     drawSlide(presenterCtx, currentSlide(), deck, {
       footer: true,
       revealCorrectAnswers: shouldRevealCorrectAnswers(currentSlide()),

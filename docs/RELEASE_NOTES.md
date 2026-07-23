@@ -96,6 +96,7 @@
 
 ### Presenter View v1
 
+- Upgraded Presentation and Participant canvases to resolution-aware rendering based on their displayed size and device pixel density, keeping text, shapes, charts, and slide edges crisp on Retina, high-DPI, 1080p, and 4K displays.
 - Unified Black Screen and presenter-selected Q&A into persistent Presentation Control state, preventing missed browser messages from leaving the projected tab out of sync.
 - Added persistent same-origin Black Screen synchronization so the projected tab still responds if direct messaging or BroadcastChannel delivery is unavailable.
 - Made Black Screen reach the projected Presentation View through both the shared presenter channel and a direct tab-to-tab fallback, while the private Presenter View remains visible as a confidence monitor.
