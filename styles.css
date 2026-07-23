@@ -300,6 +300,27 @@ label {
 .help-faq-card .presenter-head { border-bottom: 1px solid var(--line); padding-bottom: 14px; }
 .help-faq-card .presenter-head > div { display: grid; gap: 3px; }
 .help-faq-card .presenter-head span { color: var(--muted); font-size: 12px; }
+
+.pptx-import-card {
+  background: #f8fafc;
+  border-radius: 12px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .35);
+  display: grid;
+  gap: 16px;
+  max-height: calc(100dvh - 40px);
+  max-width: 680px;
+  overflow: auto;
+  padding: 18px;
+  width: 100%;
+}
+
+.pptx-import-card .presenter-head { border-bottom: 1px solid var(--line); padding-bottom: 14px; }
+.pptx-import-card .presenter-head > div { display: grid; gap: 3px; }
+.pptx-import-card .presenter-head span { color: var(--muted); font-size: 12px; }
+.pptx-import-summary { display: grid; gap: 10px; }
+.pptx-import-summary > strong { font-size: 20px; }
+.pptx-import-summary > p { color: var(--muted); margin: 0; }
+.pptx-import-actions { display: flex; justify-content: flex-end; }
 .help-faq-content { display: grid; gap: 10px; padding-top: 14px; }
 .help-faq-content section { background: #fff; border: 1px solid var(--line); border-radius: 9px; padding: 14px; }
 .help-faq-content h3 { margin: 0 0 6px; }

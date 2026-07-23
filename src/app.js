@@ -106,6 +106,8 @@ const dom = {
   sessionHistorySubtitle: document.querySelector("#sessionHistorySubtitle"),
   globalSettingsOverlay: document.querySelector("#globalSettingsOverlay"),
   globalSettingsContent: document.querySelector("#globalSettingsContent"),
+  pptxImportOverlay: document.querySelector("#pptxImportOverlay"),
+  pptxImportSummary: document.querySelector("#pptxImportSummary"),
   endSessionOverlay: document.querySelector("#endSessionOverlay"),
   presenterNotes: document.querySelector("#presenterNotes"),
   presenterSlideTitle: document.querySelector("#presenterSlideTitle"),
@@ -370,6 +372,12 @@ function bindEvents() {
   document.querySelector("#closeSessionHistoryBtn").addEventListener("click", closeSessionHistory);
   document.querySelector("#globalSettingsBtn").addEventListener("click", openGlobalSettings);
   document.querySelector("#closeGlobalSettingsBtn").addEventListener("click", closeGlobalSettings);
+  document.querySelector("#importPptxBtn")?.addEventListener("click", openPptxImport);
+  document.querySelector("#closePptxImportBtn")?.addEventListener("click", closePptxImport);
+  document.querySelector("#choosePptxFileBtn")?.addEventListener("click", () => dom.pptxInput.click());
+  dom.pptxImportOverlay?.addEventListener("click", (event) => {
+    if (event.target === dom.pptxImportOverlay) closePptxImport();
+  });
 
   document.querySelector("#addSlideBtn").addEventListener("click", () => {
     const slide = createSlide({
@@ -407,6 +415,7 @@ function bindEvents() {
       return;
     }
     setStatus("Importing PowerPoint...");
+    renderPptxImportSummary("Importing", ["Reading the presentation and translating supported content…"]);
     try {
       deck = normalizeDeck(await importPptx(file));
       activeSlideIndex = 0;
@@ -416,11 +425,16 @@ function bindEvents() {
       openSectionMenuId = null;
       selectedIds = [];
       await saveDeck(deck);
-      setStatus("PowerPoint imported — review the import summary in Slide Properties");
+      setStatus("PowerPoint imported");
       renderAll();
       resetHistory();
+      renderPptxImportSummary("Import complete", [
+        ...(deck.importReport || []),
+        ...(deck.unsupportedFeatures || []).map((item) => `Not imported: ${item}`),
+      ]);
     } catch (error) {
       setStatus(`Import failed: ${error.message}`);
+      renderPptxImportSummary("Import failed", [error.message]);
     } finally {
       dom.pptxInput.value = "";
     }
@@ -500,7 +514,6 @@ function bindEvents() {
   document.querySelector("#zoomOutBtn").addEventListener("click", () => setZoom(zoom - 0.08, { manual: true }));
   document.querySelector("#zoomInBtn").addEventListener("click", () => setZoom(zoom + 0.08, { manual: true }));
   dom.zoomRange.addEventListener("input", () => setZoom(Number(dom.zoomRange.value) / 100, { manual: true }));
-  document.querySelector("#previewAnimationsBtn").addEventListener("click", previewSlideAnimations);
 
   document.querySelectorAll("[data-add]").forEach((button) => {
     button.addEventListener("click", () => addElement(button.dataset.add));
@@ -642,6 +655,26 @@ function closeGlobalSettings() {
   dom.globalSettingsOverlay.classList.add("hidden");
   dom.globalSettingsOverlay.setAttribute("aria-hidden", "true");
   renderAll();
+}
+
+function renderPptxImportSummary(title = "PowerPoint import support", extraItems = []) {
+  const items = extraItems.length ? extraItems : pptxCapabilities();
+  dom.pptxImportSummary.innerHTML = `
+    <strong>${escapeHtml(title)}</strong>
+    <ul class="unsupported-list">${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+    ${extraItems.length ? "" : `<p>Animations, transitions, SmartArt, advanced charts, embedded media, comments, and complex masters may require manual rebuilding after import.</p>`}
+  `;
+}
+
+function openPptxImport() {
+  renderPptxImportSummary();
+  dom.pptxImportOverlay.classList.remove("hidden");
+  dom.pptxImportOverlay.setAttribute("aria-hidden", "false");
+}
+
+function closePptxImport() {
+  dom.pptxImportOverlay.classList.add("hidden");
+  dom.pptxImportOverlay.setAttribute("aria-hidden", "true");
 }
 
 function globalSettingsSectionMarkup(id, title, description, content) {
@@ -2251,15 +2284,7 @@ function renderSlideInspector(slide) {
       </div>` : ""}
     </section>
     <section class="inspector-section">
-      <strong>Theme</strong>
-      <div class="field-row">
-        <label for="brandColorInput">Saved brand colors</label>
-        <div class="brand-color-save">
-          <input id="brandColorInput" type="color" value="${deck.theme.colors.primary}" />
-          <button id="saveBrandColorBtn" type="button">Save swatch</button>
-        </div>
-        ${brandPaletteManagerMarkup()}
-      </div>
+      <strong>Canvas</strong>
       <div class="check-row"><input id="snapToggle" type="checkbox" ${deck.settings.snapToGrid ? "checked" : ""} /><label for="snapToggle">Snap to grid</label></div>
       <div class="check-row"><input id="guideToggle" type="checkbox" ${deck.settings.showGuides ? "checked" : ""} /><label for="guideToggle">Alignment guides</label></div>
     </section>
@@ -2277,14 +2302,6 @@ function renderSlideInspector(slide) {
           <span>Scan or enter access code <strong>${escapeHtml(ensureAudienceCode())}</strong></span>
         </div>
       </div>
-    </section>
-    <section class="inspector-section">
-      <strong>PowerPoint import summary</strong>
-      <ul class="unsupported-list">
-        ${(deck.importReport || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
-        ${pptxCapabilities().map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
-        ${(deck.unsupportedFeatures || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
-      </ul>
     </section>
   `;
 
@@ -2367,7 +2384,6 @@ function renderSlideInspector(slide) {
     markChanged("Background image removed");
     renderAll();
   });
-  bindBrandPaletteManager();
   bindToggle("#snapToggle", (value) => (deck.settings.snapToGrid = value));
   bindToggle("#guideToggle", (value) => (deck.settings.showGuides = value));
   bindToggle("#audienceJoinElementsToggle", (value) => {
@@ -2508,7 +2524,28 @@ function elementInspectorFields(element) {
       </section>`;
   }
 
-  if (element.type === "shape" || element.type === "divider" || element.type === "icon") {
+  if (element.type === "shape") {
+    return `
+      <section class="inspector-section">
+        <strong>Style</strong>
+        <div class="field-row"><label for="shapeInput">Shape type</label><select id="shapeInput">${animationOptionList([
+          ["rectangle", "Rectangle"],
+          ["roundedRect", "Rounded rectangle"],
+          ["ellipse", "Ellipse"],
+          ["triangle", "Triangle"],
+          ["diamond", "Diamond"],
+          ["hexagon", "Hexagon"],
+        ], element.shape || "roundedRect")}</select></div>
+        <div class="field-grid">
+          <div class="field-row"><label for="fillInput">Fill</label><input id="fillInput" type="color" value="${element.fill || "#ffffff"}" /></div>
+          <div class="field-row"><label for="strokeInput">Stroke</label><input id="strokeInput" type="color" value="${element.stroke || "#ffffff"}" /></div>
+          <div class="field-row"><label for="strokeWidthInput">Stroke width</label><input id="strokeWidthInput" type="number" value="${element.strokeWidth || 0}" /></div>
+          ${element.shape === "roundedRect" ? `<div class="field-row"><label for="shapeRadiusInput">Corner radius</label><input id="shapeRadiusInput" type="number" min="0" max="200" step="1" value="${Math.max(0, Number(element.radius) || 0)}" /></div>` : ""}
+        </div>
+      </section>`;
+  }
+
+  if (element.type === "divider" || element.type === "icon") {
     return `
       <section class="inspector-section">
         <strong>Style</strong>
@@ -2516,7 +2553,6 @@ function elementInspectorFields(element) {
           <div class="field-row"><label for="fillInput">Fill</label><input id="fillInput" type="color" value="${element.fill || "#ffffff"}" /></div>
           <div class="field-row"><label for="strokeInput">Stroke</label><input id="strokeInput" type="color" value="${element.stroke || "#ffffff"}" /></div>
           <div class="field-row"><label for="strokeWidthInput">Stroke width</label><input id="strokeWidthInput" type="number" value="${element.strokeWidth || 0}" /></div>
-          <div class="field-row"><label for="shapeInput">Shape</label><select id="shapeInput">${optionList(["roundedRect", "ellipse", "triangle"], element.shape)}</select></div>
         </div>
       </section>`;
   }
@@ -2665,7 +2701,12 @@ function bindTypeFields(element) {
     });
     bindValue("#strokeInput", (value) => (element.stroke = value));
     bindNumber("#strokeWidthInput", (value) => (element.strokeWidth = value));
-    bindValue("#shapeInput", (value) => (element.shape = value));
+    document.querySelector("#shapeInput")?.addEventListener("change", (event) => {
+      element.shape = event.target.value;
+      markChanged("Shape type updated");
+      renderAll();
+    });
+    bindNumber("#shapeRadiusInput", (value) => (element.radius = clamp(value, 0, 200)));
   }
 
   if (element.type === "image") {

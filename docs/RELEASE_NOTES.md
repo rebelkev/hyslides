@@ -16,6 +16,9 @@
 
 ### Editor
 
+- Removed deck color-style management and the PowerPoint support summary from slide Properties. Import PowerPoint now opens a dedicated support-and-results modal, and color styles remain available in Global Settings and relevant element color pickers.
+- Removed the duplicate Preview animations control beside zoom; full-slide previews remain in the Animations tab.
+- Reorganized Shape Style controls around a friendly, full-width Shape type selector. Added Rectangle, Rounded rectangle, Ellipse, Triangle, Diamond, and Hexagon plus an adjustable corner radius for rounded rectangles.
 - Compacted collapsed Global Deck Settings sections so each accordion uses only the height of its heading and description.
 - Added deck-wide slide-number and legal disclaimer controls, including disclaimer text, linked typography style, and six placement choices. Individual slides can inherit, show, or hide either item; both render above the background but below normal slide elements.
 - Streamlined element Properties by removing coordinate and size fields, placing Name, Rotation, and Opacity first, following them with element content controls, moving animation controls last, and replacing the Locked checkbox with a lock/unlock icon beside the element type.

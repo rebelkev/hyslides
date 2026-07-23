@@ -118,6 +118,10 @@ Open **Global Deck Settings → Brand logo** to upload a PNG, JPEG, WebP, or SVG
 
 Open **Global Deck Settings → Slide numbers & disclaimer** to choose whether slide numbers appear by default and to configure persistent legal or confidentiality text. The disclaimer can use any linked deck typography style and can be placed at the top or bottom, aligned left, center, or right. In an individual slide’s Properties, either item can inherit the deck default, be forced visible, or be hidden. Slide numbers and disclaimers are painted above the background but below normal slide elements, allowing a creator to intentionally cover them with shapes or other content.
 
+Select **Import PowerPoint** in the Editor toolbar to review supported and unsupported features before choosing a `.pptx` file. After import, the same modal reports any conversion notes. PowerPoint guidance no longer occupies every slide’s Properties panel.
+
+When a Shape element is selected, use **Style → Shape type** to choose Rectangle, Rounded rectangle, Ellipse, Triangle, Diamond, or Hexagon. Rounded rectangles additionally expose a numeric Corner radius control.
+
 When a text element is selected, choose its **Typography style** in Properties. Keep **Use global style** enabled so future global changes update that element automatically. Disable it to reveal custom font formatting for that one element. Existing decks retain their current custom typography, while newly added text uses the global Body style by default.
 
 ## Element Animations

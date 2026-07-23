@@ -67,7 +67,7 @@
           <button id="redoBtn" type="button" title="Redo (Command/Ctrl+Shift+Z)" data-icon="redo" disabled>Redo</button>
           <button id="sessionHistoryBtn" type="button" title="Session history" data-icon="history">Sessions</button>
           <button id="globalSettingsBtn" type="button" title="Global deck settings" data-icon="settings">Settings</button>
-          <label class="button" for="pptxInput" title="Import PowerPoint" data-icon="upload">Import PPTX</label>
+          <button id="importPptxBtn" type="button" title="Import PowerPoint" data-icon="upload">Import PPTX</button>
           <input id="pptxInput" class="sr-only" type="file" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" />
           <button id="exportPdfBtn" type="button" title="Export PDF" data-icon="file-text">PDF</button>
           <button id="presentBtn" type="button" title="Presenter mode" data-icon="play">Present</button>
@@ -125,7 +125,6 @@
         </section>
         <section class="canvas-shell">
           <div class="zoom-bar">
-            <button id="previewAnimationsBtn" type="button" title="Preview slide animations">Preview animations</button>
             <button id="zoomOutBtn" type="button" title="Zoom out" data-icon="zoom-out">-</button>
             <input id="zoomRange" type="range" min="20" max="150" value="82" aria-label="Zoom" />
             <button id="zoomInBtn" type="button" title="Zoom in" data-icon="zoom-in">+</button>
@@ -166,6 +165,19 @@
           <section><h3>Use audience engagement</h3><p>Add an Engagement element or engagement template, customize its choices, then go live. Results update on the slide as responses arrive.</p></section>
           <section><h3>What are the four views?</h3><p><strong>Editor View</strong> builds slides. <strong>Presentation View</strong> is projected to the room. <strong>Participant View</strong> appears on audience devices. <strong>Presenter View</strong> controls the live presentation.</p></section>
           <section><h3>Where are saved decks?</h3><p>Open the HySlides menu and choose Open saved decks. Decks currently remain in this browser until user accounts and cloud storage are introduced.</p></section>
+        </div>
+      </section>
+    </div>
+
+    <div id="pptxImportOverlay" class="modal-overlay hidden" aria-hidden="true">
+      <section class="pptx-import-card" role="dialog" aria-modal="true" aria-labelledby="pptxImportTitle">
+        <header class="presenter-head">
+          <div><strong id="pptxImportTitle">Import PowerPoint</strong><span>Review import support before choosing a file.</span></div>
+          <button id="closePptxImportBtn" type="button">Close</button>
+        </header>
+        <div id="pptxImportSummary" class="pptx-import-summary"></div>
+        <div class="pptx-import-actions">
+          <button id="choosePptxFileBtn" class="primary" type="button">Choose PowerPoint file</button>
         </div>
       </section>
     </div>

@@ -433,7 +433,10 @@ function drawShape(ctx, element) {
   ctx.strokeStyle = element.stroke || "transparent";
   ctx.lineWidth = element.strokeWidth || 0;
 
-  if (element.shape === "ellipse") {
+  if (element.shape === "rectangle") {
+    ctx.beginPath();
+    ctx.rect(0, 0, element.w, element.h);
+  } else if (element.shape === "ellipse") {
     ctx.beginPath();
     ctx.ellipse(element.w / 2, element.h / 2, element.w / 2, element.h / 2, 0, 0, Math.PI * 2);
   } else if (element.shape === "triangle") {
@@ -442,8 +445,25 @@ function drawShape(ctx, element) {
     ctx.lineTo(element.w, element.h);
     ctx.lineTo(0, element.h);
     ctx.closePath();
+  } else if (element.shape === "diamond") {
+    ctx.beginPath();
+    ctx.moveTo(element.w / 2, 0);
+    ctx.lineTo(element.w, element.h / 2);
+    ctx.lineTo(element.w / 2, element.h);
+    ctx.lineTo(0, element.h / 2);
+    ctx.closePath();
+  } else if (element.shape === "hexagon") {
+    const inset = element.w * 0.22;
+    ctx.beginPath();
+    ctx.moveTo(inset, 0);
+    ctx.lineTo(element.w - inset, 0);
+    ctx.lineTo(element.w, element.h / 2);
+    ctx.lineTo(element.w - inset, element.h);
+    ctx.lineTo(inset, element.h);
+    ctx.lineTo(0, element.h / 2);
+    ctx.closePath();
   } else {
-    roundedRect(ctx, 0, 0, element.w, element.h, element.radius || 8);
+    roundedRect(ctx, 0, 0, element.w, element.h, Math.max(0, Number(element.radius) || 0));
   }
 
   ctx.fill();
