@@ -177,5 +177,6 @@
 
 - Replaced the fixed spark icon with the searchable, MIT-licensed Lucide catalog.
 - Added a category dropdown, full-catalog search, result counts, and progressive loading.
+- Standardized icon and frame color controls with named global color styles.
 - Added icon color, line weight, frame, frame color, padding, horizontal/vertical flip, and accessibility controls.
 - Icon selections now render consistently on the editor, presenter, presentation, and participant canvases.

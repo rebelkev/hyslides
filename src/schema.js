@@ -254,6 +254,7 @@ export function createElement(type, overrides = {}) {
       iconStyle: "outline",
       iconFrame: "none",
       frameFill: "#e8efff",
+      frameBrandColorStyleId: null,
       padding: 10,
       flipHorizontal: false,
       flipVertical: false,

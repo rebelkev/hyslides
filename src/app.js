@@ -2552,6 +2552,27 @@ function renderIconPickerGrid(element, query = "", category = "", limit = 80) {
     </button>`).join("");
 }
 
+function iconColorControlMarkup(inputId, label, value, property, styleProperty, activeStyleId) {
+  const color = normalizeHexColor(value) || "#000000";
+  const swatches = brandColorStyles().map((style) => `
+    <button class="background-style-swatch brand-style-chip ${activeStyleId === style.id ? "active" : ""}" type="button"
+      data-icon-color-property="${attr(property)}" data-icon-style-property="${attr(styleProperty)}"
+      data-icon-style-id="${attr(style.id)}" title="${attr(style.name)}" aria-label="Use ${attr(style.name)}">
+      <span class="swatch" style="background:${attr(style.color)}"></span><span>${escapeHtml(style.name)}</span>
+    </button>`).join("");
+  return `<div class="field-row background-color-control icon-color-control"><label>${escapeHtml(label)}</label>
+    <details class="background-color-picker">
+      <summary aria-label="Choose ${attr(label)}"><span class="background-color-preview" style="background:${attr(color)}"></span><span class="background-color-value">${escapeHtml(color.toUpperCase())}</span></summary>
+      <div class="background-color-picker-menu">
+        <label for="${attr(inputId)}">Custom color</label>
+        <input id="${attr(inputId)}" type="color" value="${attr(color)}"
+          data-icon-color-input="${attr(property)}" data-icon-style-property="${attr(styleProperty)}" />
+        ${swatches ? `<div class="background-style-swatches"><span class="background-swatch-heading">Global color styles</span>${swatches}</div>` : ""}
+      </div>
+    </details>
+  </div>`;
+}
+
 function iconInspectorFields(element) {
   return `
     <section class="inspector-section icon-library-section">
@@ -2580,7 +2601,7 @@ function iconInspectorFields(element) {
     <section class="inspector-section">
       <strong>Icon style</strong>
       <div class="field-grid">
-        <div class="field-row"><label for="iconColorInput">Icon color</label><input id="iconColorInput" type="color" value="${element.fill || "#2454d6"}" /></div>
+        ${iconColorControlMarkup("iconColorInput", "Icon color", element.fill || "#2454d6", "fill", "brandColorStyleId", element.brandColorStyleId)}
         <div class="field-row"><label for="iconStrokeWidthInput">Line weight</label><input id="iconStrokeWidthInput" type="number" min="0.75" max="4" step="0.25" value="${Number(element.strokeWidth) || 2}" /></div>
         <div class="field-row"><label for="iconFrameInput">Frame</label><select id="iconFrameInput">${animationOptionList([
           ["none", "None"],
@@ -2588,7 +2609,7 @@ function iconInspectorFields(element) {
           ["rounded", "Rounded square"],
           ["square", "Square"],
         ], element.iconFrame || "none")}</select></div>
-        <div class="field-row"><label for="iconFrameFillInput">Frame color</label><input id="iconFrameFillInput" type="color" value="${element.frameFill || "#e8efff"}" /></div>
+        ${iconColorControlMarkup("iconFrameFillInput", "Frame color", element.frameFill || "#e8efff", "frameFill", "frameBrandColorStyleId", element.frameBrandColorStyleId)}
         <div class="field-row"><label for="iconPaddingInput">Padding (%)</label><input id="iconPaddingInput" type="number" min="0" max="40" step="1" value="${Math.max(0, Math.min(40, Number(element.padding) || 0))}" /></div>
       </div>
       <div class="check-row"><input id="iconFlipHorizontalInput" type="checkbox" ${element.flipHorizontal ? "checked" : ""} /><label for="iconFlipHorizontalInput">Flip horizontally</label></div>
@@ -2664,17 +2685,12 @@ function bindIconInspector(element) {
   });
   rerenderPicker();
   bindIconChoices(element);
-  bindValue("#iconColorInput", (value) => {
-    element.brandColorStyleId = null;
-    element.fill = value;
-    refreshIconAsset(element);
-  });
+  bindIconColorControls(element);
   bindNumber("#iconStrokeWidthInput", (value) => {
     element.strokeWidth = Math.max(0.75, Math.min(4, value));
     refreshIconAsset(element);
   });
   bindValue("#iconFrameInput", (value) => (element.iconFrame = value));
-  bindValue("#iconFrameFillInput", (value) => (element.frameFill = value));
   bindNumber("#iconPaddingInput", (value) => (element.padding = Math.max(0, Math.min(40, value))));
   bindToggle("#iconFlipHorizontalInput", (value) => (element.flipHorizontal = value));
   bindToggle("#iconFlipVerticalInput", (value) => (element.flipVertical = value));
@@ -2683,6 +2699,44 @@ function bindIconInspector(element) {
     document.querySelector("#iconAltRow")?.classList.toggle("hidden", value);
   });
   bindValue("#iconAltInput", (value) => (element.alt = value));
+}
+
+function bindIconColorControls(element) {
+  const colorPickers = [...document.querySelectorAll(".icon-color-control .background-color-picker")];
+  colorPickers.forEach((picker) => picker.addEventListener("toggle", () => {
+    if (!picker.open) return;
+    colorPickers.forEach((other) => { if (other !== picker) other.open = false; });
+  }));
+  document.querySelectorAll("[data-icon-color-input]").forEach((input) => {
+    input.addEventListener("input", () => {
+      const property = input.dataset.iconColorInput;
+      element[property] = input.value;
+      element[input.dataset.iconStyleProperty] = null;
+      if (property === "fill") refreshIconAsset(element);
+      const picker = input.closest(".background-color-picker");
+      const preview = picker?.querySelector(".background-color-preview");
+      const value = picker?.querySelector(".background-color-value");
+      if (preview) preview.style.background = input.value;
+      if (value) value.textContent = input.value.toUpperCase();
+      markChanged(`${property === "fill" ? "Icon" : "Frame"} color updated`);
+      renderCanvas();
+      renderSlides();
+      if (presenterOpen) renderPresenter();
+      if (audienceOpen) renderAudience();
+    });
+  });
+  document.querySelectorAll("[data-icon-style-id]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const style = brandColorStyles().find((item) => item.id === button.dataset.iconStyleId);
+      if (!style) return;
+      const property = button.dataset.iconColorProperty;
+      element[property] = style.color;
+      element[button.dataset.iconStyleProperty] = style.id;
+      if (property === "fill") refreshIconAsset(element);
+      markChanged(`${style.name} color style linked`);
+      renderAll();
+    });
+  });
 }
 
 function bindIconChoices(element) {
@@ -3217,6 +3271,12 @@ function updateBrandColorStyle(styleId, updates, rerender = true) {
   if (!style) return;
   if (typeof updates.name === "string") style.name = updates.name.trimStart() || "Untitled color";
   if (updates.color) style.color = normalizeHexColor(updates.color) || style.color;
+  for (const slide of deck.slides) {
+    for (const element of slide.elements) {
+      if (element.brandColorStyleId === styleId) setElementBrandColor(element, style.color);
+      if (element.frameBrandColorStyleId === styleId) element.frameFill = style.color;
+    }
+  }
   deck.theme.brandPalette = brandColorStyles().map((item) => item.color);
   markChanged("Color style updated");
   renderCanvas();
@@ -3247,6 +3307,10 @@ function removeBrandColorStyle(styleId) {
       if (element.brandColorStyleId === styleId) {
         setElementBrandColor(element, style.color);
         element.brandColorStyleId = null;
+      }
+      if (element.frameBrandColorStyleId === styleId) {
+        element.frameFill = style.color;
+        element.frameBrandColorStyleId = null;
       }
     }
   }

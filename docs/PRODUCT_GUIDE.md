@@ -196,3 +196,5 @@ Participants can submit Q&A at any time during an active session; a dedicated Q&
 # Icon library
 
 Add an **Icon** from the element toolbar, then use the Properties panel to search the complete Lucide icon library by name or browse common corporate groupings with **Search by Category**. Result counts and progressive loading make the full catalog available without slowing the panel. Icons can be recolored, given a custom line weight, placed in an optional circle or square frame, padded, flipped, and linked to a global color style. Icons that communicate information can receive an accessible label; purely decorative icons remain hidden from assistive technology.
+
+All editor color controls should use the standard HySlides color selector: a custom color picker with named global color styles immediately below it. Icon and frame colors follow this standard and remain linked when a global style changes.

@@ -9,6 +9,7 @@ test("new icons carry corporate-friendly style and accessibility defaults", () =
   const icon = createElement("icon");
   assert.equal(icon.icon, "sparkles");
   assert.equal(icon.iconFrame, "none");
+  assert.equal(icon.frameBrandColorStyleId, null);
   assert.equal(icon.decorative, true);
   assert.equal(icon.strokeWidth, 2);
   assert.equal(icon.w, 160);
@@ -23,7 +24,11 @@ test("icon properties expose searchable Lucide selection and styling controls", 
   assert.match(script, /Load more icons/);
   assert.match(script, /iconPickerResults\(query, category\)/);
   assert.match(script, /Lucide Icons · MIT licensed/);
-  assert.match(script, /id="iconColorInput"/);
+  assert.match(script, /iconColorControlMarkup\("iconColorInput"/);
+  assert.match(script, /iconColorControlMarkup\("iconFrameFillInput"/);
+  assert.match(script, /Global color styles/);
+  assert.match(script, /data-icon-style-id/);
+  assert.match(script, /bindIconColorControls/);
   assert.match(script, /id="iconStrokeWidthInput"/);
   assert.match(script, /id="iconFrameInput"/);
   assert.match(script, /id="iconPaddingInput"/);
