@@ -2471,8 +2471,10 @@ body.presentation-window .presentation-question-overlay.hidden { display: none; 
 .global-settings-card .presenter-head > div > span { color: var(--muted); font-size: 12px; }
 
 .global-settings-content {
+  align-content: start;
   display: grid;
-  gap: 20px;
+  gap: 12px;
+  grid-auto-rows: max-content;
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
@@ -2503,6 +2505,11 @@ body.presentation-window .presentation-question-overlay.hidden { display: none; 
 .global-settings-section > summary small { color: var(--muted); font-size: 12px; font-weight: 500; }
 .global-settings-section .accordion-chevron { font-size: 20px; line-height: 1; transition: transform 160ms ease; }
 .global-settings-section[open] .accordion-chevron { transform: rotate(180deg); }
+
+.global-slide-furniture {
+  display: grid;
+  gap: 14px;
+}
 .global-settings-panel { border-top: 1px solid var(--line); display: grid; gap: 12px; padding: 14px; }
 
 .global-audience-card {

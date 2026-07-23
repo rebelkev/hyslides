@@ -711,8 +711,13 @@ function renderGlobalSettings() {
   const styles = deck.theme.typographyStyles || {};
   deck.theme.defaultBackground ||= { type: "color", color: "#ffffff", gradientStart: deck.theme.colors.primary, gradientEnd: deck.theme.colors.accent, gradientAngle: 135 };
   deck.theme.logo ||= { src: "", corner: "bottom-right", showOnSlides: true, width: 120, margin: 28 };
+  deck.theme.master ||= {};
+  deck.theme.master.footer ||= { showSlideNumber: true, color: deck.theme.colors.muted };
+  deck.theme.master.footer.disclaimer ||= { enabled: false, text: "", typographyStyleId: "caption", position: "bottom-center" };
   const defaultBackground = deck.theme.defaultBackground;
   const deckLogo = deck.theme.logo;
+  const footerSettings = deck.theme.master.footer;
+  const disclaimer = footerSettings.disclaimer;
   dom.globalSettingsContent.innerHTML = `
     ${globalSettingsSectionMarkup("audience", "Audience access", "Share the current link or six-digit code.", `
       <div class="global-audience-card">
@@ -735,6 +740,17 @@ function renderGlobalSettings() {
           <div class="field-row"><label for="globalLogoWidth">Width</label><input id="globalLogoWidth" type="number" min="32" max="320" step="4" value="${Number(deckLogo.width) || 120}" /></div>
         </div>
         <small>Individual slides can inherit this placement, choose another corner, or hide the logo.</small>
+      </div>`)}
+    ${globalSettingsSectionMarkup("furniture", "Slide numbers & disclaimer", "Deck-wide reference and legal text with per-slide overrides.", `
+      <div class="global-slide-furniture">
+        <div class="check-row"><input id="globalSlideNumberVisible" type="checkbox" ${footerSettings.showSlideNumber !== false ? "checked" : ""} /><label for="globalSlideNumberVisible">Show slide numbers by default</label></div>
+        <div class="check-row"><input id="globalDisclaimerEnabled" type="checkbox" ${disclaimer.enabled ? "checked" : ""} /><label for="globalDisclaimerEnabled">Show disclaimer by default</label></div>
+        <div class="field-row"><label for="globalDisclaimerText">Disclaimer text</label><textarea id="globalDisclaimerText" maxlength="1000" placeholder="Confidential and proprietary">${escapeHtml(disclaimer.text || "")}</textarea></div>
+        <div class="field-grid">
+          <div class="field-row"><label for="globalDisclaimerStyle">Text style</label><select id="globalDisclaimerStyle">${animationOptionList(Object.entries(styles).map(([id, style]) => [id, style.name || id]), disclaimer.typographyStyleId || "caption")}</select></div>
+          <div class="field-row"><label for="globalDisclaimerPosition">Position</label><select id="globalDisclaimerPosition">${animationOptionList([["top-left", "Top left"], ["top-center", "Top center"], ["top-right", "Top right"], ["bottom-left", "Bottom left"], ["bottom-center", "Bottom center"], ["bottom-right", "Bottom right"]], disclaimer.position || "bottom-center")}</select></div>
+        </div>
+        <small>These items sit above the slide background and below normal slide elements, so shapes and other content can cover them. Each slide can inherit, show, or hide them.</small>
       </div>`)}
     ${globalSettingsSectionMarkup("colors", "Color styles", "Named global swatches available in every HySlides color picker.", globalColorStylesMarkup())}
     ${globalSettingsSectionMarkup("background", "Default background", "Applied automatically to newly created blank slides.", `
@@ -814,6 +830,33 @@ function renderGlobalSettings() {
     renderCanvas();
     renderSlides();
     if (presenterOpen) renderPresenter();
+  });
+  const renderSlideFurnitureChange = (message) => {
+    markChanged(message);
+    renderCanvas();
+    renderSlides();
+    if (presenterOpen) renderPresenter();
+    if (audienceOpen) renderAudience();
+  };
+  dom.globalSettingsContent.querySelector("#globalSlideNumberVisible")?.addEventListener("change", (event) => {
+    footerSettings.showSlideNumber = event.target.checked;
+    renderSlideFurnitureChange("Slide number default updated");
+  });
+  dom.globalSettingsContent.querySelector("#globalDisclaimerEnabled")?.addEventListener("change", (event) => {
+    disclaimer.enabled = event.target.checked;
+    renderSlideFurnitureChange("Disclaimer visibility updated");
+  });
+  dom.globalSettingsContent.querySelector("#globalDisclaimerText")?.addEventListener("input", (event) => {
+    disclaimer.text = event.target.value;
+    renderSlideFurnitureChange("Disclaimer text updated");
+  });
+  dom.globalSettingsContent.querySelector("#globalDisclaimerStyle")?.addEventListener("change", (event) => {
+    disclaimer.typographyStyleId = event.target.value;
+    renderSlideFurnitureChange("Disclaimer text style updated");
+  });
+  dom.globalSettingsContent.querySelector("#globalDisclaimerPosition")?.addEventListener("change", (event) => {
+    disclaimer.position = event.target.value;
+    renderSlideFurnitureChange("Disclaimer position updated");
   });
   dom.globalSettingsContent.querySelector("#copyGlobalAudienceUrl")?.addEventListener("click", async (event) => {
     const copied = await copyTextToClipboard(joinUrl);
@@ -2153,6 +2196,10 @@ function renderSlideInspector(slide) {
   const deckLogo = deck.theme.logo || {};
   const slideLogoVisible = slide.logoVisible == null ? deckLogo.showOnSlides !== false : Boolean(slide.logoVisible);
   const slideLogoCorner = slide.logoCorner || deckLogo.corner || "bottom-right";
+  const footerSettings = deck.theme.master?.footer || {};
+  const disclaimerSettings = footerSettings.disclaimer || {};
+  const slideNumberMode = slide.slideNumberVisible == null ? "inherit" : slide.slideNumberVisible ? "show" : "hide";
+  const disclaimerMode = slide.disclaimerVisible == null ? "inherit" : slide.disclaimerVisible ? "show" : "hide";
   dom.inspector.innerHTML = `
     <section class="inspector-section">
       <strong>Slide</strong>
@@ -2166,6 +2213,12 @@ function renderSlideInspector(slide) {
       <button id="resetSlideLogoBtn" type="button">Use deck defaults</button>
       <small>${slide.logoVisible == null && !slide.logoCorner ? "Using deck defaults" : "This slide has a logo override"}</small>
     </section>` : ""}
+    <section class="inspector-section">
+      <strong>Slide numbers & disclaimer</strong>
+      <div class="field-row"><label for="slideNumberVisibilityInput">Slide number</label><select id="slideNumberVisibilityInput">${animationOptionList([["inherit", `Use deck default (${footerSettings.showSlideNumber !== false ? "shown" : "hidden"})`], ["show", "Show on this slide"], ["hide", "Hide on this slide"]], slideNumberMode)}</select></div>
+      <div class="field-row"><label for="slideDisclaimerVisibilityInput">Disclaimer</label><select id="slideDisclaimerVisibilityInput">${animationOptionList([["inherit", `Use deck default (${disclaimerSettings.enabled ? "shown" : "hidden"})`], ["show", "Show on this slide"], ["hide", "Hide on this slide"]], disclaimerMode)}</select></div>
+      <small>${disclaimerSettings.text ? "The disclaimer sits below normal slide elements." : "Add disclaimer text in Global deck settings."}</small>
+    </section>
     <section class="inspector-section">
       <strong>Background</strong>
       <div class="field-row"><label for="backgroundTypeInput">Style</label><select id="backgroundTypeInput">
@@ -2256,6 +2309,20 @@ function renderSlideInspector(slide) {
     slide.logoCorner = null;
     markChanged("Slide logo reset to deck defaults");
     renderAll();
+  });
+  const setSlideFurnitureOverride = (property, value, message) => {
+    slide[property] = value === "inherit" ? null : value === "show";
+    markChanged(message);
+    renderCanvas();
+    renderSlides();
+    if (presenterOpen) renderPresenter();
+    if (audienceOpen) renderAudience();
+  };
+  document.querySelector("#slideNumberVisibilityInput")?.addEventListener("change", (event) => {
+    setSlideFurnitureOverride("slideNumberVisible", event.target.value, "Slide number override updated");
+  });
+  document.querySelector("#slideDisclaimerVisibilityInput")?.addEventListener("change", (event) => {
+    setSlideFurnitureOverride("disclaimerVisible", event.target.value, "Slide disclaimer override updated");
   });
   document.querySelector("#copyAudienceJoinUrlBtn")?.addEventListener("click", async (event) => {
     const button = event.currentTarget;
@@ -5010,7 +5077,8 @@ async function renderLiveAudience() {
   });
   prepareHighResolutionCanvas(dom.audienceCanvas, audienceCtx);
   await drawSlideAsync(audienceCtx, liveSlide, liveDeck, {
-    footer: false,
+    footer: true,
+    slideIndex: Number(audienceLive.state.activeSlideIndex) || 0,
     revealCorrectAnswers: shouldRevealCorrectAnswers(liveSlide),
   });
   renderAudienceQuestionOverlay(audienceLive.state.featuredQuestion);

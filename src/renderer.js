@@ -63,11 +63,13 @@ export function drawSlide(ctx, slide, deck, options = {}) {
     showEngagementPlaceholders = false,
     elementStates = null,
     countdownStates = null,
+    slideIndex = null,
   } = options;
 
   ctx.save();
   ctx.clearRect(0, 0, SLIDE_SIZE.width, SLIDE_SIZE.height);
   drawSlideBackground(ctx, slide, deck);
+  if (footer) drawSlideFurniture(ctx, slide, deck, slideIndex);
 
   for (const element of slide.elements) {
     const state = elementStates?.[element.id];
@@ -81,10 +83,6 @@ export function drawSlide(ctx, slide, deck, options = {}) {
   }
 
   drawDeckLogo(ctx, slide, deck);
-
-  if (footer && deck.theme.master.footer.showSlideNumber) {
-    drawFooter(ctx, slide, deck);
-  }
 
   if (guides.length) {
     drawGuides(ctx, guides);
@@ -793,16 +791,57 @@ function drawImagePlaceholder(ctx, element) {
   ctx.fillText(element.alt || "Image", element.w / 2, element.h / 2);
 }
 
-function drawFooter(ctx, slide, deck) {
-  const slideIndex = Array.isArray(deck.slides)
+export function slideNumberVisible(slide, deck) {
+  return slide?.slideNumberVisible == null
+    ? deck?.theme?.master?.footer?.showSlideNumber !== false
+    : Boolean(slide.slideNumberVisible);
+}
+
+export function disclaimerVisible(slide, deck) {
+  const disclaimer = deck?.theme?.master?.footer?.disclaimer;
+  if (!String(disclaimer?.text || "").trim()) return false;
+  return slide?.disclaimerVisible == null
+    ? disclaimer?.enabled === true
+    : Boolean(slide.disclaimerVisible);
+}
+
+function drawSlideFurniture(ctx, slide, deck, explicitSlideIndex = null) {
+  const resolvedSlideIndex = Number.isInteger(explicitSlideIndex)
+    ? explicitSlideIndex
+    : Array.isArray(deck.slides)
     ? deck.slides.findIndex((item) => item.id === slide.id)
     : -1;
-  if (slideIndex < 0) return;
-  ctx.fillStyle = deck.theme.master.footer.color || deck.theme.colors.muted;
-  ctx.font = `600 14px ${deck.theme.fonts.body}, Arial, sans-serif`;
-  ctx.textAlign = "right";
-  ctx.textBaseline = "bottom";
-  ctx.fillText(String(slideIndex + 1), SLIDE_SIZE.width - 54, SLIDE_SIZE.height - 30);
+  const footer = deck?.theme?.master?.footer || {};
+
+  if (disclaimerVisible(slide, deck)) {
+    const disclaimer = footer.disclaimer || {};
+    const style = deck?.theme?.typographyStyles?.[disclaimer.typographyStyleId || "caption"]
+      || deck?.theme?.typographyStyles?.caption
+      || {};
+    const fontSize = Math.max(8, Number(style.fontSize) || 16);
+    const lineHeight = fontSize * Math.max(0.8, Number(style.lineHeight) || 1.2);
+    const position = String(disclaimer.position || "bottom-center");
+    const horizontal = position.endsWith("left") ? "left" : position.endsWith("right") ? "right" : "center";
+    const maxWidth = SLIDE_SIZE.width * 0.72;
+    const x = horizontal === "left" ? 40 : horizontal === "right" ? SLIDE_SIZE.width - 40 : SLIDE_SIZE.width / 2;
+    ctx.fillStyle = style.color || footer.color || deck?.theme?.colors?.muted || "#637083";
+    ctx.font = `${Number(style.fontWeight) || 600} ${fontSize}px ${style.fontFamily || deck?.theme?.fonts?.body || "Inter"}, Arial, sans-serif`;
+    ctx.textAlign = horizontal;
+    ctx.textBaseline = "top";
+    const lines = wrapText(ctx, disclaimer.text, maxWidth);
+    const y = position.startsWith("top")
+      ? 26
+      : SLIDE_SIZE.height - 24 - lines.length * lineHeight;
+    lines.forEach((line, index) => ctx.fillText(line, x, y + index * lineHeight, maxWidth));
+  }
+
+  if (slideNumberVisible(slide, deck) && resolvedSlideIndex >= 0) {
+    ctx.fillStyle = footer.color || deck?.theme?.colors?.muted || "#637083";
+    ctx.font = `600 14px ${deck?.theme?.fonts?.body || "Inter"}, Arial, sans-serif`;
+    ctx.textAlign = "right";
+    ctx.textBaseline = "bottom";
+    ctx.fillText(String(resolvedSlideIndex + 1), SLIDE_SIZE.width - 54, SLIDE_SIZE.height - 30);
+  }
 }
 
 function drawSelection(ctx, selected, scale) {

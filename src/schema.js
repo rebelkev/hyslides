@@ -177,6 +177,12 @@ export function createTheme(overrides = {}) {
       footer: {
         showSlideNumber: true,
         color: "#637083",
+        disclaimer: {
+          enabled: false,
+          text: "",
+          typographyStyleId: "caption",
+          position: "bottom-center",
+        },
       },
     },
     ...overrides,
@@ -378,6 +384,8 @@ export function createSlide(overrides = {}) {
     backgroundShaderSpeed: 1,
     logoVisible: null,
     logoCorner: null,
+    slideNumberVisible: null,
+    disclaimerVisible: null,
     notes: "",
     transition: {
       type: "none",
@@ -970,6 +978,22 @@ export function normalizeDeck(raw) {
       logo: {
         ...seed.theme.logo,
         ...(raw.theme?.logo || {}),
+      },
+      master: {
+        ...seed.theme.master,
+        ...(raw.theme?.master || {}),
+        title: {
+          ...seed.theme.master.title,
+          ...(raw.theme?.master?.title || {}),
+        },
+        footer: {
+          ...seed.theme.master.footer,
+          ...(raw.theme?.master?.footer || {}),
+          disclaimer: {
+            ...seed.theme.master.footer.disclaimer,
+            ...(raw.theme?.master?.footer?.disclaimer || {}),
+          },
+        },
       },
       brandPalette: brandColorStyles.map((style) => style.color),
       brandColorStyles,

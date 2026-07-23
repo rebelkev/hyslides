@@ -69,6 +69,13 @@ const MAX_LIVE_SLIDE_JSON_LENGTH = 700000;
 
 export async function liveSnapshotForDeck(deck, slide, activeSlideIndex, instanceId = "", sessionName = "", runtime = {}) {
   const liveSlide = JSON.parse(JSON.stringify(slide));
+  const liveTheme = {
+    fonts: cloneJson(deck.theme?.fonts || {}),
+    colors: cloneJson(deck.theme?.colors || {}),
+    typographyStyles: cloneJson(deck.theme?.typographyStyles || {}),
+    master: cloneJson(deck.theme?.master || {}),
+  };
+  liveSlide.liveTheme = liveTheme;
   liveSlide.runtimePresentation = {
     blackout: Boolean(runtime.blackout),
   };
@@ -78,6 +85,7 @@ export async function liveSnapshotForDeck(deck, slide, activeSlideIndex, instanc
     sessionName,
     deckId: deck.id,
     deckTitle: deck.title,
+    theme: liveTheme,
     audienceCode: normalizeLiveCode(deck.settings?.audienceCode),
     activeSlideIndex,
     activeSlideId: slide.id,
@@ -154,6 +162,7 @@ export function liveStateDeck(state) {
   return {
     id: state.deckId || "live-deck",
     title: state.deckTitle || "HySlides Live",
+    theme: cloneJson(state.theme || state.slide?.liveTheme || {}),
     settings: {
       audienceCode: state.audienceCode || state.code,
     },

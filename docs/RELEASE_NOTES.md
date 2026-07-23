@@ -16,6 +16,8 @@
 
 ### Editor
 
+- Compacted collapsed Global Deck Settings sections so each accordion uses only the height of its heading and description.
+- Added deck-wide slide-number and legal disclaimer controls, including disclaimer text, linked typography style, and six placement choices. Individual slides can inherit, show, or hide either item; both render above the background but below normal slide elements.
 - Streamlined element Properties by removing coordinate and size fields, placing Name, Rotation, and Opacity first, following them with element content controls, moving animation controls last, and replacing the Locked checkbox with a lock/unlock icon beside the element type.
 - Replaced the full-width text-alignment field with compact left, center, and right alignment buttons.
 - Moved New deck, Save now, Open saved decks, and Help & FAQ into an application menu opened from the HySlides mark. The remaining top-bar actions now align with the slide-editing toolbar and the new help panel explains the four views, autosave, presenting, and engagement basics.

@@ -116,6 +116,8 @@ The Default background section defines the solid color or gradient used when a n
 
 Open **Global Deck Settings → Brand logo** to upload a PNG, JPEG, WebP, or SVG logo. Choose its default corner and display width; new and existing slides inherit the deck setting and show the logo by default. In an individual slide’s Properties, the logo can be hidden, moved to another corner, or reset to the deck defaults. The logo is protected deck branding rather than a deletable slide element.
 
+Open **Global Deck Settings → Slide numbers & disclaimer** to choose whether slide numbers appear by default and to configure persistent legal or confidentiality text. The disclaimer can use any linked deck typography style and can be placed at the top or bottom, aligned left, center, or right. In an individual slide’s Properties, either item can inherit the deck default, be forced visible, or be hidden. Slide numbers and disclaimers are painted above the background but below normal slide elements, allowing a creator to intentionally cover them with shapes or other content.
+
 When a text element is selected, choose its **Typography style** in Properties. Keep **Use global style** enabled so future global changes update that element automatically. Disable it to reveal custom font formatting for that one element. Existing decks retain their current custom typography, while newly added text uses the global Body style by default.
 
 ## Element Animations
