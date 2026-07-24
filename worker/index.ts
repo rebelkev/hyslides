@@ -7,6 +7,7 @@ import { mergeWordCloudEntries } from "../src/word-cloud.js";
 interface Env {
   ASSETS: Fetcher;
   DB: D1Database;
+  LIVE_HUB: DurableObjectNamespace;
   IMAGES: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {
@@ -68,16 +69,49 @@ const worker = {
 
 export default worker;
 
-async function handleLiveApi(request: Request, env: Env, url: URL): Promise<Response> {
-  if (!env.DB) {
-    return json({ error: "Live sessions need the D1 binding named DB." }, 503);
+/**
+ * A hibernating event hub for one audience code. D1 remains authoritative;
+ * clients use these events as a prompt to retrieve the latest canonical state.
+ */
+export class LiveSessionHub {
+  constructor(private state: DurableObjectState) {}
+
+  async fetch(request: Request): Promise<Response> {
+    if (request.headers.get("Upgrade")?.toLowerCase() === "websocket") {
+      const pair = new WebSocketPair();
+      const [client, server] = Object.values(pair);
+      this.state.acceptWebSocket(server);
+      server.send(JSON.stringify({ type: "ready", at: Date.now() }));
+      return new Response(null, { status: 101, webSocket: client });
+    }
+    if (request.method === "POST") {
+      const event = await request.json().catch(() => ({ type: "state" })) as Record<string, unknown>;
+      const message = JSON.stringify({ ...event, at: Date.now() });
+      for (const socket of this.state.getWebSockets()) {
+        try {
+          socket.send(message);
+        } catch {
+          try { socket.close(1011, "Delivery failed"); } catch {}
+        }
+      }
+      return Response.json({ delivered: this.state.getWebSockets().length });
+    }
+    return new Response("WebSocket upgrade required", { status: 426 });
   }
 
+  webSocketMessage(socket: WebSocket, message: string | ArrayBuffer) {
+    if (message === "ping") socket.send("pong");
+  }
+
+  webSocketError(socket: WebSocket) {
+    try { socket.close(1011, "WebSocket error"); } catch {}
+  }
+}
+
+async function handleLiveApi(request: Request, env: Env, url: URL): Promise<Response> {
   if (request.method === "OPTIONS") {
     return new Response(null, { status: 204 });
   }
-
-  await ensureLiveSchema(env.DB);
 
   const parts = url.pathname.split("/").filter(Boolean);
   const code = normalizeCode(parts[2]);
@@ -86,6 +120,19 @@ async function handleLiveApi(request: Request, env: Env, url: URL): Promise<Resp
   }
 
   try {
+    if (parts.length === 4 && parts[3] === "events" && request.method === "GET") {
+      if (!env.LIVE_HUB) {
+        return json({ error: "Live event delivery is unavailable." }, 503);
+      }
+      if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
+        return json({ error: "WebSocket upgrade required." }, 426);
+      }
+      return liveHub(env, code).fetch(request);
+    }
+    if (!env.DB) {
+      return json({ error: "Live sessions need the D1 binding named DB." }, 503);
+    }
+    await ensureLiveSchema(env.DB);
     if (parts.length === 3 && request.method === "GET") {
       const session = await getLiveSessionRow(env.DB, code);
       const presenterRequest = Boolean(request.headers.get("x-hyslides-presenter-token"));
@@ -96,24 +143,26 @@ async function handleLiveApi(request: Request, env: Env, url: URL): Promise<Resp
     if (parts.length === 3 && request.method === "PUT") {
       const payload = await readJson(request);
       await authorizePresenter(env.DB, request, stringValue(payload.deckId), true);
-      return json(await publishLiveSession(env.DB, code, payload));
+      return liveMutation(env, code, "state", publishLiveSession(env.DB, code, payload));
     }
 
     if (parts.length === 4 && parts[3] === "responses" && request.method === "POST") {
       const payload = await readJson(request);
-      return json(await recordLiveResponse(env.DB, code, payload));
+      return liveMutation(env, code, "response", recordLiveResponse(env.DB, code, payload));
     }
 
     if (parts.length === 4 && parts[3] === "presence" && request.method === "POST") {
       const payload = await readJson(request);
-      return json(await recordParticipantPresence(env.DB, code, stringValue(payload.participantId)));
+      const state = await recordParticipantPresence(env.DB, code, stringValue(payload.participantId));
+      if (state.presenceChanged) await notifyLiveHub(env, code, "presence");
+      return json(state);
     }
 
     if (parts.length === 4 && parts[3] === "control" && request.method === "POST") {
       const payload = await readJson(request);
       const session = await getLiveSessionRow(env.DB, code);
       await authorizePresenter(env.DB, request, session.deck_id);
-      return json(await controlLiveSession(env.DB, code, session, stringValue(payload.action)));
+      return liveMutation(env, code, "control", controlLiveSession(env.DB, code, session, stringValue(payload.action)));
     }
     if (parts.length === 5 && parts[3] === "remote" && parts[4] === "pair" && request.method === "POST") {
       const session = await getLiveSessionRow(env.DB, code);
@@ -128,7 +177,7 @@ async function handleLiveApi(request: Request, env: Env, url: URL): Promise<Resp
       const session = await getLiveSessionRow(env.DB, code);
       await authorizePresenter(env.DB, request, session.deck_id);
       const payload = await readJson(request);
-      return json(await saveRemoteControllerState(env.DB, session, payload));
+      return liveMutation(env, code, "remote-state", saveRemoteControllerState(env.DB, session, payload));
     }
     if (parts.length === 5 && parts[3] === "remote" && parts[4] === "commands" && request.method === "GET") {
       const session = await getLiveSessionRow(env.DB, code);
@@ -138,21 +187,21 @@ async function handleLiveApi(request: Request, env: Env, url: URL): Promise<Resp
     if (parts.length === 5 && parts[3] === "remote" && parts[4] === "command" && request.method === "POST") {
       const session = await authorizeRemoteController(env.DB, request, code);
       const payload = await readJson(request);
-      return json(await queueRemoteCommand(env.DB, session.instance_id, payload));
+      return liveMutation(env, code, "remote-command", queueRemoteCommand(env.DB, session.instance_id, payload));
     }
     if (parts.length === 4 && parts[3] === "questions" && request.method === "POST") {
       const payload = await readJson(request);
-      return json(await submitSessionQuestion(env.DB, code, payload));
+      return liveMutation(env, code, "question", submitSessionQuestion(env.DB, code, payload));
     }
     if (parts.length === 6 && parts[3] === "questions" && parts[5] === "vote" && request.method === "POST") {
       const payload = await readJson(request);
-      return json(await voteForQuestion(env.DB, code, parts[4], stringValue(payload.participantId)));
+      return liveMutation(env, code, "question", voteForQuestion(env.DB, code, parts[4], stringValue(payload.participantId)));
     }
     if (parts.length === 6 && parts[3] === "questions" && parts[5] === "moderate" && request.method === "POST") {
       const session = await getLiveSessionRow(env.DB, code);
       await authorizePresenter(env.DB, request, session.deck_id);
       const payload = await readJson(request);
-      return json(await moderateQuestion(env.DB, code, session, parts[4], stringValue(payload.action)));
+      return liveMutation(env, code, "question", moderateQuestion(env.DB, code, session, parts[4], stringValue(payload.action)));
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Live session failed.";
@@ -161,6 +210,29 @@ async function handleLiveApi(request: Request, env: Env, url: URL): Promise<Resp
   }
 
   return json({ error: "Live route not found." }, 404);
+}
+
+function liveHub(env: Env, code: string) {
+  return env.LIVE_HUB.get(env.LIVE_HUB.idFromName(code));
+}
+
+async function notifyLiveHub(env: Env, code: string, type: string) {
+  if (!env.LIVE_HUB) return;
+  await liveHub(env, code).fetch("https://live-hub.internal/event", {
+    method: "POST",
+    body: JSON.stringify({ type }),
+  });
+}
+
+async function liveMutation(
+  env: Env,
+  code: string,
+  type: string,
+  operation: Promise<unknown>
+) {
+  const result = await operation;
+  await notifyLiveHub(env, code, type);
+  return json(result);
 }
 
 async function handleSessionApi(request: Request, env: Env, url: URL): Promise<Response> {
@@ -705,15 +777,25 @@ async function recordParticipantPresence(db: D1Database, code: string, participa
   const participantId = normalizeParticipantId(participantIdValue);
   const session = await getLiveSessionRow(db, code);
   if (!participantId || session.status === "ended") {
-    return liveState(db, code);
+    return { ...await liveState(db, code), presenceChanged: false };
   }
-  await db.prepare(
+  const inserted = await db.prepare(
     `INSERT INTO hyslides_live_instance_participants (
       instance_id, participant_id, joined_at, last_seen_at
     ) VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-    ON CONFLICT(instance_id, participant_id) DO UPDATE SET last_seen_at = CURRENT_TIMESTAMP`
+    ON CONFLICT(instance_id, participant_id) DO NOTHING`
   ).bind(session.instance_id, participantId).run();
-  return liveState(db, code, false);
+  if (!inserted.meta.changes) {
+    await db.prepare(
+      `UPDATE hyslides_live_instance_participants
+        SET last_seen_at = CURRENT_TIMESTAMP
+        WHERE instance_id = ? AND participant_id = ?`
+    ).bind(session.instance_id, participantId).run();
+  }
+  return {
+    ...await liveState(db, code, false),
+    presenceChanged: Boolean(inserted.meta.changes),
+  };
 }
 
 async function activeParticipantCount(db: D1Database, instanceId: string) {

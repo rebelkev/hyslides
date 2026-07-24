@@ -12,6 +12,12 @@ const { d1, r2 } = hostingConfig;
 const localBindingConfig = {
   main: "./worker/index.ts",
   compatibility_flags: ["nodejs_compat"],
+  durable_objects: {
+    bindings: [{ name: "LIVE_HUB", class_name: "LiveSessionHub" }],
+  },
+  migrations: [
+    { tag: "v1-live-session-hub", new_sqlite_classes: ["LiveSessionHub"] },
+  ],
   d1_databases: d1
     ? [
         {

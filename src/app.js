@@ -42,6 +42,7 @@ import {
 import {
   audienceCodeFromHash,
   audienceJoinUrl,
+  connectLiveEvents,
   controlLiveSession,
   createRemoteControllerPairing,
   deleteLiveSession,
@@ -188,12 +189,14 @@ let countdownTickInterval = 0;
 const presenterVideoStates = new Map();
 const liveVideoPlayback = new Map();
 let lastVideoTelemetryAt = 0;
+let audienceCanvasPainting = false;
 let presenterQnaTab = "unanswered";
 let presenterMobileTab = "control";
 let remoteControllerState = null;
 let remoteControllerPollTimer = 0;
 let remoteControllerPublishTimer = 0;
 let remoteControllerCommandsPolling = false;
+let remoteControllerEvents = null;
 let audienceOpen = false;
 let participantQnaOpen = false;
 let leftRailTab = "slides";
@@ -220,6 +223,7 @@ let liveSession = {
   consecutiveFailures: 0,
   retryAfter: 0,
   lastPublishedSignature: "",
+  events: null,
 };
 let audienceLive = {
   code: "",
@@ -231,6 +235,7 @@ let audienceLive = {
   error: "",
   pollTimer: null,
   lastRenderSignature: "",
+  events: null,
 };
 const participantId = readOrCreateParticipantId();
 
@@ -1295,13 +1300,33 @@ function drawEditorCanvas() {
 
 function startBackgroundEffectLoop() {
   let lastPaint = 0;
+  let lastAudiencePaint = 0;
+  const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  const frameInterval = reducedMotion ? 250 : 40;
   const paint = (time) => {
+    if (document.hidden) {
+      window.requestAnimationFrame(paint);
+      return;
+    }
     const slide = currentSlide();
     const hasAnimatedShape = slide?.elements?.some((element) => element.type === "shape" && element.fillType === "animated" && element.fillShader && element.fillShader !== "none");
-    if (((slide?.backgroundShader && slide.backgroundShader !== "none") || hasAnimatedShape) && time - lastPaint >= 40) {
+    if (((slide?.backgroundShader && slide.backgroundShader !== "none") || hasAnimatedShape) && time - lastPaint >= frameInterval) {
       if (presenterOpen) drawPresentationCountdownFrame();
       if (!presenterWindowMode && !presentationWindowMode && !audienceOpen) renderCanvas();
       lastPaint = time;
+    }
+    const audienceSlide = audienceOpen ? audienceLive.state?.slide : null;
+    const audienceHasAnimatedShape = audienceSlide?.elements?.some(
+      (element) => element.type === "shape" && element.fillType === "animated" && element.fillShader && element.fillShader !== "none"
+    );
+    if (
+      audienceSlide &&
+      !audienceSlide.runtimePresentation?.blackout &&
+      ((audienceSlide.backgroundShader && audienceSlide.backgroundShader !== "none") || audienceHasAnimatedShape) &&
+      time - lastAudiencePaint >= frameInterval
+    ) {
+      drawLiveAudienceCanvas();
+      lastAudiencePaint = time;
     }
     window.requestAnimationFrame(paint);
   };
@@ -5176,11 +5201,25 @@ function stopLiveSession() {
   liveSession.pollTimer = null;
   liveSession.polling = false;
   liveSession.publishing = false;
+  liveSession.events?.close();
+  liveSession.events = null;
 }
 
 function startLivePolling() {
   clearInterval(liveSession.pollTimer);
-  liveSession.pollTimer = setInterval(refreshLiveSession, 1200);
+  liveSession.events?.close();
+  liveSession.events = connectLiveEvents(liveSession.code, {
+    onEvent: () => refreshLiveSession(),
+    onStatus: (status) => {
+      if (status === "connected") {
+        liveSession.consecutiveFailures = 0;
+        if (liveSession.backendAvailable) updatePresenterConnectionBadge();
+      }
+    },
+  });
+  // Recovery fallback: canonical state is still checked if a proxy or network
+  // blocks WebSockets or if an event is missed during reconnection.
+  liveSession.pollTimer = setInterval(refreshLiveSession, 15000);
 }
 
 function queueLivePublish(force = false) {
@@ -5646,6 +5685,23 @@ async function renderLiveAudience() {
   audienceLive.lastRenderSignature = audienceRenderSignature();
 }
 
+function drawLiveAudienceCanvas() {
+  const liveSlide = audienceLive.state?.slide;
+  if (!liveSlide || audienceCanvasPainting || liveSlide.runtimePresentation?.blackout) return;
+  audienceCanvasPainting = true;
+  try {
+    const liveDeck = normalizeDeck({ ...liveStateDeck(audienceLive.state), slides: [liveSlide] });
+    prepareHighResolutionCanvas(dom.audienceCanvas, audienceCtx);
+    drawSlide(audienceCtx, liveSlide, liveDeck, {
+      footer: true,
+      slideIndex: Number(audienceLive.state.activeSlideIndex) || 0,
+      revealCorrectAnswers: shouldRevealCorrectAnswers(liveSlide),
+    });
+  } finally {
+    audienceCanvasPainting = false;
+  }
+}
+
 function syncAudienceEmbeds() {
   const layer = dom.audienceEmbedLayer;
   if (!layer || !audienceOpen) return;
@@ -5742,14 +5798,41 @@ function renderAudienceLiveStatus() {
 
 function startAudienceLivePolling() {
   clearInterval(audienceLive.pollTimer);
+  audienceLive.events?.close();
   refreshAudienceLiveState();
-  audienceLive.pollTimer = setInterval(refreshAudienceLiveState, 1200);
+  audienceLive.events = connectLiveEvents(audienceLive.code, {
+    onEvent: refreshAudienceLiveStateFromEvent,
+    onStatus: (status) => {
+      if (status === "connected") audienceLive.backendAvailable = true;
+    },
+  });
+  // Presence heartbeat also doubles as a recovery fallback.
+  audienceLive.pollTimer = setInterval(refreshAudienceLiveState, 15000);
 }
 
 function stopAudienceLivePolling() {
   clearInterval(audienceLive.pollTimer);
   audienceLive.pollTimer = null;
+  audienceLive.events?.close();
+  audienceLive.events = null;
   audienceLive.loading = false;
+}
+
+async function refreshAudienceLiveStateFromEvent() {
+  if (!audienceLive.code || audienceLive.loading) return;
+  audienceLive.loading = true;
+  try {
+    audienceLive.state = await getLiveSession(audienceLive.code);
+    audienceLive.backendAvailable = true;
+    audienceLive.error = "";
+  } catch (error) {
+    audienceLive.backendAvailable = false;
+    audienceLive.error = `Waiting for live session: ${error.message}`;
+  } finally {
+    audienceLive.loading = false;
+    const contentChanged = audienceRenderSignature() !== audienceLive.lastRenderSignature;
+    if (audienceOpen && contentChanged && !participantTextEntryActive()) renderLiveAudience();
+  }
 }
 
 async function refreshAudienceLiveState() {
@@ -7065,8 +7148,18 @@ function initRemoteController() {
     });
   });
   remoteControllerState = { code, token, send };
+  remoteControllerEvents?.close();
+  remoteControllerEvents = connectLiveEvents(code, {
+    onEvent: refreshRemoteController,
+    onStatus: (status) => {
+      if (status === "disconnected") {
+        const indicator = document.querySelector("#remoteConnectionStatus");
+        if (indicator) indicator.textContent = "Reconnecting";
+      }
+    },
+  });
   refreshRemoteController();
-  remoteControllerPollTimer = window.setInterval(refreshRemoteController, 1000);
+  remoteControllerPollTimer = window.setInterval(refreshRemoteController, 15000);
 }
 
 async function refreshRemoteController() {

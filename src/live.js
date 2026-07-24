@@ -191,6 +191,56 @@ export async function getLiveSession(code, presenterToken = "") {
   return requestJson(`${LIVE_API_BASE}/${encodeURIComponent(normalizeLiveCode(code))}`, { headers: presenterHeaders(presenterToken) });
 }
 
+export function connectLiveEvents(code, {
+  onEvent,
+  onStatus,
+  WebSocketImpl = globalThis.WebSocket,
+  baseUrl = globalThis.location?.href || "http://localhost/",
+} = {}) {
+  let socket = null;
+  let reconnectTimer = 0;
+  let stopped = false;
+  let attempts = 0;
+  const connect = () => {
+    if (stopped || !WebSocketImpl) return;
+    const url = new URL(`${LIVE_API_BASE}/${encodeURIComponent(normalizeLiveCode(code))}/events`, baseUrl);
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+    onStatus?.("connecting");
+    socket = new WebSocketImpl(url.toString());
+    socket.addEventListener("open", () => {
+      attempts = 0;
+      onStatus?.("connected");
+    });
+    socket.addEventListener("message", (event) => {
+      if (event.data === "pong") return;
+      try {
+        const payload = JSON.parse(event.data);
+        if (payload.type !== "ready") onEvent?.(payload);
+      } catch {
+        onEvent?.({ type: "state" });
+      }
+    });
+    socket.addEventListener("close", () => {
+      if (stopped) return;
+      onStatus?.("disconnected");
+      attempts += 1;
+      reconnectTimer = globalThis.setTimeout(connect, Math.min(15000, 500 * (2 ** Math.min(5, attempts))));
+    });
+    socket.addEventListener("error", () => socket?.close());
+  };
+  connect();
+  return {
+    close() {
+      stopped = true;
+      globalThis.clearTimeout(reconnectTimer);
+      socket?.close(1000, "Client closed");
+    },
+    get status() {
+      return socket?.readyState;
+    },
+  };
+}
+
 export async function submitLiveResponse(code, payload) {
   return requestJson(`${LIVE_API_BASE}/${encodeURIComponent(normalizeLiveCode(code))}/responses`, {
     method: "POST",

@@ -29,6 +29,15 @@
 - Presenter annotations and a temporary spotlight/pointer
 - Live Q&A moderation queue
 
+## Next Structural Milestone: Real-Time Session Delivery
+
+- Replace frequent full-state polling with a persistent real-time session channel using Cloudflare Durable Objects and WebSockets, while retaining D1 for durable session history and responses.
+- Send small, typed events for slide changes, responses, timers, Q&A, reactions, black/hold-screen state, participant presence, and Presenter Remote commands.
+- Keep the current slide and its WebGL canvas mounted between updates; update only the state or elements that changed instead of rebuilding the complete slide.
+- Add reconnect, missed-event recovery, session versioning, heartbeat, and graceful polling fallback behavior for unreliable networks.
+- Automatically reduce animated-background complexity or frame rate on constrained mobile devices, and pause animation when the page is hidden or reduced motion is requested.
+- Add real-world connection, reconnection, multi-device, load, and long-running-session tests before enabling the architecture in production.
+
 ## Following Milestones
 
 - Global Deck Settings:
@@ -75,7 +84,18 @@
   - Respect presentation ownership, team roles, and edit permissions
   - Resolve deck-specific dependencies such as typography styles, color styles, and uploaded media without changing the source slide
 - Admin access and template management
+- Drag-and-drop element layering in the Elements panel:
+  - Reorder elements to change their front-to-back stacking order, with items at the top appearing in front
+  - Show a clear insertion indicator while dragging and keep the canvas, thumbnails, Presenter, Presentation, Participant, and export rendering in sync
+  - Support moving complete groups while preserving their internal structure, plus reordering elements within expanded groups
+  - Preserve locked and protected system elements, with accessible keyboard move controls as an alternative to dragging
 - Expanded engagement slide types:
+  - **Rating & Ranking**
+    - **Rating scale:** configurable numeric ranges such as 1–5 or 1–10, displayed as numbers, stars, or emojis
+    - **Likert scale:** customizable labeled responses such as Strongly disagree through Strongly agree
+    - **Ranking:** participants drag options into their preferred order
+    - Display live averages, response distributions, stacked Likert results, or a weighted overall ranking as appropriate
+    - Show the connected-participant response ratio and preserve individual responses in Session History and exports
   - **Wheel Spinner**
     - Editors add, rename, reorder, recolor, and remove up to ten wheel options using the same option-row pattern as Poll
     - The wheel uses each option’s assigned color and supports deck-level global color styles
