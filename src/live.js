@@ -68,7 +68,8 @@ export function isLocalJoinUrl(value) {
 const MAX_LIVE_SLIDE_JSON_LENGTH = 700000;
 
 export async function liveSnapshotForDeck(deck, slide, activeSlideIndex, instanceId = "", sessionName = "", runtime = {}) {
-  const liveSlide = JSON.parse(JSON.stringify(slide));
+  const audienceCode = normalizeLiveCode(deck.settings?.audienceCode);
+  const liveSlide = materializeAudienceJoinElements(slide, audienceCode);
   const liveTheme = {
     fonts: cloneJson(deck.theme?.fonts || {}),
     colors: cloneJson(deck.theme?.colors || {}),
@@ -91,11 +92,27 @@ export async function liveSnapshotForDeck(deck, slide, activeSlideIndex, instanc
     deckId: deck.id,
     deckTitle: deck.title,
     theme: liveTheme,
-    audienceCode: normalizeLiveCode(deck.settings?.audienceCode),
+    audienceCode,
     activeSlideIndex,
     activeSlideId: slide.id,
     slide: liveSlide,
   };
+}
+
+export function materializeAudienceJoinElements(slide, audienceCode) {
+  const liveSlide = cloneJson(slide);
+  const code = normalizeLiveCode(audienceCode);
+  const joinUrl = audienceJoinUrl(code);
+  const qrSrc = liveQrImageSrc(joinUrl);
+  for (const element of liveSlide.elements || []) {
+    if (element.audienceJoinRole === "qr") {
+      element.src = qrSrc;
+      element.alt = `Scan to join with access code ${code}`;
+    } else if (element.audienceJoinRole === "code") {
+      element.text = `Access code: ${code}`;
+    }
+  }
+  return liveSlide;
 }
 
 async function compactLiveSlideImages(slide) {
@@ -388,7 +405,8 @@ function appBaseUrl() {
     url.hash = "";
     return url.href;
   }
-  return location.href.split("#")[0];
+  if (typeof location !== "undefined") return location.href.split("#")[0];
+  return "http://localhost/hyslides/";
 }
 
 async function publishSupabaseLiveSession(code, snapshot) {

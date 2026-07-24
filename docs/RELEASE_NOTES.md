@@ -2,6 +2,7 @@
 
 ## Current Development Build
 
+- Converted audience QR and access-code objects into protected dynamic placeholders. The Editor stores only their design and placement, while live views inject the current session’s code and QR destination without rewriting slide content.
 - Fixed element opacity editing after the Properties panel moved from a slider to a numeric field. Opacity changes now apply immediately and persist across every rendered view.
 - Made each new live session generate a fresh six-digit audience access code and immediately update its join URL, QR code, and access-code elements throughout the deck.
 - Added drag-to-reorder layering and per-element eye controls to the Elements panel. Hidden elements remain recoverable in the tree while disappearing from the canvas, thumbnails, live views, and PowerPoint export.

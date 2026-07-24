@@ -153,7 +153,7 @@ Add **Countdown** from the Editor View element toolbar to place a customizable t
 
 Emoji Reaction engagement elements display the emoji itself with its live response count. Editors can choose between one and five emojis for each reaction slide using the broad built-in picker or by entering any emoji from their device’s complete emoji keyboard. Selected emojis appear in a removable option list.
 
-Each deck has a six-digit access code. Participants can join by scanning a QR code or entering the access code.
+Each live session has a six-digit access code. Participants can join by scanning a QR code or entering the access code. In Editor View, the protected QR and access-code elements are design placeholders: creators may move, resize, or hide them without tying the slide to an expired session. Presenter, Presentation, and Participant views automatically replace those placeholders with the active session’s real QR code and access code.
 
 - Slide 1 and engagement slides display QR and access-code elements by default.
 - Both elements can be repositioned and resized.
@@ -166,7 +166,7 @@ Each deck has a six-digit access code. Participants can join by scanning a QR co
 
 ## Sessions and History
 
-A new session instance is created for each presentation. It receives a fresh six-digit participant access code, and the deck’s QR code and access-code elements update automatically. Its default name combines the deck title with the presentation date and time. Session History allows the presenter to review, rename, or delete past session instances and their responses.
+A new session instance is created for each presentation. It receives a fresh six-digit participant access code, and live views materialize that code and its QR destination without rewriting the slide’s saved placeholders. Its default name combines the deck title with the presentation date and time. Session History allows the presenter to review, rename, or delete past session instances and their responses.
 
 Ended sessions, participant records, and responses are retained for 14 days and then cleaned up automatically.
 

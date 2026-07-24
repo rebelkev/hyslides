@@ -56,6 +56,7 @@ import {
   liveSessionIndicator,
   liveSnapshotForDeck,
   liveStateDeck,
+  materializeAudienceJoinElements,
   listLiveSessions,
   moderateLiveQuestion,
   normalizeLiveCode,
@@ -601,6 +602,19 @@ function renderAll() {
   if (audienceOpen) {
     renderAudience();
   }
+}
+
+const AUDIENCE_QR_PLACEHOLDER = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180">
+    <rect width="180" height="180" rx="10" fill="#ffffff"/>
+    <rect x="12" y="12" width="156" height="156" rx="8" fill="none" stroke="#9aa5b5" stroke-width="5" stroke-dasharray="10 8"/>
+    <text x="90" y="82" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#667085">QR</text>
+    <text x="90" y="112" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#667085">LIVE SESSION</text>
+  </svg>
+`)}`;
+
+function liveRenderableSlide(slide) {
+  return materializeAudienceJoinElements(slide, liveSession.code || ensureAudienceCode());
 }
 
 function upgradeIconButtons() {
@@ -4669,6 +4683,7 @@ function renderPresentationQuestionOverlay() {
 
 async function renderPresenter() {
   const slide = currentSlide();
+  const renderedSlide = liveRenderableSlide(slide);
   ensureSlideCountdowns(slide);
   ensurePresenterAnimationPlayback(slide);
   dom.presenterDeckTitle.textContent = deck.title;
@@ -4685,7 +4700,7 @@ async function renderPresenter() {
   }
   updatePresenterConnectionBadge();
   prepareHighResolutionCanvas(dom.presenterCanvas, presenterCtx);
-  await drawSlideAsync(presenterCtx, slide, deck, {
+  await drawSlideAsync(presenterCtx, renderedSlide, deck, {
     footer: true,
     revealCorrectAnswers: shouldRevealCorrectAnswers(slide),
     elementStates: presentationWindowMode ? presenterElementStates(slide) : null,
@@ -4701,7 +4716,7 @@ async function renderPresenter() {
   nextCtx.clearRect(0, 0, dom.nextCanvas.width, dom.nextCanvas.height);
   nextCtx.save();
   nextCtx.scale(dom.nextCanvas.width / SLIDE_SIZE.width, dom.nextCanvas.height / SLIDE_SIZE.height);
-  await drawSlideAsync(nextCtx, nextSlide, deck, {
+  await drawSlideAsync(nextCtx, liveRenderableSlide(nextSlide), deck, {
     footer: false,
     revealCorrectAnswers: shouldRevealCorrectAnswers(nextSlide),
   });
@@ -4973,7 +4988,7 @@ function broadcastCountdownState() {
 function drawPresentationCountdownFrame() {
   if (!presenterOpen) return;
   prepareHighResolutionCanvas(dom.presenterCanvas, presenterCtx);
-  drawSlide(presenterCtx, currentSlide(), deck, {
+  drawSlide(presenterCtx, liveRenderableSlide(currentSlide()), deck, {
     footer: true,
     revealCorrectAnswers: shouldRevealCorrectAnswers(currentSlide()),
     elementStates: presentationWindowMode ? presenterElementStates(currentSlide()) : null,
@@ -5453,7 +5468,6 @@ async function publishCurrentLiveSession(force = false) {
       liveSession.joinUrl = audienceLink();
       liveSession.qrSrc = liveQrImageSrc(liveSession.joinUrl);
       liveSession.lastPublishedSignature = "";
-      syncAudienceJoinElements();
       writeActiveSession();
       liveSession.status = "A unique access code was assigned automatically.";
       setTimeout(() => queueLivePublish(true), 0);
@@ -6243,7 +6257,7 @@ function drawPresenterAnimationFrame() {
   }
   if (presentationWindowMode) {
     prepareHighResolutionCanvas(dom.presenterCanvas, presenterCtx);
-    drawSlide(presenterCtx, currentSlide(), deck, {
+    drawSlide(presenterCtx, liveRenderableSlide(currentSlide()), deck, {
       footer: true,
       revealCorrectAnswers: shouldRevealCorrectAnswers(currentSlide()),
       elementStates: presenterElementStates(currentSlide(), now),
@@ -6979,10 +6993,6 @@ function shouldShowAudienceJoin(slide, slideIndex) {
 }
 
 function syncAudienceJoinElements() {
-  const accessCode = ensureAudienceCode();
-  const joinUrl = audienceLink();
-  const qrSrc = liveQrImageSrc(joinUrl);
-
   deck.slides.forEach((slide, slideIndex) => {
     slide.elements ||= [];
     const qr = slide.elements.find((element) => element.audienceJoinRole === "qr");
@@ -6993,31 +7003,31 @@ function syncAudienceJoinElements() {
     }
 
     if (qr) {
-      qr.src = qrSrc;
-      qr.alt = `Scan to join with access code ${accessCode}`;
+      qr.src = AUDIENCE_QR_PLACEHOLDER;
+      qr.alt = "Live-session QR code placeholder";
     } else {
       slide.elements.push(createElement("image", {
         x: 1050,
         y: 430,
         w: 170,
         h: 170,
-        src: qrSrc,
+        src: AUDIENCE_QR_PLACEHOLDER,
         fit: "contain",
-        alt: `Scan to join with access code ${accessCode}`,
+        alt: "Live-session QR code placeholder",
         name: "Audience QR code",
         audienceJoinRole: "qr",
       }));
     }
 
     if (code) {
-      code.text = `Access code: ${accessCode}`;
+      code.text = "Access code: 000000";
     } else {
       slide.elements.push(createElement("text", {
         x: 980,
         y: 615,
         w: 300,
         h: 54,
-        text: `Access code: ${accessCode}`,
+        text: "Access code: 000000",
         fontSize: 26,
         fontWeight: 700,
         align: "center",
@@ -7142,7 +7152,6 @@ function beginNewLiveSession(options = {}) {
   liveSession.code = nextCode;
   liveSession.joinUrl = audienceLink();
   liveSession.qrSrc = liveQrImageSrc(liveSession.joinUrl);
-  syncAudienceJoinElements();
   sessionTimer = null;
   renderSessionTimerOverlays();
   liveSession.instanceId = crypto.randomUUID();
