@@ -5266,6 +5266,7 @@ function liveSlideWithCountdownState() {
     if (element.type !== "countdown" || !states[element.id]) continue;
     element.runtimeRemainingSeconds = states[element.id].remainingSeconds;
     element.runtimeCompleted = states[element.id].completed;
+    element.runtimeHidden = states[element.id].hidden;
   }
   for (const element of slide.elements || []) {
     if (element.type !== "embed") continue;

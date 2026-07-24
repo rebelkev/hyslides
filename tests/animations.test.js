@@ -91,4 +91,5 @@ test("countdown editor supports hiding the timer at zero", () => {
   assert.match(app, /data-countdown-action="subtract"/);
   assert.match(app, /data-countdown-action="end"/);
   assert.match(app, /function endCountdown/);
+  assert.match(app, /element\.runtimeHidden = states\[element\.id\]\.hidden/);
 });

@@ -306,7 +306,8 @@ function drawCountdown(ctx, element, deck, options = {}) {
   const state = options.countdownStates?.[element.id];
   const remaining = Math.max(0, Math.round(state?.remainingSeconds ?? element.runtimeRemainingSeconds ?? element.durationSeconds ?? 0));
   const completed = Boolean(state?.completed ?? element.runtimeCompleted);
-  if (state?.hidden || (completed && element.completionBehavior === "hide")) return;
+  const hidden = Boolean(state?.hidden ?? element.runtimeHidden);
+  if (hidden || (completed && element.completionBehavior === "hide")) return;
   const showMessage = completed && element.completionBehavior === "message" && element.completionMessage;
   const text = showMessage
     ? element.completionMessage
