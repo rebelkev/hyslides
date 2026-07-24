@@ -40,6 +40,10 @@
 
 ## Following Milestones
 
+- Editor property correctness:
+  - Make the Properties-panel opacity value reliably update the selected element across the Editor, Presenter, Presentation, and Participant Views.
+  - Rotate elements around their visual center while preserving their canvas position, selection bounds, resizing behavior, and export rendering.
+  - Add regression tests for opacity and center-origin rotation before these fixes are released.
 - Global Deck Settings:
   - Current live-session status and audience join card
   - Audience join URL with Copy Link and Open Participant View actions
@@ -89,6 +93,10 @@
   - Show a clear insertion indicator while dragging and keep the canvas, thumbnails, Presenter, Presentation, Participant, and export rendering in sync
   - Support moving complete groups while preserving their internal structure, plus reordering elements within expanded groups
   - Preserve locked and protected system elements, with accessible keyboard move controls as an alternative to dragging
+  - Add a visibility control to every element row, using an open-eye icon for visible elements and a clearly distinguishable hidden-eye icon for hidden elements
+  - Right-align the visibility icon with comfortable right padding so it remains easy to target without touching or crowding the panel edge
+  - Keep hidden elements listed and selectable in the Elements panel so editors can restore them, while excluding them from the canvas, thumbnails, Presenter, Presentation, Participant, and export rendering
+  - Preserve each element’s visibility state when saving, duplicating, grouping, importing, or copying slides
 - Expanded engagement slide types:
   - **Rating & Ranking**
     - **Rating scale:** configurable numeric ranges such as 1–5 or 1–10, displayed as numbers, stars, or emojis
