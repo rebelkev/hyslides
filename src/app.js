@@ -6746,8 +6746,8 @@ function bindOpacityControls(elements) {
       return;
     }
     const percent = Math.round(clamp(numeric, 0, 100));
-    range.value = String(percent);
-    value.value = String(percent);
+    if (range) range.value = String(percent);
+    if (value) value.value = String(percent);
     elements.forEach((element) => {
       element.opacity = percent / 100;
     });
