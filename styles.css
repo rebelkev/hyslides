@@ -2173,6 +2173,38 @@ label {
   color: #a61b1b;
 }
 
+.session-timer-overlay {
+  align-items: center;
+  backdrop-filter: blur(8px);
+  background: rgba(15, 23, 42, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.28);
+  color: #fff;
+  display: flex;
+  font-size: clamp(30px, 5vw, 68px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  justify-content: center;
+  left: 50%;
+  line-height: 1;
+  min-width: 3.6em;
+  padding: 0.24em 0.4em;
+  pointer-events: none;
+  position: absolute;
+  top: 7%;
+  transform: translateX(-50%);
+  z-index: 12;
+}
+
+.session-timer-overlay.complete {
+  background: rgba(153, 27, 27, 0.86);
+}
+
+.session-timer-overlay.hidden {
+  display: none;
+}
+
 .live-join-panel {
   align-items: start;
   background: #ffffff;

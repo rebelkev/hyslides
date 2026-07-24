@@ -143,10 +143,11 @@ Add **Countdown** from the Editor View element toolbar to place a customizable t
 - Choose whether it starts automatically when the slide appears.
 - At zero, keep `00:00`, show a custom message, or optionally advance to the next included slide.
 - Presenter View provides Start, Pause, Reset, and **+1 minute** controls.
-- Use **Add timer to slide** in Presenter View for an unplanned break. HySlides inserts a seven-minute timer on the current slide, after which its normal live controls appear.
+- Use **Add session timer** in Presenter View for an unplanned break. This creates a temporary floating timer above the presentation, similar to a displayed Q&A question. It is synchronized to Presenter, Presentation, Participant, and Mobile Presenter Remote views but is never inserted into or saved with the slide.
 - Presentation View and Participant View remain synchronized with the presenter-controlled time.
 - Editor, next-slide, and filmstrip previews show the configured starting duration instead of a partially elapsed live value.
 - Live countdown state is session-only; saving the deck preserves the configured duration, not the remaining time.
+- End the session timer to remove the floating overlay everywhere. Persistent timers added from the Editor remain part of their slide and are controlled separately under **Slide timer element**.
 
 ## Live Participation
 

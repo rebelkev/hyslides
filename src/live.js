@@ -82,6 +82,7 @@ export async function liveSnapshotForDeck(deck, slide, activeSlideIndex, instanc
   liveSlide.liveTheme = liveTheme;
   liveSlide.runtimePresentation = {
     blackout: Boolean(runtime.blackout),
+    sessionTimer: cloneJson(runtime.sessionTimer || null),
   };
   await compactLiveSlideImages(liveSlide);
   return {

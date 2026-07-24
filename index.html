@@ -220,7 +220,7 @@
       <main class="presenter-workspace">
         <section class="presenter-current-card">
           <div class="presenter-card-head"><strong id="presenterSlideTitle">Current slide</strong><span>End-state preview</span></div>
-          <div class="presenter-main"><canvas id="presenterCanvas" width="1280" height="720"></canvas><div id="presentationEmbedLayer" class="presentation-embed-layer" aria-label="Embedded video layer"></div></div>
+          <div class="presenter-main"><canvas id="presenterCanvas" width="1280" height="720"></canvas><div id="presentationEmbedLayer" class="presentation-embed-layer" aria-label="Embedded video layer"></div><div id="presentationSessionTimer" class="session-timer-overlay hidden" role="timer" aria-live="polite"></div></div>
         </section>
         <section class="presenter-mobile-quick-flow" aria-label="Quick slide navigation">
           <div class="presenter-section-head">
@@ -336,6 +336,7 @@
         <div class="audience-slide-frame">
           <canvas id="audienceCanvas" width="1280" height="720" aria-label="Current presentation slide"></canvas>
           <div id="audienceEmbedLayer" class="audience-embed-layer" aria-label="Live slide video"></div>
+          <div id="audienceSessionTimer" class="session-timer-overlay hidden" role="timer" aria-live="polite"></div>
           <div id="audienceQuestionOverlay" class="audience-featured-question-overlay hidden" role="status" aria-live="polite">
             <div class="audience-featured-question-card">
               <span>Audience question</span>

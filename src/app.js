@@ -82,8 +82,10 @@ const dom = {
   canvas: document.querySelector("#slideCanvas"),
   presenterCanvas: document.querySelector("#presenterCanvas"),
   presentationEmbedLayer: document.querySelector("#presentationEmbedLayer"),
+  presentationSessionTimer: document.querySelector("#presentationSessionTimer"),
   audienceCanvas: document.querySelector("#audienceCanvas"),
   audienceEmbedLayer: document.querySelector("#audienceEmbedLayer"),
+  audienceSessionTimer: document.querySelector("#audienceSessionTimer"),
   nextCanvas: document.querySelector("#nextCanvas"),
   viewport: document.querySelector("#canvasViewport"),
   textEditor: document.querySelector("#textEditor"),
@@ -199,6 +201,7 @@ let remoteControllerCommandsPolling = false;
 let remoteControllerEvents = null;
 let audienceOpen = false;
 let participantQnaOpen = false;
+let sessionTimer = null;
 let leftRailTab = "slides";
 let inspectorTab = "properties";
 const globalSettingsOpenSections = new Set(["audience"]);
@@ -4492,6 +4495,7 @@ function bindPresenterChannel() {
       skippedSlideIds = new Set(message.skippedSlideIds || []);
       presentationBlackout = Boolean(message.presentationBlackout);
       applyCountdownState(message.countdownStates || {});
+      applySessionTimer(message.sessionTimer || null);
       liveSession.participantCount = Number(message.liveStatus?.participantCount || 0);
       liveSession.responseCount = Number(message.liveStatus?.responseCount || 0);
       liveSession.featuredQuestion = message.featuredQuestion || null;
@@ -4556,6 +4560,7 @@ function bindPresenterChannel() {
     }
     if (message.type === "countdown-state") {
       applyCountdownState(message.states || {});
+      applySessionTimer(message.sessionTimer || null);
       if (presentationWindowMode) drawPresentationCountdownFrame();
     }
     if (message.type === "video-command" && (presenterWindowMode || presentationWindowMode)) {
@@ -4579,6 +4584,7 @@ function sendPresenterSnapshot() {
     skippedSlideIds: [...skippedSlideIds],
     presentationBlackout,
     countdownStates: serializedCountdownState(),
+    sessionTimer: serializedSessionTimer(),
     liveStatus: {
       participantCount: liveSession.participantCount,
       responseCount: liveSession.responseCount,
@@ -4620,6 +4626,7 @@ async function renderPresenter() {
     countdownStates: countdownStatesForRenderer(),
   });
   syncPresentationEmbeds(slide);
+  renderSessionTimerOverlays();
   renderPresentationQuestionOverlay();
   const nextIndex = nextIncludedSlideIndex(activeSlideIndex, 1);
   const nextSlide = nextIndex === activeSlideIndex ? slide : deck.slides[nextIndex];
@@ -4707,6 +4714,93 @@ function countdownRemaining(state) {
   return state.running ? Math.max(0, Math.ceil((state.endsAt - Date.now()) / 1000)) : Math.max(0, Number(state.remainingSeconds) || 0);
 }
 
+function serializedSessionTimer() {
+  if (!sessionTimer || sessionTimer.hidden) return null;
+  return {
+    remainingSeconds: countdownRemaining(sessionTimer),
+    running: Boolean(sessionTimer.running),
+    completed: Boolean(sessionTimer.completed),
+  };
+}
+
+function applySessionTimer(state) {
+  if (!state) {
+    sessionTimer = null;
+    renderSessionTimerOverlays();
+    return;
+  }
+  const remainingSeconds = Math.max(0, Number(state.remainingSeconds) || 0);
+  sessionTimer = {
+    remainingSeconds,
+    running: Boolean(state.running),
+    endsAt: state.running ? Date.now() + remainingSeconds * 1000 : 0,
+    completed: Boolean(state.completed),
+    hidden: false,
+  };
+  if (sessionTimer.running) startCountdownTicker();
+  renderSessionTimerOverlays();
+}
+
+function showSessionTimer() {
+  if (!sessionTimer) {
+    sessionTimer = { remainingSeconds: 420, running: false, endsAt: 0, completed: false, hidden: false };
+  } else {
+    sessionTimer.hidden = false;
+  }
+  broadcastCountdownState();
+  renderCountdownControls(currentSlide());
+}
+
+function toggleSessionTimer() {
+  if (!sessionTimer) return showSessionTimer();
+  if (sessionTimer.running) {
+    sessionTimer.remainingSeconds = countdownRemaining(sessionTimer);
+    sessionTimer.running = false;
+    sessionTimer.endsAt = 0;
+  } else {
+    const remaining = sessionTimer.completed || countdownRemaining(sessionTimer) <= 0 ? 420 : countdownRemaining(sessionTimer);
+    sessionTimer.remainingSeconds = remaining;
+    sessionTimer.running = true;
+    sessionTimer.endsAt = Date.now() + remaining * 1000;
+    sessionTimer.completed = false;
+    sessionTimer.hidden = false;
+    startCountdownTicker();
+  }
+  broadcastCountdownState();
+  renderCountdownControls(currentSlide());
+}
+
+function adjustSessionTimer(seconds) {
+  if (!sessionTimer) showSessionTimer();
+  if (sessionTimer.running) sessionTimer.endsAt = Math.max(Date.now(), sessionTimer.endsAt + seconds * 1000);
+  else sessionTimer.remainingSeconds = Math.max(0, countdownRemaining(sessionTimer) + seconds);
+  sessionTimer.completed = false;
+  sessionTimer.hidden = false;
+  broadcastCountdownState();
+}
+
+function resetSessionTimer() {
+  sessionTimer = { remainingSeconds: 420, running: false, endsAt: 0, completed: false, hidden: false };
+  broadcastCountdownState();
+  renderCountdownControls(currentSlide());
+}
+
+function endSessionTimer() {
+  sessionTimer = null;
+  broadcastCountdownState();
+  renderCountdownControls(currentSlide());
+}
+
+function renderSessionTimerOverlays(state = serializedSessionTimer()) {
+  const value = state ? formatCountdown(state.remainingSeconds) : "";
+  for (const overlay of [dom.presentationSessionTimer, dom.audienceSessionTimer]) {
+    if (!overlay) continue;
+    overlay.classList.toggle("hidden", !state);
+    overlay.textContent = value;
+    overlay.classList.toggle("complete", Boolean(state?.completed));
+  }
+}
+
 function startCountdown(elementId) {
   const element = currentSlide().elements.find((item) => item.id === elementId && item.type === "countdown");
   if (!element) return;
@@ -4776,7 +4870,17 @@ function tickCountdowns() {
       if (element?.autoAdvance && presenterWindowMode) window.setTimeout(() => stepSlide(1), 400);
     }
   }
+  if (sessionTimer?.running) {
+    hasRunning = true;
+    if (countdownRemaining(sessionTimer) <= 0) {
+      sessionTimer.running = false;
+      sessionTimer.remainingSeconds = 0;
+      sessionTimer.completed = true;
+      changed = true;
+    }
+  }
   drawPresentationCountdownFrame();
+  renderSessionTimerOverlays();
   updateCountdownControlReadouts();
   if (Math.floor(Date.now() / 1000) !== tickCountdowns.lastSecond || changed) {
     tickCountdowns.lastSecond = Math.floor(Date.now() / 1000);
@@ -4792,9 +4896,12 @@ function tickCountdowns() {
 tickCountdowns.lastSecond = 0;
 
 function broadcastCountdownState() {
-  presenterChannel?.postMessage({ type: "countdown-state", states: serializedCountdownState() });
+  presenterChannel?.postMessage({ type: "countdown-state", states: serializedCountdownState(), sessionTimer: serializedSessionTimer() });
   drawPresentationCountdownFrame();
+  renderSessionTimerOverlays();
   updateCountdownControlReadouts();
+  queueLivePublish(true);
+  queueRemoteControllerPublish(true);
 }
 
 function drawPresentationCountdownFrame() {
@@ -4996,7 +5103,7 @@ function renderVideoControls(slide) {
 function renderCountdownControls(slide) {
   let panel = dom.liveControls.querySelector(".countdown-control-panel");
   const elements = countdownElements(slide);
-  if (!elements.length) {
+  if (!elements.length && !sessionTimer) {
     panel?.remove();
     return;
   }
@@ -5006,10 +5113,20 @@ function renderCountdownControls(slide) {
     panel.className = "countdown-control-panel";
     dom.liveControls.prepend(panel);
   }
-  panel.innerHTML = `<div class="countdown-control-head"><strong>On-screen countdown</strong><span>Visible to everyone</span></div>${elements.map((element) => {
+  const sessionTimerMarkup = sessionTimer ? `<div class="countdown-control-head"><strong>Session timer overlay</strong><span>Temporary · not saved to slide</span></div><div class="countdown-control-row session-timer-control"><strong class="session-countdown-readout">${formatCountdown(countdownRemaining(sessionTimer))}</strong><div><button data-session-timer-action="toggle" type="button">${sessionTimer.running ? "Pause" : "Start"}</button><button data-session-timer-action="subtract" type="button">−1 min</button><button data-session-timer-action="add" type="button">+1 min</button><button data-session-timer-action="reset" type="button">Reset</button><button data-session-timer-action="end" class="danger" type="button">End</button></div></div>` : "";
+  const slideTimerMarkup = elements.length ? `<div class="countdown-control-head"><strong>Slide timer element</strong><span>Saved in this slide</span></div>${elements.map((element) => {
     const state = countdownRuntime.get(element.id);
     return `<div class="countdown-control-row" data-countdown-id="${attr(element.id)}"><strong class="countdown-readout">${formatCountdown(countdownRemaining(state))}</strong><div><button data-countdown-action="${state?.running ? "pause" : "start"}" type="button">${state?.running ? "Pause" : "Start"}</button><button data-countdown-action="subtract" type="button">−1 min</button><button data-countdown-action="add" type="button">+1 min</button><button data-countdown-action="reset" type="button">Reset</button><button data-countdown-action="end" class="danger" type="button">End</button></div></div>`;
-  }).join("")}`;
+  }).join("")}` : "";
+  panel.innerHTML = `${sessionTimerMarkup}${slideTimerMarkup}`;
+  panel.querySelectorAll("[data-session-timer-action]").forEach((button) => button.addEventListener("click", () => {
+    if (button.dataset.sessionTimerAction === "toggle") toggleSessionTimer();
+    if (button.dataset.sessionTimerAction === "subtract") adjustSessionTimer(-60);
+    if (button.dataset.sessionTimerAction === "add") adjustSessionTimer(60);
+    if (button.dataset.sessionTimerAction === "reset") resetSessionTimer();
+    if (button.dataset.sessionTimerAction === "end") endSessionTimer();
+    renderCountdownControls(currentSlide());
+  }));
   panel.querySelectorAll("[data-countdown-action]").forEach((button) => button.addEventListener("click", () => {
     const id = button.closest("[data-countdown-id]").dataset.countdownId;
     if (button.dataset.countdownAction === "start") startCountdown(id);
@@ -5024,6 +5141,9 @@ function renderCountdownControls(slide) {
 }
 
 function updateCountdownControlReadouts() {
+  document.querySelectorAll(".session-countdown-readout").forEach((readout) => {
+    if (sessionTimer) readout.textContent = formatCountdown(countdownRemaining(sessionTimer));
+  });
   document.querySelectorAll("[data-countdown-id]").forEach((row) => {
     const state = countdownRuntime.get(row.dataset.countdownId);
     const readout = row.querySelector(".countdown-readout");
@@ -5243,7 +5363,7 @@ async function publishCurrentLiveSession(force = false) {
       activeSlideIndex,
       liveSession.instanceId,
       liveSession.sessionName,
-      { blackout: presentationBlackout }
+      { blackout: presentationBlackout, sessionTimer: serializedSessionTimer() }
     );
     const signature = JSON.stringify(snapshot);
     if (!force && signature === liveSession.lastPublishedSignature) return;
@@ -5366,6 +5486,7 @@ function applyLiveStateToCurrentSlide(state) {
     publishPresentationControlState();
   }
   liveSession.lifecycleStatus = state.status || liveSession.lifecycleStatus;
+  applySessionTimer(state.slide.runtimePresentation?.sessionTimer || null);
   liveSession.status = liveSession.lifecycleStatus === "active"
     ? "Live session running. Responses sync automatically."
     : liveSession.lifecycleStatus === "paused"
@@ -5417,7 +5538,7 @@ function renderLiveJoinPanel(slide) {
       <div class="live-join-actions">
         ${!liveSession.backendAvailable ? '<button id="reconnectLiveSessionBtn" class="primary" type="button">Reconnect / Go live</button>' : ""}
         <button id="clearLiveSlideBtn" type="button">Clear responses</button>
-        <button id="insertLiveTimerBtn" type="button">Add timer to slide</button>
+        <button id="insertLiveTimerBtn" type="button">${sessionTimer ? "Show session timer controls" : "Add session timer"}</button>
         <button id="newLiveSessionBtn" type="button">New session</button>
         <button id="endLiveSessionBtn" type="button">End session</button>
       </div>
@@ -5579,30 +5700,20 @@ function renderPresenterQna() {
 }
 
 function insertCountdownFromPresenter() {
-  const existing = countdownElements(currentSlide())[0];
-  if (existing) {
-    renderCountdownControls(currentSlide());
-    dom.liveControls.querySelector(".countdown-control-panel")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    return;
-  }
-  const element = createElement("countdown", {
-    x: SLIDE_SIZE.width / 2 - 250,
-    y: SLIDE_SIZE.height / 2 - 90,
-  });
-  currentSlide().elements.push(element);
-  selectedIds = [element.id];
-  ensureSlideCountdowns(currentSlide());
-  presenterChannel?.postMessage({ type: "deck-updated", deck: JSON.parse(JSON.stringify(deck)), activeSlideIndex });
-  sendPresenterSnapshot();
-  queueLivePublish(true);
-  renderPresenter();
+  showSessionTimer();
+  renderCountdownControls(currentSlide());
+  dom.liveControls.querySelector(".countdown-control-panel")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
 async function runLiveControl(action) {
   try {
     const state = await controlLiveSession(liveSession.code, action, liveSession.presenterToken);
     applyLiveStateToCurrentSlide(state);
-    if (action === "end") clearActiveSession();
+    if (action === "end") {
+      sessionTimer = null;
+      renderSessionTimerOverlays();
+      clearActiveSession();
+    }
     else writeActiveSession();
     renderPresenter();
   } catch (error) {
@@ -5631,6 +5742,7 @@ async function renderLiveAudience() {
   }
 
   const liveSlide = audienceLive.state.slide;
+  renderSessionTimerOverlays(liveSlide.runtimePresentation?.sessionTimer || null);
   const participantBlackout = Boolean(liveSlide.runtimePresentation?.blackout);
   document.body.classList.toggle("audience-blackout", participantBlackout);
   if (participantBlackout) {
@@ -5660,6 +5772,7 @@ async function renderLiveAudience() {
     slideIndex: Number(audienceLive.state.activeSlideIndex) || 0,
     revealCorrectAnswers: shouldRevealCorrectAnswers(liveSlide),
   });
+  renderSessionTimerOverlays(liveSlide.runtimePresentation?.sessionTimer || null);
   renderAudienceQuestionOverlay(audienceLive.state.featuredQuestion);
   syncAudienceEmbeds(liveSlide);
   const latestResponse = audienceLive.responses[liveSlide.id] || null;
@@ -5697,6 +5810,7 @@ function drawLiveAudienceCanvas() {
       slideIndex: Number(audienceLive.state.activeSlideIndex) || 0,
       revealCorrectAnswers: shouldRevealCorrectAnswers(liveSlide),
     });
+    renderSessionTimerOverlays(liveSlide.runtimePresentation?.sessionTimer || null);
   } finally {
     audienceCanvasPainting = false;
   }
@@ -5731,6 +5845,7 @@ function audienceRenderSignature() {
     slide: state?.slide,
     questions: state?.questions,
     featuredQuestion: state?.featuredQuestion,
+    sessionTimer: state?.slide?.runtimePresentation?.sessionTimer,
   });
 }
 
@@ -6954,6 +7069,8 @@ function clearActiveSession() {
 
 function beginNewLiveSession(options = {}) {
   if (options.clearResponses !== false) clearDeckEngagementResults();
+  sessionTimer = null;
+  renderSessionTimerOverlays();
   liveSession.instanceId = crypto.randomUUID();
   liveSession.sessionName = `${deck.title || "Untitled presentation"} — ${new Date().toLocaleString()}`;
   liveSession.lifecycleStatus = "active";
@@ -7002,8 +7119,6 @@ async function openRemotePairing() {
 
 function remoteControllerSnapshot() {
   const thumbnails = [...(dom.presenterSlideList?.querySelectorAll("canvas") || [])];
-  const timerElement = countdownElements(currentSlide())[0];
-  const timerState = timerElement ? countdownRuntime.get(timerElement.id) : null;
   return {
     deckId: deck.id,
     deckTitle: deck.title || "Untitled presentation",
@@ -7012,10 +7127,11 @@ function remoteControllerSnapshot() {
     participantCount: liveSession.participantCount,
     responseCount: liveSession.responseCount,
     status: liveSession.lifecycleStatus,
-    timer: timerElement ? {
-      id: timerElement.id,
-      remainingSeconds: countdownRemaining(timerState || { remainingSeconds: timerElement.durationSeconds || 0 }),
-      running: Boolean(timerState?.running),
+    timer: sessionTimer ? {
+      id: "session-overlay",
+      kind: "session",
+      remainingSeconds: countdownRemaining(sessionTimer),
+      running: Boolean(sessionTimer.running),
     } : null,
     slides: deck.slides.map((slide, index) => ({
       id: slide.id,
@@ -7076,17 +7192,10 @@ async function executeRemoteControllerCommand(command) {
   else if (command.action === "clearResponses") await runLiveControl("clearSlide");
   else if (command.action === "addTimer") insertCountdownFromPresenter();
   else if (command.action === "adjustTimer") {
-    const timer = countdownElements(currentSlide())[0];
-    if (timer) addCountdownTime(timer.id, clamp(Number(command.seconds) || 0, -3600, 3600));
+    if (sessionTimer) adjustSessionTimer(clamp(Number(command.seconds) || 0, -3600, 3600));
   } else if (command.action === "removeTimer") {
-    const timer = countdownElements(currentSlide())[0];
-    if (timer) {
-      currentSlide().elements = currentSlide().elements.filter((element) => element.id !== timer.id);
-      countdownRuntime.delete(timer.id);
-      presenterChannel?.postMessage({ type: "deck-updated", deck: JSON.parse(JSON.stringify(deck)), activeSlideIndex });
-      queueLivePublish(true);
-      await renderPresenter();
-    }
+    endSessionTimer();
+    await renderPresenter();
   }
   else if (command.action === "newSession") {
     beginNewLiveSession();

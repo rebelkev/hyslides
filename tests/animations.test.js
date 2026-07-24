@@ -93,3 +93,13 @@ test("countdown editor supports hiding the timer at zero", () => {
   assert.match(app, /function endCountdown/);
   assert.match(app, /element\.runtimeHidden = states\[element\.id\]\.hidden/);
 });
+
+test("presenter timers are temporary session overlays rather than saved slide elements", () => {
+  assert.match(app, /function showSessionTimer\(\)/);
+  assert.match(app, /Temporary · not saved to slide/);
+  assert.match(app, /\{ blackout: presentationBlackout, sessionTimer: serializedSessionTimer\(\) \}/);
+  const presenterInsert = app.match(/function insertCountdownFromPresenter\(\) \{([\s\S]*?)\n\}/)?.[1] || "";
+  assert.match(presenterInsert, /showSessionTimer\(\)/);
+  assert.doesNotMatch(presenterInsert, /currentSlide\(\)\.elements\.push/);
+  assert.doesNotMatch(presenterInsert, /createElement\("countdown"/);
+});
