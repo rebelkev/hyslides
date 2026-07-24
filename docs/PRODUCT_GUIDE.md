@@ -83,7 +83,7 @@ Poll and Multiple Choice options are managed as individual rows. Each row includ
 - Drag and resize elements on the canvas.
 - Use the adjacent Group and Ungroup controls in the element toolbar, along with locking, alignment, centering, and layer-order controls.
 - Element Properties place the type-specific controls first, followed by the element name and compact rotation/opacity fields; position and size are handled directly on the canvas. Use the lock icon beside the element type to lock or unlock it. Animation controls appear last.
-- Open the Elements panel to see the slide’s element tree. Items at the top appear in front.
+- Open the Elements panel to see the slide’s element tree. Items at the top appear in front. Drag an item to change its front-to-back layer order, or use its eye button to hide and restore it. Hidden elements stay in the tree but are excluded from every rendered view and export.
 - Single-click a tree item to select it. Double-click it to open its Properties.
 - Text boxes automatically fit their height to wrapped text unless automatic height is disabled.
 
@@ -166,7 +166,7 @@ Each deck has a six-digit access code. Participants can join by scanning a QR co
 
 ## Sessions and History
 
-A new session instance is created for each presentation. Its default name combines the deck title with the presentation date and time. Session History allows the presenter to review, rename, or delete past session instances and their responses.
+A new session instance is created for each presentation. It receives a fresh six-digit participant access code, and the deck’s QR code and access-code elements update automatically. Its default name combines the deck title with the presentation date and time. Session History allows the presenter to review, rename, or delete past session instances and their responses.
 
 Ended sessions, participant records, and responses are retained for 14 days and then cleaned up automatically.
 

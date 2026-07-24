@@ -2,6 +2,8 @@
 
 ## Current Development Build
 
+- Made each new live session generate a fresh six-digit audience access code and immediately update its join URL, QR code, and access-code elements throughout the deck.
+- Added drag-to-reorder layering and per-element eye controls to the Elements panel. Hidden elements remain recoverable in the tree while disappearing from the canvas, thumbnails, live views, and PowerPoint export.
 - Separated persistent Editor countdown elements from Presenter session timers. **Add session timer** now creates a temporary synchronized floating overlay without modifying or autosaving the active slide, and ending it removes the overlay from every view.
 - Kept the icon library and Properties panel at their current scroll positions when trying different icons, and removed the brief default-icon flash by preloading the chosen SVG before repainting.
 - Replaced checkbox visuals throughout HySlides with consistent accessible toggle switches while preserving keyboard and label behavior, and removed the non-interactive icon-library status text.

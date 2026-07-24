@@ -88,15 +88,9 @@
   - Respect presentation ownership, team roles, and edit permissions
   - Resolve deck-specific dependencies such as typography styles, color styles, and uploaded media without changing the source slide
 - Admin access and template management
-- Drag-and-drop element layering in the Elements panel:
-  - Reorder elements to change their front-to-back stacking order, with items at the top appearing in front
-  - Show a clear insertion indicator while dragging and keep the canvas, thumbnails, Presenter, Presentation, Participant, and export rendering in sync
+- Advanced element-layer controls:
   - Support moving complete groups while preserving their internal structure, plus reordering elements within expanded groups
   - Preserve locked and protected system elements, with accessible keyboard move controls as an alternative to dragging
-  - Add a visibility control to every element row, using an open-eye icon for visible elements and a clearly distinguishable hidden-eye icon for hidden elements
-  - Right-align the visibility icon with comfortable right padding so it remains easy to target without touching or crowding the panel edge
-  - Keep hidden elements listed and selectable in the Elements panel so editors can restore them, while excluding them from the canvas, thumbnails, Presenter, Presentation, Participant, and export rendering
-  - Preserve each element’s visibility state when saving, duplicating, grouping, importing, or copying slides
 - Expanded engagement slide types:
   - **Rating & Ranking**
     - **Rating scale:** configurable numeric ranges such as 1–5 or 1–10, displayed as numbers, stars, or emojis

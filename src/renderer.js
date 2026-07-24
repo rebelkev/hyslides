@@ -23,7 +23,7 @@ export function resolveTextTypography(element, deck) {
 
 export async function preloadSlideImages(slide, deck = null) {
   const images = slide.elements
-    .filter((element) => (element.type === "image" && element.src) || (element.type === "icon" && element.iconSrc) || (element.type === "shape" && element.fillType === "image" && element.fillImage))
+    .filter((element) => element.visible !== false && ((element.type === "image" && element.src) || (element.type === "icon" && element.iconSrc) || (element.type === "shape" && element.fillType === "image" && element.fillImage)))
     .map((element) => loadImage(element.type === "icon" ? element.iconSrc : element.type === "shape" ? element.fillImage : element.src).catch(() => null));
   if (slide.backgroundImage) images.push(loadImage(slide.backgroundImage).catch(() => null));
   if (deck?.theme?.logo?.src && slideLogoVisible(slide, deck)) images.push(loadImage(deck.theme.logo.src).catch(() => null));
@@ -75,6 +75,7 @@ export function drawSlide(ctx, slide, deck, options = {}) {
   if (footer) drawSlideFurniture(ctx, slide, deck, slideIndex);
 
   for (const element of slide.elements) {
+    if (element.visible === false) continue;
     const state = elementStates?.[element.id];
     if (state?.hidden) continue;
     drawElement(ctx, element, deck, {
@@ -93,7 +94,7 @@ export function drawSlide(ctx, slide, deck, options = {}) {
 
   if (includeSelection && selectedIds.length) {
     const selected = slide.elements.filter((element) =>
-      selectedIds.includes(element.id)
+      element.visible !== false && selectedIds.includes(element.id)
     );
     drawSelection(ctx, selected, scale);
   }
@@ -359,7 +360,7 @@ export function boundsForElements(elements) {
 export function hitTest(slide, point) {
   const reversed = [...slide.elements].reverse();
   return reversed.find((element) => {
-    if (element.locked) {
+    if (element.locked || element.visible === false) {
       return false;
     }
     return (

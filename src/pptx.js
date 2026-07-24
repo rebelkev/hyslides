@@ -189,6 +189,7 @@ async function slideXmlForDeck(slide, deck, slideIndex, media, unsupported) {
   const body = [];
 
   for (const element of slide.elements) {
+    if (element.visible === false) continue;
     if (element.type === "image") {
       const mediaItem = await mediaForElement(element, slideIndex, media.length + 1);
       if (mediaItem) {

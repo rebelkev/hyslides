@@ -10,6 +10,7 @@ import {
   cloneSlide,
   createDeck,
   createElement,
+  createFreshAudienceAccessCode,
   createSection,
   createSlide,
   createSeedDeck,
@@ -2112,6 +2113,40 @@ function renderElementTree() {
       renderAll();
     });
   });
+  let draggedLayerId = "";
+  dom.inspector.querySelectorAll(".element-tree-item[data-layer-id]").forEach((item) => {
+    item.addEventListener("dragstart", (event) => {
+      if (event.target.closest("[data-element-visibility]")) {
+        event.preventDefault();
+        return;
+      }
+      draggedLayerId = item.dataset.layerId;
+      item.classList.add("dragging");
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", draggedLayerId);
+    });
+    item.addEventListener("dragend", () => {
+      item.classList.remove("dragging");
+      dom.inspector.querySelectorAll(".element-tree-item").forEach((row) => row.classList.remove("drag-target"));
+    });
+    item.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      item.classList.add("drag-target");
+    });
+    item.addEventListener("dragleave", () => item.classList.remove("drag-target"));
+    item.addEventListener("drop", (event) => {
+      event.preventDefault();
+      item.classList.remove("drag-target");
+      reorderSlideElement(draggedLayerId || event.dataTransfer.getData("text/plain"), item.dataset.layerId);
+    });
+  });
+  dom.inspector.querySelectorAll("[data-element-visibility]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      toggleElementVisibility(button.dataset.elementVisibility);
+    });
+  });
 }
 
 function refreshElementTreeSelection(activeButton, groupId = "") {
@@ -2243,13 +2278,44 @@ function applyAnimationOrder(items) {
 function elementTreeRow(element) {
   const selected = selectedIds.includes(element.id);
   const label = element.name || element.type[0].toUpperCase() + element.type.slice(1);
-  return `<li>
+  const visible = element.visible !== false;
+  return `<li class="element-tree-item ${visible ? "" : "is-hidden"}" draggable="true" data-layer-id="${attr(element.id)}">
+    <span class="element-drag-handle" title="Drag to reorder layers" aria-hidden="true">⋮⋮</span>
     <button class="element-tree-row ${selected ? "selected" : ""}" type="button" data-element-id="${attr(element.id)}" title="Select ${attr(label)}">
       ${elementTreeIconForType(element.type)}
       <span class="element-tree-name">${escapeHtml(label)}</span>
       ${element.animation?.effect && element.animation.effect !== "none" ? `<span class="element-tree-state" title="Animation order">${animationOrderLabel(element)}</span>` : element.locked ? '<span class="element-tree-state" title="Locked">Locked</span>' : ""}
     </button>
+    <button class="element-visibility-button" type="button" data-element-visibility="${attr(element.id)}" aria-label="${visible ? "Hide" : "Show"} ${attr(label)}" title="${visible ? "Hide element" : "Show element"}">
+      <i data-lucide="${visible ? "eye" : "eye-off"}" aria-hidden="true"></i>
+    </button>
   </li>`;
+}
+
+function reorderSlideElement(movingId, targetId) {
+  if (!movingId || !targetId || movingId === targetId) return;
+  const slide = currentSlide();
+  const displayOrder = [...slide.elements].reverse();
+  const movingIndex = displayOrder.findIndex((element) => element.id === movingId);
+  const targetIndex = displayOrder.findIndex((element) => element.id === targetId);
+  if (movingIndex < 0 || targetIndex < 0) return;
+  const [moving] = displayOrder.splice(movingIndex, 1);
+  displayOrder.splice(targetIndex, 0, moving);
+  slide.elements = displayOrder.reverse();
+  markChanged("Element layer order updated");
+  renderElementTree();
+  renderCanvas();
+  renderSlides();
+}
+
+function toggleElementVisibility(elementId) {
+  const element = currentSlide().elements.find((item) => item.id === elementId);
+  if (!element) return;
+  element.visible = element.visible === false;
+  markChanged(element.visible ? "Element shown" : "Element hidden");
+  renderElementTree();
+  renderCanvas();
+  renderSlides();
 }
 
 function elementTreeIconForType(type) {
@@ -7069,6 +7135,14 @@ function clearActiveSession() {
 
 function beginNewLiveSession(options = {}) {
   if (options.clearResponses !== false) clearDeckEngagementResults();
+  const previousCode = String(liveSession.code || deck.settings?.audienceCode || "");
+  const nextCode = createFreshAudienceAccessCode(previousCode);
+  deck.settings ||= {};
+  deck.settings.audienceCode = nextCode;
+  liveSession.code = nextCode;
+  liveSession.joinUrl = audienceLink();
+  liveSession.qrSrc = liveQrImageSrc(liveSession.joinUrl);
+  syncAudienceJoinElements();
   sessionTimer = null;
   renderSessionTimerOverlays();
   liveSession.instanceId = crypto.randomUUID();
@@ -7076,6 +7150,8 @@ function beginNewLiveSession(options = {}) {
   liveSession.lifecycleStatus = "active";
   liveSession.lastPublishedSignature = "";
   writeActiveSession();
+  deck.updatedAt = new Date().toISOString();
+  saveDeck(deck).catch(() => {});
 }
 
 function closeRemotePairing() {

@@ -200,6 +200,7 @@ export function createElement(type, overrides = {}) {
     h: 120,
     rotation: 0,
     opacity: 1,
+    visible: true,
     locked: false,
     groupId: null,
     brandColorStyleId: null,
@@ -473,6 +474,13 @@ export function createDeck(overrides = {}) {
 
 function createAudienceAccessCode() {
   return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+export function createFreshAudienceAccessCode(previousCode = "") {
+  const previous = String(previousCode);
+  let next = previous;
+  while (next === previous) next = createAudienceAccessCode();
+  return next;
 }
 
 export function createSeedDeck() {
