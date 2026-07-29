@@ -25,6 +25,12 @@ test("deck APIs verify bearer identity and enforce ownership", () => {
   assert.match(workerSource, /hyslides_decks/);
 });
 
+test("deck-specific editor routes safely load the static editor shell", () => {
+  assert.match(workerSource, /editorShellUrl/);
+  assert.match(workerSource, /new Request\(editorShellUrl\.toString\(\), \{ method: "GET" \}\)/);
+  assert.doesNotMatch(workerSource, /editorShellUrl[\s\S]{0,180}headers:\s*request\.headers/);
+});
+
 test("signed-in decks receive account-specific routes and browser migration", () => {
   assert.match(storageSource, /cloudMigration:/);
   assert.match(storageSource, /\/api\/decks/);
