@@ -44,9 +44,8 @@ const worker = {
     }
 
     if (/^\/decks\/[^/]+\/edit$/.test(url.pathname)) {
-      return env.ASSETS.fetch(new Request(new URL("/hyslides/index.html", url), {
-        headers: request.headers,
-      }));
+      const editorShellUrl = new URL("/hyslides/index.html", url);
+      return env.ASSETS.fetch(new Request(editorShellUrl.toString(), { method: "GET" }));
     }
 
     if (url.pathname === "/api/auth/config") {
