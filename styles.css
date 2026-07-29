@@ -3661,15 +3661,20 @@ body.remote-controller-window > :not(#remoteControllerApp):not(script) {
     grid-template-columns: 1fr 1fr;
   }
 }
+.account-menu-wrap {
+  justify-self: end;
+  margin-right: 12px;
+  position: relative;
+}
+
 .account-button {
   background: #f4f7fb;
   border-color: #cfd8e6;
-  border-radius: 18px;
-  gap: 7px;
-  margin: 0 12px 0 4px;
-  max-width: 180px;
-  min-width: 40px;
-  padding: 3px 10px 3px 4px;
+  border-radius: 50%;
+  height: 36px;
+  min-width: 36px;
+  padding: 4px;
+  width: 36px;
 }
 
 .account-button:hover {
@@ -3683,22 +3688,87 @@ body.remote-controller-window > :not(#remoteControllerApp):not(script) {
   border-radius: 50%;
   color: #fff;
   display: inline-flex;
-  flex: 0 0 26px;
+  flex: 0 0 28px;
   font-size: 11px;
   font-weight: 800;
-  height: 26px;
+  height: 28px;
   justify-content: center;
   letter-spacing: .02em;
   text-transform: uppercase;
-  width: 26px;
+  width: 28px;
 }
 
 .account-label {
-  display: block;
-  max-width: 120px;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.account-menu {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, .22);
+  display: grid;
+  gap: 8px;
+  min-width: 260px;
+  padding: 10px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 100;
+}
+
+.account-identity {
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 36px minmax(0, 1fr);
+  padding: 5px 5px 11px;
+}
+
+.account-menu-avatar {
+  align-items: center;
+  background: #2454d6;
+  border-radius: 50%;
+  color: #fff;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 800;
+  height: 36px;
+  justify-content: center;
+  text-transform: uppercase;
+  width: 36px;
+}
+
+.account-identity span:last-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.account-menu-name,
+.account-menu-email {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.account-menu-email {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.account-sign-out {
+  justify-content: flex-start;
+  width: 100%;
 }
 
 .auth-overlay {
