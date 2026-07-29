@@ -30,6 +30,7 @@ test("deck-specific editor routes safely bootstrap through the public editor she
   assert.match(workerSource, /editorShellUrl\.searchParams\.set\("deck", deckId\)/);
   assert.match(workerSource, /Response\.redirect\(editorShellUrl, 307\)/);
   assert.match(storageSource, /new URLSearchParams\(location\.search\)\.get\("deck"\)/);
+  assert.match(storageSource, /restoreDeckRouteAfterBootstrap\(\)/);
   assert.match(storageSource, /history\.replaceState\(null, "", `\/decks\//);
 });
 
