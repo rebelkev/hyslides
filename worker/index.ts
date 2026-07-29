@@ -126,8 +126,8 @@ export class LiveSessionHub {
   }
 }
 
-const DEFAULT_SUPABASE_URL = "https://cgdlbwodcacxdkmznvtw.supabase.co";
-const DEFAULT_SUPABASE_KEY = "sb_publishable_oPaIppVoeV_MFsPq4fuzxA_0Y2285U-";
+const DEFAULT_SUPABASE_URL = "https://bfyamyqgxrjuapvrsxcg.supabase.co";
+const DEFAULT_SUPABASE_KEY = "sb_publishable_paIqZAOodaEzuAw4GKtNig_inpDEafR";
 
 type AccountUser = { id: string; email: string; user_metadata?: Record<string, unknown> };
 
