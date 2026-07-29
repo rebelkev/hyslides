@@ -24,3 +24,9 @@ test("inline editor uses transparent, typography-aligned canvas styling", () => 
   );
   assert.match(appSource, /dom\.textEditor\.style\.textAlign = element\.bulletList/);
 });
+
+test("markdown bullets can coexist with regular paragraphs in one text box", () => {
+  assert.match(appSource, /currentInlineEditorLineIsBullet\(\)/);
+  assert.match(appSource, /line\.replace\(\/\^\(\\s\*\)•\\s\+\/,\s*"\$1\* "\)/);
+  assert.doesNotMatch(appSource, /element\.bulletList = true;\s*element\.text = textFromInlineEditor/);
+});
