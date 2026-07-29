@@ -1,8 +1,11 @@
+import { authorizedFetch, authUser, isAuthenticated } from "./auth.js";
+
 const DB_NAME = "hyslides";
 const DB_VERSION = 1;
 const DECK_STORE = "decks";
 const META_STORE = "meta";
 const CURRENT_KEY = "currentDeckId";
+const MIGRATION_KEY_PREFIX = "cloudMigration:";
 
 export async function saveDeck(deck) {
   const db = await openDb();
@@ -12,16 +15,50 @@ export async function saveDeck(deck) {
   };
   await put(db, DECK_STORE, deckToSave);
   await put(db, META_STORE, { key: CURRENT_KEY, value: deckToSave.id });
+  if (isAuthenticated()) {
+    const response = await authorizedFetch(`/api/decks/${encodeURIComponent(deckToSave.id)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(deckToSave),
+    });
+    if (!response.ok) throw new Error(await apiError(response));
+    const cloudDeck = await response.json();
+    updateDeckRoute(cloudDeck.id);
+    return cloudDeck;
+  }
   return deckToSave;
 }
 
 export async function loadDecks() {
   const db = await openDb();
+  if (isAuthenticated()) {
+    await migrateBrowserDecks(db);
+    const response = await authorizedFetch("/api/decks");
+    if (!response.ok) throw new Error(await apiError(response));
+    return response.json();
+  }
   return getAll(db, DECK_STORE);
 }
 
 export async function loadCurrentDeck() {
   const db = await openDb();
+  if (isAuthenticated()) {
+    await migrateBrowserDecks(db);
+    const routeId = deckIdFromRoute();
+    if (routeId) {
+      const response = await authorizedFetch(`/api/decks/${encodeURIComponent(routeId)}`);
+      if (!response.ok) throw new Error(await apiError(response));
+      const cloudDeck = await response.json();
+      await put(db, DECK_STORE, cloudDeck);
+      await put(db, META_STORE, { key: CURRENT_KEY, value: cloudDeck.id });
+      return cloudDeck;
+    }
+    const cloudDecks = await loadDecks();
+    if (cloudDecks[0]) {
+      updateDeckRoute(cloudDecks[0].id);
+      return cloudDecks[0];
+    }
+  }
   const meta = await get(db, META_STORE, CURRENT_KEY);
   if (meta?.value) {
     const deck = await get(db, DECK_STORE, meta.value);
@@ -36,6 +73,49 @@ export async function loadCurrentDeck() {
 export async function deleteDeck(deckId) {
   const db = await openDb();
   await remove(db, DECK_STORE, deckId);
+  if (isAuthenticated()) {
+    const response = await authorizedFetch(`/api/decks/${encodeURIComponent(deckId)}`, { method: "DELETE" });
+    if (!response.ok) throw new Error(await apiError(response));
+  }
+}
+
+async function migrateBrowserDecks(db) {
+  const userId = authUser()?.id;
+  if (!userId) return;
+  const migrationKey = `${MIGRATION_KEY_PREFIX}${userId}`;
+  if ((await get(db, META_STORE, migrationKey))?.value) return;
+  const localDecks = await getAll(db, DECK_STORE);
+  let migrationComplete = true;
+  for (const localDeck of localDecks) {
+    try {
+      const response = await authorizedFetch(`/api/decks/${encodeURIComponent(localDeck.id)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(localDeck),
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+    } catch (error) {
+      migrationComplete = false;
+      console.warn(`HySlides kept "${localDeck.title || localDeck.id}" in this browser because cloud migration failed.`, error);
+    }
+  }
+  if (migrationComplete) {
+    await put(db, META_STORE, { key: migrationKey, value: new Date().toISOString() });
+  }
+}
+
+function deckIdFromRoute() {
+  return decodeURIComponent(location.pathname.match(/^\/decks\/([^/]+)\/edit$/)?.[1] || "");
+}
+
+function updateDeckRoute(deckId) {
+  if (!deckId || location.pathname.startsWith("/decks/") || location.hash) return;
+  history.replaceState(null, "", `/decks/${encodeURIComponent(deckId)}/edit`);
+}
+
+async function apiError(response) {
+  const payload = await response.json().catch(() => ({}));
+  return payload.error || "Cloud deck request failed.";
 }
 
 export function exportDeckJson(deck) {
