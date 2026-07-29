@@ -108,3 +108,15 @@ Before publishing a change:
 ## Next Architectural Milestone
 
 Add user accounts before server-backed deck ownership, admin template management, team workspaces, or durable cross-device analytics.
+# Account rollout
+
+HySlides uses Supabase Auth for Google OAuth and passwordless email codes. Cloudflare D1 remains the application database for user profiles and owner-scoped decks; HySlides never stores passwords.
+
+The Worker environment variable `AUTH_ENABLED` is the production release gate. Leave it unset or set to `false` until:
+
+1. Google is enabled in Supabase Auth with the production Google client ID and secret.
+2. Supabase Site URL and redirect URLs include the production HySlides origin and deck routes.
+3. The email template delivers a numeric one-time code using the Supabase token variable.
+4. Google sign-in, personal email, business email, refresh, sign-out, unauthorized deck access, and browser-deck migration pass on production.
+
+Set `AUTH_ENABLED=true` only after that checklist passes. The public Supabase publishable key may remain in browser code; provider secrets must stay in Supabase or Cloudflare configuration and must never be committed.
