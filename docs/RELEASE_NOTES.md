@@ -202,3 +202,4 @@
 - Removed the duplicate Icon Color styles section and kept named swatches inside the Icon style pickers.
 - Prevented slide-icon color choices from recoloring the Editor toolbar.
 - Added solid, gradient, image, and animated-effect fills to Shape elements.
+- Fixed deck-specific editor URLs by bootstrapping them through the proven static editor route, then restoring the clean `/decks/{deck-id}/edit` address in the browser.
