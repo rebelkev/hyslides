@@ -105,7 +105,13 @@ async function migrateBrowserDecks(db) {
 }
 
 function deckIdFromRoute() {
-  return decodeURIComponent(location.pathname.match(/^\/decks\/([^/]+)\/edit$/)?.[1] || "");
+  const routeId = decodeURIComponent(location.pathname.match(/^\/decks\/([^/]+)\/edit$/)?.[1] || "");
+  if (routeId) return routeId;
+  const bootstrapId = new URLSearchParams(location.search).get("deck") || "";
+  if (bootstrapId) {
+    history.replaceState(null, "", `/decks/${encodeURIComponent(bootstrapId)}/edit`);
+  }
+  return bootstrapId;
 }
 
 function updateDeckRoute(deckId) {
