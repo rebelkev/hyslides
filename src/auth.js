@@ -1,5 +1,5 @@
-const SUPABASE_URL = "https://cgdlbwodcacxdkmznvtw.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_oPaIppVoeV_MFsPq4fuzxA_0Y2285U-";
+const SUPABASE_URL = "https://bfyamyqgxrjuapvrsxcg.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_paIqZAOodaEzuAw4GKtNig_inpDEafR";
 const SESSION_KEY = "hyslides.auth.session";
 
 let currentSession = readSession();
