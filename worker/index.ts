@@ -44,8 +44,10 @@ const worker = {
     }
 
     if (/^\/decks\/[^/]+\/edit$/.test(url.pathname)) {
+      const deckId = decodeURIComponent(url.pathname.match(/^\/decks\/([^/]+)\/edit$/)?.[1] || "");
       const editorShellUrl = new URL("/hyslides/index.html", url);
-      return env.ASSETS.fetch(new Request(editorShellUrl.toString(), { method: "GET" }));
+      editorShellUrl.searchParams.set("deck", deckId);
+      return Response.redirect(editorShellUrl, 307);
     }
 
     if (url.pathname === "/api/auth/config") {
