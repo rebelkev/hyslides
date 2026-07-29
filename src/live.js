@@ -2,8 +2,8 @@ import { mergeWordCloudEntries } from "./word-cloud.js";
 
 const LIVE_API_BASE = "/api/live";
 const PUBLIC_APP_BASE_URL = "";
-const SUPABASE_URL = "https://cgdlbwodcacxdkmznvtw.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_oPaIppVoeV_MFsPq4fuzxA_0Y2285U-";
+const SUPABASE_URL = "https://bfyamyqgxrjuapvrsxcg.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_paIqZAOodaEzuAw4GKtNig_inpDEafR";
 const SUPABASE_REST_URL = `${SUPABASE_URL.replace(/\/$/, "")}/rest/v1`;
 
 const QR_DATA_CODEWORDS = {
