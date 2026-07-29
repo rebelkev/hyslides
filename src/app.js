@@ -78,6 +78,16 @@ import {
   resolveLucideIconNode,
 } from "./icon-assets.js";
 import { backgroundShaderOptions } from "./backgrounds.js";
+import {
+  accountAuthEnabled,
+  authUser,
+  isAuthenticated,
+  requestEmailCode,
+  restoreAuthSession,
+  signInWithGoogle,
+  signOut,
+  verifyEmailCode,
+} from "./auth.js";
 
 const dom = {
   app: document.querySelector("#app"),
@@ -287,6 +297,21 @@ async function init() {
     initRemoteController();
     return;
   }
+  const publicView = presenterWindowMode || presentationWindowMode || location.hash.startsWith("#audience");
+  if (!publicView) {
+    const accountsEnabled = await accountAuthEnabled();
+    document.querySelector("#accountBtn")?.classList.toggle("hidden", !accountsEnabled);
+    if (accountsEnabled) {
+      await restoreAuthSession();
+      bindAuthEvents();
+      updateAccountButton();
+      if (!isAuthenticated()) {
+        document.querySelector("#authOverlay")?.classList.remove("hidden");
+        document.querySelector("#authOverlay")?.setAttribute("aria-hidden", "false");
+        return;
+      }
+    }
+  }
   const saved = await loadCurrentDeck().catch(() => null);
   deck = normalizeDeck(saved || createSeedDeck());
   if (!presenterWindowMode && !presentationWindowMode && !location.hash.startsWith("#audience")) {
@@ -308,6 +333,56 @@ async function init() {
     document.body.classList.add("audience-window");
     openAudience();
   }
+}
+
+function bindAuthEvents() {
+  document.querySelector("#googleSignInBtn")?.addEventListener("click", signInWithGoogle);
+  document.querySelector("#emailAuthForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const message = document.querySelector("#authMessage");
+    try {
+      const email = await requestEmailCode(document.querySelector("#authEmail")?.value, {
+        firstName: document.querySelector("#authFirstName")?.value,
+        lastName: document.querySelector("#authLastName")?.value,
+      });
+      document.querySelector("#emailCodeForm")?.classList.remove("hidden");
+      message.textContent = `A sign-in code was sent to ${email}.`;
+      document.querySelector("#authCode")?.focus();
+    } catch (error) {
+      message.textContent = error.message;
+    }
+  });
+  document.querySelector("#emailCodeForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const message = document.querySelector("#authMessage");
+    try {
+      await verifyEmailCode(
+        document.querySelector("#authEmail")?.value,
+        document.querySelector("#authCode")?.value
+      );
+      location.reload();
+    } catch (error) {
+      message.textContent = error.message;
+    }
+  });
+  document.querySelector("#accountBtn")?.addEventListener("click", async () => {
+    if (!isAuthenticated()) {
+      document.querySelector("#authOverlay")?.classList.remove("hidden");
+      return;
+    }
+    if (confirm(`Sign out ${authUser()?.email || ""}?`)) {
+      await signOut();
+      location.assign("/");
+    }
+  });
+}
+
+function updateAccountButton() {
+  const button = document.querySelector("#accountBtn");
+  if (!button) return;
+  button.textContent = isAuthenticated()
+    ? (authUser()?.user_metadata?.first_name || authUser()?.email?.split("@")[0] || "Account")
+    : "Sign in";
 }
 
 function bindEvents() {
@@ -3860,7 +3935,7 @@ function handleTextEditorBulletKeys(event) {
     return triggerBulletListFromAsterisk(event, element);
   }
 
-  if (event.key === "Enter" && element.bulletList && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+  if (event.key === "Enter" && currentInlineEditorLineIsBullet() && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
     event.preventDefault();
     insertTextIntoInlineEditor(`\n${BULLET_EDITOR_PREFIX}`);
     return true;
@@ -3888,11 +3963,10 @@ function triggerBulletListFromAsterisk(event, element) {
   const leading = linePrefix.match(/^\s*/)?.[0] || "";
   const updated = `${before.slice(0, lineStart)}${leading}${BULLET_EDITOR_PREFIX}${after}`;
   const caretOffset = lineStart + leading.length + BULLET_EDITOR_PREFIX.length;
-  element.bulletList = true;
   element.text = textFromInlineEditor(updated, element);
-  dom.textEditor.classList.add("bulleted");
+  dom.textEditor.classList.add("has-markdown-bullets");
   setInlineEditorTextAndCaret(updated, caretOffset);
-  markChanged("Bullet list started");
+  markChanged("Bullet added");
   renderCanvas();
   renderInspector();
   return true;
@@ -3900,20 +3974,23 @@ function triggerBulletListFromAsterisk(event, element) {
 
 function textForInlineEditor(element) {
   const text = String(element.text || "");
-  if (!element.bulletList) {
-    return text;
-  }
   return text
     .split("\n")
-    .map((line) => (line.trim() ? `${BULLET_EDITOR_PREFIX}${stripBulletMarker(line)}` : ""))
+    .map((line) => {
+      if (element.bulletList && line.trim()) return `${BULLET_EDITOR_PREFIX}${stripBulletMarker(line)}`;
+      if (/^\s*(?:\*|•)\s+/.test(line)) return line.replace(/^(\s*)(?:\*|•)\s+/, `$1${BULLET_EDITOR_PREFIX}`);
+      return line;
+    })
     .join("\n");
 }
 
 function textFromInlineEditor(value, element) {
   const text = String(value || "").replace(/\u00a0/g, " ");
-  return element.bulletList
-    ? text.split("\n").map(stripBulletMarker).join("\n")
-    : text;
+  if (element.bulletList) return text.split("\n").map(stripBulletMarker).join("\n");
+  return text
+    .split("\n")
+    .map((line) => line.replace(/^(\s*)•\s+/, "$1* "))
+    .join("\n");
 }
 
 function stripBulletMarker(line) {
@@ -3922,6 +3999,16 @@ function stripBulletMarker(line) {
 
 function normalizedInlineEditorText() {
   return dom.textEditor.innerText.replace(/\u00a0/g, " ");
+}
+
+function currentInlineEditorLineIsBullet() {
+  const selection = inlineEditorSelection();
+  if (!selection) return false;
+  const text = normalizedInlineEditorText();
+  const lineStart = text.lastIndexOf("\n", Math.max(0, selection.start - 1)) + 1;
+  const lineEnd = text.indexOf("\n", selection.start);
+  const line = text.slice(lineStart, lineEnd < 0 ? text.length : lineEnd);
+  return /^\s*(?:\*|•)\s+/.test(line);
 }
 
 function inlineEditorSelection() {
