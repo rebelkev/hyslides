@@ -1010,31 +1010,25 @@ function drawGuides(ctx, guides) {
 
 function layoutTextLines(ctx, element) {
   const width = Math.max(8, element.w - 8);
-  if (!element.bulletList) {
-    return wrapText(ctx, element.text || "", width).map((text) => ({
-      text,
-      x: getAlignedX(element),
-      maxWidth: width,
-      bullet: false,
-      bulletX: 0,
-    }));
-  }
-
   const fontSize = element.fontSize || 28;
   const bulletIndent = Math.max(18, fontSize * 0.85);
   const bulletX = 4 + Math.max(4, fontSize * 0.16);
   const textX = 4 + bulletIndent;
   const textWidth = Math.max(8, element.w - textX - 4);
   const paragraphs = String(element.text || "").split(/\n/);
-  return paragraphs.flatMap((paragraph) =>
-    wrapParagraph(ctx, paragraph, textWidth).map((text, index) => ({
+  return paragraphs.flatMap((paragraph) => {
+    const markdownBullet = /^\s*(?:\*|•)\s+/.test(paragraph);
+    const isBullet = Boolean(element.bulletList || markdownBullet);
+    const content = markdownBullet ? paragraph.replace(/^\s*(?:\*|•)\s+/, "") : paragraph;
+    const paragraphWidth = isBullet ? textWidth : width;
+    return wrapParagraph(ctx, content, paragraphWidth).map((text, index) => ({
       text,
-      x: textX,
-      maxWidth: textWidth,
-      bullet: index === 0 && Boolean(text.trim()),
-      bulletX,
-    }))
-  );
+      x: isBullet ? textX : getAlignedX(element),
+      maxWidth: paragraphWidth,
+      bullet: isBullet && index === 0 && Boolean(text.trim()),
+      bulletX: isBullet ? bulletX : 0,
+    }));
+  });
 }
 
 function drawBulletMarker(ctx, x, y, fontSize) {
