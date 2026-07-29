@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>HySlides</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="/hyslides/styles.css" />
   </head>
   <body>
     <svg class="icon-sprite" aria-hidden="true" width="0" height="0">
@@ -61,6 +61,7 @@
             <div class="app-menu-divider" role="separator"></div>
             <button id="helpFaqBtn" type="button" role="menuitem" data-icon="help-circle">Help &amp; FAQ</button>
           </div>
+          <button id="accountBtn" class="account-button hidden" type="button" title="Account">Sign in</button>
         </div>
         <nav class="toolbar" aria-label="Deck actions">
           <button id="undoBtn" type="button" title="Undo (Command/Ctrl+Z)" data-icon="undo" disabled>Undo</button>
@@ -400,8 +401,38 @@
       </div>
     </div>
 
+    <div id="authOverlay" class="auth-overlay hidden" aria-hidden="true">
+      <div class="auth-card" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+        <div class="auth-brand"><span>H</span><strong>HySlides</strong></div>
+        <h1 id="authTitle">Your presentations, ready anywhere.</h1>
+        <p>Sign in to create, edit, and present decks. Audience participation never requires an account.</p>
+        <button id="googleSignInBtn" class="auth-google" type="button">Continue with Google</button>
+        <div class="auth-divider"><span>or use any email address</span></div>
+        <form id="emailAuthForm">
+          <div class="auth-name-row">
+            <label>First name<input id="authFirstName" type="text" autocomplete="given-name" required /></label>
+            <label>Last name<input id="authLastName" type="text" autocomplete="family-name" required /></label>
+          </div>
+          <label for="authEmail">Email address</label>
+          <div class="auth-inline">
+            <input id="authEmail" type="email" autocomplete="email" required placeholder="you@company.com" />
+            <button id="sendAuthCodeBtn" type="submit">Send code</button>
+          </div>
+        </form>
+        <form id="emailCodeForm" class="hidden">
+          <label for="authCode">Six-digit sign-in code</label>
+          <div class="auth-inline">
+            <input id="authCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required placeholder="000000" />
+            <button type="submit">Verify</button>
+          </div>
+        </form>
+        <p id="authMessage" class="auth-message" aria-live="polite"></p>
+        <small>No password to remember. We send a one-time code to your inbox.</small>
+      </div>
+    </div>
+
     <input id="imageInput" class="sr-only" type="file" accept="image/*" />
     <script defer src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" crossorigin="anonymous"></script>
-    <script type="module" src="./src/app.js"></script>
+    <script type="module" src="/hyslides/src/app.js"></script>
   </body>
 </html>
