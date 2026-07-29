@@ -2,6 +2,11 @@
 
 ## Current Development Build
 
+- Added a staged account foundation with Google OAuth and passwordless email codes for personal or business addresses. HySlides does not collect or store passwords.
+- Added owner-scoped D1 profiles and cloud decks, protected deck APIs, one-time browser-deck migration, and account-specific Editor URLs in the form `/decks/{deck-id}/edit`.
+- Added an account rollout switch so the existing browser-only Editor remains available until the production authentication providers are configured and explicitly enabled.
+- Restored mixed rich-text bullets: typing `* ` at the beginning of a line creates a bullet without converting the entire text box, and normal paragraphs can coexist with bulleted lines.
+- Added regression coverage confirming every temporary Presenter session-timer change is published to Presentation and Participant Views, including timer removal.
 - Converted audience QR and access-code objects into protected dynamic placeholders. The Editor stores only their design and placement, while live views inject the current session’s code and QR destination without rewriting slide content.
 - Fixed element opacity editing after the Properties panel moved from a slider to a numeric field. Opacity changes now apply immediately and persist across every rendered view.
 - Made each new live session generate a fresh six-digit audience access code and immediately update its join URL, QR code, and access-code elements throughout the deck.
