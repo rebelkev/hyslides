@@ -79,8 +79,14 @@
   - Breakout-room numbers, seating areas, rotation stations, and return-to-room notices
   - Silent time warnings, task-complete acknowledgements, and presenter-requested check-ins
   - Targeted follow-up links or resources for selected groups after an activity
-- User accounts and authentication
-- Server-backed deck library and media storage
+- Account rollout:
+  - Configure Google OAuth and passwordless email-code templates in Supabase
+  - Verify approved production redirect URLs, email delivery, sign-out, refresh, and account recovery
+  - Enable the guarded production account experience only after the rollout checklist passes
+- Server-backed deck library:
+  - Owner-scoped D1 deck storage and deck-specific Editor URLs are implemented
+  - Add R2-backed media objects so large images and imported assets are stored separately from deck JSON
+  - Add account deck search, sorting, archive/recovery, quota messaging, and explicit migration status
 - Cross-presentation slide transfer:
   - Copy a slide into another presentation the user can access
   - Choose the exact destination position before copying
