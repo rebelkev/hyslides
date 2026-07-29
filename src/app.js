@@ -300,7 +300,7 @@ async function init() {
   const publicView = presenterWindowMode || presentationWindowMode || location.hash.startsWith("#audience");
   if (!publicView) {
     const accountsEnabled = await accountAuthEnabled();
-    document.querySelector("#accountBtn")?.classList.toggle("hidden", !accountsEnabled);
+    document.querySelector("#accountMenuWrap")?.classList.toggle("hidden", !accountsEnabled);
     if (accountsEnabled) {
       await restoreAuthSession();
       bindAuthEvents();
@@ -365,15 +365,31 @@ function bindAuthEvents() {
       message.textContent = error.message;
     }
   });
-  document.querySelector("#accountBtn")?.addEventListener("click", async () => {
+  const accountButton = document.querySelector("#accountBtn");
+  const accountMenu = document.querySelector("#accountMenu");
+  const closeAccountMenu = () => {
+    accountMenu?.classList.add("hidden");
+    accountButton?.setAttribute("aria-expanded", "false");
+  };
+  accountButton?.addEventListener("click", () => {
     if (!isAuthenticated()) {
       document.querySelector("#authOverlay")?.classList.remove("hidden");
       return;
     }
-    if (confirm(`Sign out ${authUser()?.email || ""}?`)) {
-      await signOut();
-      location.assign("/");
-    }
+    const willOpen = accountMenu?.classList.contains("hidden");
+    accountMenu?.classList.toggle("hidden", !willOpen);
+    accountButton.setAttribute("aria-expanded", String(Boolean(willOpen)));
+  });
+  document.querySelector("#signOutBtn")?.addEventListener("click", async () => {
+    closeAccountMenu();
+    await signOut();
+    location.assign("/hyslides/");
+  });
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest("#accountMenuWrap")) closeAccountMenu();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeAccountMenu();
   });
 }
 
@@ -395,8 +411,14 @@ function updateAccountButton() {
   const text = button.querySelector(".account-label");
   if (avatar) avatar.textContent = isAuthenticated() ? initials : "?";
   if (text) text.textContent = label;
+  const menuAvatar = document.querySelector(".account-menu-avatar");
+  const menuName = document.querySelector(".account-menu-name");
+  const menuEmail = document.querySelector(".account-menu-email");
+  if (menuAvatar) menuAvatar.textContent = isAuthenticated() ? initials : "?";
+  if (menuName) menuName.textContent = fullName || label;
+  if (menuEmail) menuEmail.textContent = user?.email || "";
   button.title = isAuthenticated()
-    ? `${fullName || label}${user?.email ? ` · ${user.email}` : ""} — click to sign out`
+    ? `${fullName || label}${user?.email ? ` · ${user.email}` : ""}`
     : "Sign in";
 }
 
