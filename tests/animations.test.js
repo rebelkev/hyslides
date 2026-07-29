@@ -103,3 +103,13 @@ test("presenter timers are temporary session overlays rather than saved slide el
   assert.doesNotMatch(presenterInsert, /currentSlide\(\)\.elements\.push/);
   assert.doesNotMatch(presenterInsert, /createElement\("countdown"/);
 });
+
+test("session timer changes are republished to every live view", () => {
+  assert.match(app, /function showSessionTimer[\s\S]*?broadcastCountdownState\(\)[\s\S]*?function toggleSessionTimer/);
+  assert.match(app, /function toggleSessionTimer[\s\S]*?broadcastCountdownState\(\)[\s\S]*?function adjustSessionTimer/);
+  assert.match(app, /function adjustSessionTimer[\s\S]*?broadcastCountdownState\(\)[\s\S]*?function resetSessionTimer/);
+  assert.match(app, /function resetSessionTimer[\s\S]*?broadcastCountdownState\(\)[\s\S]*?function endSessionTimer/);
+  assert.match(app, /function endSessionTimer[\s\S]*?broadcastCountdownState\(\)[\s\S]*?function renderSessionTimerOverlays/);
+  assert.match(app, /sessionTimer: serializedSessionTimer\(\)/);
+  assert.match(app, /renderSessionTimerOverlays\(liveSlide\.runtimePresentation\?\.sessionTimer \|\| null\)/);
+});
