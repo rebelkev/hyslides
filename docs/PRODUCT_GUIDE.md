@@ -4,6 +4,19 @@
 
 HySlides is a browser-based presentation editor with optional live audience participation. A deck can be presented like a traditional slide show or run as a live session where participants follow along, answer engagement slides, and view aggregated results.
 
+## Accounts and Cloud Decks
+
+The staged account experience supports two sign-in choices:
+
+- **Continue with Google** for Google Workspace and personal Google accounts.
+- **Email sign-in code** for any valid personal or business email address, without creating or storing a password.
+
+First name, last name, and email are the only required profile fields. Google supplies them when available; email-code sign-up asks for them directly. Supabase Auth manages identity and short-lived sign-in sessions, while Cloudflare D1 stores the HySlides profile and the user’s deck ownership.
+
+Signed-in decks receive an account-specific Editor URL such as `/decks/{deck-id}/edit`. Every cloud-deck request is validated using the signed-in identity and filtered by owner. Existing decks saved in the browser are copied to the account once after the first successful sign-in; the browser copy is retained as a safety fallback if an individual deck cannot be migrated.
+
+Accounts are protected by a production rollout switch. Until Google and email-code delivery are configured and `AUTH_ENABLED=true` is set on the Cloudflare Worker, HySlides continues using its existing browser-local deck library and does not show a sign-in gate.
+
 ## The Four Views
 
 ### Editor View
@@ -122,6 +135,8 @@ When a Shape element is selected, use **Style → Shape type** to choose Rectang
 
 When a text element is selected, choose its **Typography style** in Properties. Keep **Use global style** enabled so future global changes update that element automatically. Disable it to reveal custom font formatting for that one element. Existing decks retain their current custom typography, while newly added text uses the global Body style by default.
 
+Within a text box, type `* ` at the beginning of a line to create a bullet. Press Enter after a bullet to continue the list; remove the marker or continue on a normal line to mix paragraphs and bullets in the same text element.
+
 ## Element Animations
 
 Each element can use **None**, **Appear**, or **Fade in**.
@@ -196,7 +211,7 @@ Participants can submit Q&A at any time during an active session; a dedicated Q&
 ## Current Limitations
 
 - Presenter View v1 is complete. Its responsive mobile layout supports core controls and Q&A moderation, but touch-focused gestures and pace coaching are future enhancements.
-- User accounts, server-backed deck libraries, admin template management, and collaboration are planned rather than complete.
+- Account authentication and owner-scoped cloud decks are implemented behind a controlled production rollout switch. Team sharing, media-object storage, admin template management, and real-time collaborative editing remain future work.
 - PowerPoint import does not reproduce every master, SmartArt, media, transition, or animation feature. Fonts that are unavailable in the viewer's browser use a browser fallback and are called out in the import summary.
 # Icon library
 
