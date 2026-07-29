@@ -8,6 +8,9 @@ interface Env {
   ASSETS: Fetcher;
   DB: D1Database;
   LIVE_HUB: DurableObjectNamespace;
+  SUPABASE_URL?: string;
+  SUPABASE_PUBLISHABLE_KEY?: string;
+  AUTH_ENABLED?: string;
   IMAGES: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {
@@ -38,6 +41,20 @@ const worker = {
 
     if (url.pathname === "/hyslides") {
       return Response.redirect(new URL("/hyslides/index.html", url), 307);
+    }
+
+    if (/^\/decks\/[^/]+\/edit$/.test(url.pathname)) {
+      return env.ASSETS.fetch(new Request(new URL("/hyslides/index.html", url), {
+        headers: request.headers,
+      }));
+    }
+
+    if (url.pathname === "/api/auth/config") {
+      return json({ enabled: env.AUTH_ENABLED === "true" });
+    }
+
+    if (url.pathname === "/api/account" || url.pathname === "/api/decks" || url.pathname.startsWith("/api/decks/")) {
+      return handleAccountApi(request, env, url);
     }
 
     if (url.pathname.startsWith("/hyslides/")) {
@@ -106,6 +123,149 @@ export class LiveSessionHub {
   webSocketError(socket: WebSocket) {
     try { socket.close(1011, "WebSocket error"); } catch {}
   }
+}
+
+const DEFAULT_SUPABASE_URL = "https://cgdlbwodcacxdkmznvtw.supabase.co";
+const DEFAULT_SUPABASE_KEY = "sb_publishable_oPaIppVoeV_MFsPq4fuzxA_0Y2285U-";
+
+type AccountUser = { id: string; email: string; user_metadata?: Record<string, unknown> };
+
+async function handleAccountApi(request: Request, env: Env, url: URL): Promise<Response> {
+  if (request.method === "OPTIONS") return new Response(null, { status: 204 });
+  if (env.AUTH_ENABLED !== "true") return json({ error: "Accounts are not enabled yet." }, 503);
+  if (!env.DB) return json({ error: "Account storage is unavailable." }, 503);
+  try {
+    const user = await authenticatedUser(request, env);
+    await ensureAccountSchema(env.DB);
+    await upsertUserProfile(env.DB, user);
+    if (url.pathname === "/api/account") {
+      if (request.method === "GET") {
+        return json(await accountProfile(env.DB, user.id));
+      }
+      if (request.method === "PATCH") {
+        const payload = await readJson(request);
+        await env.DB.prepare(
+          `UPDATE hyslides_user_profiles SET first_name = ?, last_name = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE user_id = ?`
+        ).bind(
+          stringValue(payload.firstName).slice(0, 80),
+          stringValue(payload.lastName).slice(0, 80),
+          user.id
+        ).run();
+        return json(await accountProfile(env.DB, user.id));
+      }
+      return json({ error: "Method not allowed." }, 405);
+    }
+    const deckId = decodeURIComponent(url.pathname.split("/").filter(Boolean)[2] || "");
+    if (!deckId) {
+      if (request.method === "GET") return json(await listAccountDecks(env.DB, user.id));
+      if (request.method === "POST") {
+        const payload = await readJson(request, 1_600_000);
+        return json(await saveAccountDeck(env.DB, user.id, payload), 201);
+      }
+      return json({ error: "Method not allowed." }, 405);
+    }
+    if (request.method === "GET") return json(await getAccountDeck(env.DB, user.id, deckId));
+    if (request.method === "PUT") {
+      const payload = await readJson(request, 1_600_000);
+      return json(await saveAccountDeck(env.DB, user.id, { ...payload, id: deckId }));
+    }
+    if (request.method === "DELETE") {
+      await env.DB.prepare(`DELETE FROM hyslides_decks WHERE id = ? AND owner_id = ?`).bind(deckId, user.id).run();
+      return json({ deleted: true });
+    }
+    return json({ error: "Method not allowed." }, 405);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Account request failed.";
+    const status = /sign in|unauthorized|token/i.test(message) ? 401
+      : /not found/i.test(message) ? 404
+      : /too large/i.test(message) ? 413 : 500;
+    return json({ error: message }, status);
+  }
+}
+
+async function authenticatedUser(request: Request, env: Env): Promise<AccountUser> {
+  const authorization = request.headers.get("Authorization") || "";
+  if (!authorization.startsWith("Bearer ")) throw new Error("Sign in required.");
+  const response = await fetch(`${env.SUPABASE_URL || DEFAULT_SUPABASE_URL}/auth/v1/user`, {
+    headers: {
+      apikey: env.SUPABASE_PUBLISHABLE_KEY || DEFAULT_SUPABASE_KEY,
+      Authorization: authorization,
+    },
+  });
+  if (!response.ok) throw new Error("Unauthorized account token.");
+  const user = await response.json() as AccountUser;
+  if (!user.id) throw new Error("Unauthorized account token.");
+  return user;
+}
+
+async function ensureAccountSchema(db: D1Database) {
+  await db.batch([
+    db.prepare(`CREATE TABLE IF NOT EXISTS hyslides_user_profiles (
+      user_id TEXT PRIMARY KEY, email TEXT NOT NULL, first_name TEXT NOT NULL DEFAULT '',
+      last_name TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS hyslides_decks (
+      id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, title TEXT NOT NULL, deck_json TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS hyslides_decks_owner_updated
+      ON hyslides_decks(owner_id, updated_at DESC)`),
+  ]);
+}
+
+async function upsertUserProfile(db: D1Database, user: AccountUser) {
+  const metadata = user.user_metadata || {};
+  const fullName = stringValue(metadata.full_name).trim().split(/\s+/);
+  const firstName = stringValue(metadata.first_name || fullName[0]).slice(0, 80);
+  const lastName = stringValue(metadata.last_name || fullName.slice(1).join(" ")).slice(0, 80);
+  await db.prepare(
+    `INSERT INTO hyslides_user_profiles (user_id, email, first_name, last_name)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(user_id) DO UPDATE SET email = excluded.email, updated_at = CURRENT_TIMESTAMP`
+  ).bind(user.id, user.email || "", firstName, lastName).run();
+}
+
+function accountProfile(db: D1Database, userId: string) {
+  return db.prepare(
+    `SELECT user_id AS userId, email, first_name AS firstName, last_name AS lastName,
+      created_at AS createdAt, updated_at AS updatedAt FROM hyslides_user_profiles WHERE user_id = ?`
+  ).bind(userId).first();
+}
+
+async function listAccountDecks(db: D1Database, ownerId: string) {
+  const result = await db.prepare(
+    `SELECT deck_json FROM hyslides_decks WHERE owner_id = ? ORDER BY updated_at DESC`
+  ).bind(ownerId).all();
+  return (result.results || []).map((row) => JSON.parse(String(row.deck_json || "{}")));
+}
+
+async function getAccountDeck(db: D1Database, ownerId: string, deckId: string) {
+  const row = await db.prepare(
+    `SELECT deck_json FROM hyslides_decks WHERE id = ? AND owner_id = ?`
+  ).bind(deckId, ownerId).first<{ deck_json: string }>();
+  if (!row) throw new Error("Deck not found.");
+  return JSON.parse(row.deck_json);
+}
+
+async function saveAccountDeck(db: D1Database, ownerId: string, payload: Record<string, unknown>) {
+  const candidate = (payload.deck && typeof payload.deck === "object" ? payload.deck : payload) as Record<string, unknown>;
+  const id = stringValue(candidate.id || payload.id) || crypto.randomUUID();
+  const title = stringValue(candidate.title || "Untitled presentation").slice(0, 180);
+  const deckJson = JSON.stringify({ ...candidate, id, title, updatedAt: new Date().toISOString() });
+  if (deckJson.length > 1_500_000) {
+    throw new Error("This deck is too large for cloud sync. Remove embedded media or use linked media.");
+  }
+  const existing = await db.prepare(`SELECT owner_id FROM hyslides_decks WHERE id = ?`).bind(id).first<{ owner_id: string }>();
+  if (existing && existing.owner_id !== ownerId) throw new Error("Deck not found.");
+  await db.prepare(
+    `INSERT INTO hyslides_decks (id, owner_id, title, deck_json)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET title = excluded.title, deck_json = excluded.deck_json,
+        updated_at = CURRENT_TIMESTAMP WHERE owner_id = excluded.owner_id`
+  ).bind(id, ownerId, title, deckJson).run();
+  return JSON.parse(deckJson);
 }
 
 async function handleLiveApi(request: Request, env: Env, url: URL): Promise<Response> {
@@ -1224,8 +1384,16 @@ function ensureEngagementShape(slide: Record<string, unknown>) {
   return engagement;
 }
 
-async function readJson(request: Request): Promise<Record<string, unknown>> {
-  return (await request.json().catch(() => ({}))) as Record<string, unknown>;
+async function readJson(request: Request, maxBytes = 1_000_000): Promise<Record<string, unknown>> {
+  const contentLength = Number(request.headers.get("content-length") || 0);
+  if (contentLength > maxBytes) throw new Error("Request is too large.");
+  const raw = await request.text();
+  if (new TextEncoder().encode(raw).byteLength > maxBytes) throw new Error("Request is too large.");
+  try {
+    return (raw ? JSON.parse(raw) : {}) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
 }
 
 function json(payload: unknown, status = 200): Response {
