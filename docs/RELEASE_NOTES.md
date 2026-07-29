@@ -2,6 +2,7 @@
 
 ## Current Development Build
 
+- Fixed deck-specific Editor URLs so the Worker serves the HySlides editor shell without forwarding the original request headers into Cloudflare's static asset binding.
 - Added a staged account foundation with Google OAuth and passwordless email codes for personal or business addresses. HySlides does not collect or store passwords.
 - Added owner-scoped D1 profiles and cloud decks, protected deck APIs, one-time browser-deck migration, and account-specific Editor URLs in the form `/decks/{deck-id}/edit`.
 - Added an account rollout switch so the existing browser-only Editor remains available until the production authentication providers are configured and explicitly enabled.
