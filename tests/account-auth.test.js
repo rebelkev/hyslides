@@ -15,6 +15,13 @@ test("accounts support Google OAuth and passwordless email codes", () => {
   assert.doesNotMatch(authSource, /password\s*:/);
 });
 
+test("signed-in users have a top-right account menu and sign-out action", () => {
+  assert.match(indexSource, /id="accountMenuWrap"/);
+  assert.match(indexSource, /id="accountMenu"/);
+  assert.match(indexSource, /id="signOutBtn"/);
+  assert.match(indexSource, /class="account-menu-email"/);
+});
+
 test("deck APIs verify bearer identity and enforce ownership", () => {
   assert.match(workerSource, /AUTH_ENABLED/);
   assert.match(workerSource, /Accounts are not enabled yet/);
