@@ -380,8 +380,23 @@ function bindAuthEvents() {
 function updateAccountButton() {
   const button = document.querySelector("#accountBtn");
   if (!button) return;
-  button.textContent = isAuthenticated()
-    ? (authUser()?.user_metadata?.first_name || authUser()?.email?.split("@")[0] || "Account")
+  const user = authUser();
+  const label = isAuthenticated()
+    ? (user?.user_metadata?.first_name || user?.email?.split("@")[0] || "Account")
+    : "Sign in";
+  const fullName = [
+    user?.user_metadata?.first_name,
+    user?.user_metadata?.last_name,
+  ].filter(Boolean).join(" ").trim();
+  const initials = fullName
+    ? fullName.split(/\s+/).slice(0, 2).map((part) => part[0]).join("")
+    : label.slice(0, 2);
+  const avatar = button.querySelector(".account-avatar");
+  const text = button.querySelector(".account-label");
+  if (avatar) avatar.textContent = isAuthenticated() ? initials : "?";
+  if (text) text.textContent = label;
+  button.title = isAuthenticated()
+    ? `${fullName || label}${user?.email ? ` · ${user.email}` : ""} — click to sign out`
     : "Sign in";
 }
 
