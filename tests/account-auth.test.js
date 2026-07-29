@@ -25,10 +25,12 @@ test("deck APIs verify bearer identity and enforce ownership", () => {
   assert.match(workerSource, /hyslides_decks/);
 });
 
-test("deck-specific editor routes safely load the static editor shell", () => {
+test("deck-specific editor routes safely bootstrap through the public editor shell", () => {
   assert.match(workerSource, /editorShellUrl/);
-  assert.match(workerSource, /new Request\(editorShellUrl\.toString\(\), \{ method: "GET" \}\)/);
-  assert.doesNotMatch(workerSource, /editorShellUrl[\s\S]{0,180}headers:\s*request\.headers/);
+  assert.match(workerSource, /editorShellUrl\.searchParams\.set\("deck", deckId\)/);
+  assert.match(workerSource, /Response\.redirect\(editorShellUrl, 307\)/);
+  assert.match(storageSource, /new URLSearchParams\(location\.search\)\.get\("deck"\)/);
+  assert.match(storageSource, /history\.replaceState\(null, "", `\/decks\//);
 });
 
 test("signed-in decks receive account-specific routes and browser migration", () => {
