@@ -9,9 +9,11 @@ export async function accountAuthEnabled() {
   if (typeof authEnabled === "boolean") return authEnabled;
   try {
     const response = await fetch("/api/auth/config", { headers: { Accept: "application/json" } });
-    authEnabled = response.ok && Boolean((await response.json()).enabled);
+    if (!response.ok) throw new Error("Authentication configuration is unavailable.");
+    authEnabled = (await response.json()).enabled !== false;
   } catch {
-    authEnabled = false;
+    // Fail closed: a configuration or network problem must never expose the editor.
+    authEnabled = true;
   }
   return authEnabled;
 }
