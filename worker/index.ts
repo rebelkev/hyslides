@@ -51,7 +51,7 @@ const worker = {
     }
 
     if (url.pathname === "/api/auth/config") {
-      return json({ enabled: env.AUTH_ENABLED === "true" });
+      return json({ enabled: accountsEnabled(env) });
     }
 
     if (url.pathname === "/api/account" || url.pathname === "/api/decks" || url.pathname.startsWith("/api/decks/")) {
@@ -133,7 +133,7 @@ type AccountUser = { id: string; email: string; user_metadata?: Record<string, u
 
 async function handleAccountApi(request: Request, env: Env, url: URL): Promise<Response> {
   if (request.method === "OPTIONS") return new Response(null, { status: 204 });
-  if (env.AUTH_ENABLED !== "true") return json({ error: "Accounts are not enabled yet." }, 503);
+  if (!accountsEnabled(env)) return json({ error: "Accounts are not enabled yet." }, 503);
   if (!env.DB) return json({ error: "Account storage is unavailable." }, 503);
   try {
     const user = await authenticatedUser(request, env);
@@ -183,6 +183,10 @@ async function handleAccountApi(request: Request, env: Env, url: URL): Promise<R
       : /too large/i.test(message) ? 413 : 500;
     return json({ error: message }, status);
   }
+}
+
+function accountsEnabled(env: Env): boolean {
+  return String(env.AUTH_ENABLED || "true").trim().toLowerCase() !== "false";
 }
 
 async function authenticatedUser(request: Request, env: Env): Promise<AccountUser> {
