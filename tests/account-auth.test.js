@@ -9,6 +9,7 @@ const indexSource = await readFile(new URL("../index.html", import.meta.url), "u
 
 test("accounts support Google OAuth and passwordless email codes", () => {
   assert.match(authSource, /\/api\/auth\/config/);
+  assert.match(authSource, /authEnabled = true/);
   assert.match(authSource, /provider", "google"/);
   assert.match(authSource, /\/auth\/v1\/otp/);
   assert.match(authSource, /\/auth\/v1\/verify/);
@@ -32,6 +33,8 @@ test("sign-out clears the local session before remote logout and returns to sign
 
 test("deck APIs verify bearer identity and enforce ownership", () => {
   assert.match(workerSource, /AUTH_ENABLED/);
+  assert.match(workerSource, /function accountsEnabled/);
+  assert.match(workerSource, /env\.AUTH_ENABLED \|\| "true"/);
   assert.match(workerSource, /Accounts are not enabled yet/);
   assert.match(workerSource, /\/auth\/v1\/user/);
   assert.match(workerSource, /Authorization/);
