@@ -22,6 +22,14 @@ test("signed-in users have a top-right account menu and sign-out action", () => 
   assert.match(indexSource, /class="account-menu-email"/);
 });
 
+test("sign-out clears the local session before remote logout and returns to sign-in", async () => {
+  const appSource = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
+  const signOutSource = authSource.match(/export async function signOut\(\) \{[\s\S]*?\n\}/)?.[0] || "";
+  assert.ok(signOutSource.indexOf("clearSession()") < signOutSource.indexOf("supabaseFetch"));
+  assert.match(signOutSource, /keepalive:\s*true/);
+  assert.match(appSource, /location\.replace\("\/hyslides\/"\)/);
+});
+
 test("deck APIs verify bearer identity and enforce ownership", () => {
   assert.match(workerSource, /AUTH_ENABLED/);
   assert.match(workerSource, /Accounts are not enabled yet/);
