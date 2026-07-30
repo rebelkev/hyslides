@@ -28,6 +28,11 @@
 - Touch gestures and larger mobile control targets
 - Presenter annotations and a temporary spotlight/pointer
 - Live Q&A moderation queue
+- Presentation Keep Awake:
+  - Add a clear **Keep this device awake** control to Presenter View and the Presenter Remote
+  - Use the browser Screen Wake Lock API while presenting instead of attempting to move the operating-system pointer
+  - Reacquire the wake lock after tab visibility changes and show an unmistakable active/unsupported status
+  - Release the wake lock when the presentation or session ends
 
 ## Next Structural Milestone: Real-Time Session Delivery
 
@@ -83,6 +88,9 @@
   - Configure Google OAuth and passwordless email-code templates in Supabase
   - Verify approved production redirect URLs, email delivery, sign-out, refresh, and account recovery
   - Enable the guarded production account experience only after the rollout checklist passes
+  - Create a protected profile for each account with display name, first name, last name, email, avatar, and timestamps
+  - Add account settings for profile editing, connected sign-in methods, active sessions, account export, and account deletion
+  - Migrate existing browser-saved decks into the signed-in account only after explicit confirmation
 - Server-backed deck library:
   - Owner-scoped D1 deck storage and deck-specific Editor URLs are implemented
   - Add R2-backed media objects so large images and imported assets are stored separately from deck JSON
@@ -93,7 +101,25 @@
   - Preserve supported elements, animations, notes, engagement configuration, and linked assets
   - Respect presentation ownership, team roles, and edit permissions
   - Resolve deck-specific dependencies such as typography styles, color styles, and uploaded media without changing the source slide
-- Admin access and template management
+- Admin access and platform management:
+  - Protect admin routes and actions with a server-verified role; never rely on a hidden button or client-side flag
+  - Manage users, account status, roles, organizations, subscription entitlements, and storage limits without exposing passwords
+  - Manage the global template library, starter decks, approved fonts, icons, stock-media providers, and featured resources
+  - Review reported or abusive public/session content and apply moderation actions with a reason
+  - Monitor authentication, email delivery, Worker errors, live-session health, API quotas, storage usage, and deployment status
+  - Configure feature flags and staged rollouts so unfinished capabilities can be tested safely
+  - Support privacy requests, account/deck export, retention enforcement, and account deletion
+  - Record an immutable audit trail for admin changes, support access, role changes, and destructive actions
+  - Keep private decks inaccessible by default; any exceptional support access must require a reason, be time-limited, and be audited
+- Open media library for image insertion:
+  - Keep local computer upload and add provider tabs inside one consistent media picker
+  - Launch with **Unsplash**, **Pexels**, and **Openverse** search; evaluate Pixabay as a later provider rather than duplicating the initial catalog
+  - Search by keyword, orientation, dominant color, and safe-content level, with useful previews and pagination
+  - Preserve creator, source, license, attribution, and original-page metadata with each inserted asset
+  - Follow provider-specific download, hotlinking, attribution, key-security, and rate-limit requirements
+  - Store inserted assets through the deck media pipeline so presentations remain reliable if a third-party URL changes
+  - Design a provider adapter so additional open resources can be added without rebuilding the Editor
+  - Later media candidates: Openverse audio, Wikimedia Commons, Pexels video, and Pixabay media, each gated by licensing and moderation review
 - Advanced element-layer controls:
   - Support moving complete groups while preserving their internal structure, plus reordering elements within expanded groups
   - Preserve locked and protected system elements, with accessible keyboard move controls as an alternative to dragging
