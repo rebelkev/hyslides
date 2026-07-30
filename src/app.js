@@ -383,7 +383,7 @@ function bindAuthEvents() {
   document.querySelector("#signOutBtn")?.addEventListener("click", async () => {
     closeAccountMenu();
     await signOut();
-    location.assign("/hyslides/");
+    location.replace("/hyslides/");
   });
   document.addEventListener("click", (event) => {
     if (!event.target.closest("#accountMenuWrap")) closeAccountMenu();
