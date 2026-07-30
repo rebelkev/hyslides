@@ -92,13 +92,14 @@ export async function verifyEmailCode(email, token) {
 }
 
 export async function signOut() {
-  if (currentSession?.access_token) {
-    await supabaseFetch("/auth/v1/logout", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${currentSession.access_token}` },
-    }).catch(() => null);
-  }
+  const accessToken = currentSession?.access_token;
   clearSession();
+  if (!accessToken) return;
+  void supabaseFetch("/auth/v1/logout", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+    keepalive: true,
+  }).catch(() => null);
 }
 
 export async function authorizedFetch(path, options = {}) {
