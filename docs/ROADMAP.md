@@ -103,7 +103,19 @@
   - Resolve deck-specific dependencies such as typography styles, color styles, and uploaded media without changing the source slide
 - Admin access and platform management:
   - Protect admin routes and actions with a server-verified role; never rely on a hidden button or client-side flag
-  - Manage users, account status, roles, organizations, subscription entitlements, and storage limits without exposing passwords
+  - Keep private deck contents, notes, responses, and uploaded media inaccessible to platform administrators by default
+  - Manage user and account metadata without exposing passwords: name, email, status, authentication method, signup/last-active dates, team memberships, plan, billing status, and aggregate usage counts
+  - Show privacy-safe account metrics such as deck, slide, presentation-session, participant, and storage totals without opening user content
+  - Separate platform-administrator permissions from future team-administrator permissions
+  - Default every new and existing account to the Free tier until a paid subscription or explicit audited override applies
+  - Provide an editable plan-entitlement matrix with features and limits as rows and subscription tiers as columns
+  - Support boolean entitlements, numeric quotas, and tier-specific limits such as deck count, slides per deck, storage, audience size, exports, retention, premium media, AI usage, and team features
+  - Allow authorized admins to change tier entitlements without a code deployment, with version history, effective dates, and an immutable audit trail
+  - Support temporary per-account or per-team entitlement overrides with a reason and expiration date
+  - Enforce entitlements on the server for every protected API action as well as in the interface
+  - Track usage counters and show warnings before a user reaches a plan limit
+  - Preserve existing content after a downgrade; prevent new over-limit creation rather than deleting decks, slides, responses, or media
+  - Keep billing-provider subscription state separate from HySlides' internal entitlement state so payment providers can be changed later
   - Manage the global template library, starter decks, approved fonts, icons, stock-media providers, and featured resources
   - Review reported or abusive public/session content and apply moderation actions with a reason
   - Monitor authentication, email delivery, Worker errors, live-session health, API quotas, storage usage, and deployment status
@@ -158,4 +170,6 @@
 - QR and access-code slide elements are protected and hidden rather than permanently deleted.
 - Live response and participant data is retained for 14 days.
 - Accounts should precede admin tools and persistent cross-device deck storage.
+- Billing should use provider webhooks to update an internal subscription record; product access is always determined by the server-side HySlides entitlement system.
+- The public marketing site and authenticated Editor should use separate web surfaces while sharing Supabase authentication and the same account/subscription records.
 - Cross-presentation slide copying should follow accounts, server-backed deck ownership, and team permissions.
