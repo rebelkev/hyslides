@@ -1,8 +1,6 @@
 const SUPABASE_URL = "https://bfyamyqgxrjuapvrsxcg.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_paIqZAOodaEzuAw4GKtNig_inpDEafR";
 const SESSION_KEY = "hyslides.auth.session";
-export const CURRENT_TERMS_VERSION = "2026-07-31";
-const PENDING_TERMS_KEY = "hyslides.auth.pendingTerms";
 
 let currentSession = readSession();
 let authEnabled;
@@ -64,10 +62,6 @@ export function signInWithGoogle() {
   location.assign(url);
 }
 
-export function rememberTermsConsent() {
-  sessionStorage.setItem(PENDING_TERMS_KEY, CURRENT_TERMS_VERSION);
-}
-
 export async function termsAcceptanceStatus() {
   const response = await authorizedFetch("/api/account/terms", {
     headers: { Accept: "application/json" },
@@ -76,20 +70,14 @@ export async function termsAcceptanceStatus() {
   return response.json();
 }
 
-export async function acceptCurrentTerms(source = "existing-account") {
+export async function acceptCurrentTerms(version, source = "existing-account") {
   const response = await authorizedFetch("/api/account/terms", {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ version: CURRENT_TERMS_VERSION, source }),
+    body: JSON.stringify({ version, source }),
   });
   if (!response.ok) throw new Error(await apiError(response, "Unable to record Terms acceptance."));
-  sessionStorage.removeItem(PENDING_TERMS_KEY);
   return response.json();
-}
-
-export async function completePendingTermsAcceptance() {
-  if (sessionStorage.getItem(PENDING_TERMS_KEY) !== CURRENT_TERMS_VERSION) return null;
-  return acceptCurrentTerms("signup");
 }
 
 export async function requestEmailCode(email, profile = {}) {

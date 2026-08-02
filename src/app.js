@@ -82,10 +82,7 @@ import {
   acceptCurrentTerms,
   accountAuthEnabled,
   authUser,
-  completePendingTermsAcceptance,
-  CURRENT_TERMS_VERSION,
   isAuthenticated,
-  rememberTermsConsent,
   requestEmailCode,
   restoreAuthSession,
   signInWithGoogle,
@@ -166,6 +163,7 @@ const PARTICIPANT_ID_KEY = "hyslides.participantId";
 const ACTIVE_SESSION_KEY = "hyslides.activeSession";
 
 let deck = createSeedDeck();
+let currentTermsVersion = "";
 let activeSlideIndex = 0;
 let selectedSlideIndexes = new Set([0]);
 let slideSelectionAnchor = 0;
@@ -318,8 +316,9 @@ async function init() {
       }
       if (location.pathname === "/signin") history.replaceState(null, "", "/");
       try {
-        await completePendingTermsAcceptance();
         const terms = await termsAcceptanceStatus();
+        currentTermsVersion = terms.currentVersion || "";
+        updateTermsVersionLabels();
         if (!terms.accepted) {
           document.querySelector("#termsAcceptanceOverlay")?.classList.remove("hidden");
           document.querySelector("#termsAcceptanceOverlay")?.setAttribute("aria-hidden", "false");
@@ -359,24 +358,10 @@ async function init() {
 }
 
 function bindAuthEvents() {
-  const requireSignupConsent = () => {
-    const checkbox = document.querySelector("#authTermsConsent");
-    const message = document.querySelector("#authMessage");
-    if (!checkbox?.checked) {
-      if (message) message.textContent = "Please accept the Terms of Service to continue.";
-      checkbox?.focus();
-      return false;
-    }
-    rememberTermsConsent();
-    return true;
-  };
-  document.querySelector("#googleSignInBtn")?.addEventListener("click", () => {
-    if (requireSignupConsent()) signInWithGoogle();
-  });
+  document.querySelector("#googleSignInBtn")?.addEventListener("click", signInWithGoogle);
   document.querySelector("#emailAuthForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const message = document.querySelector("#authMessage");
-    if (!requireSignupConsent()) return;
     try {
       const email = await requestEmailCode(document.querySelector("#authEmail")?.value, {
         firstName: document.querySelector("#authFirstName")?.value,
@@ -397,7 +382,6 @@ function bindAuthEvents() {
         document.querySelector("#authEmail")?.value,
         document.querySelector("#authCode")?.value
       );
-      await acceptCurrentTerms("signup");
       location.reload();
     } catch (error) {
       message.textContent = error.message;
@@ -412,15 +396,16 @@ function bindAuthEvents() {
       return;
     }
     try {
-      await acceptCurrentTerms("existing-account");
+      await acceptCurrentTerms(currentTermsVersion, "existing-account");
       location.reload();
     } catch (error) {
       if (message) message.textContent = error.message;
     }
   });
-  for (const node of document.querySelectorAll("[data-terms-version]")) {
-    node.textContent = CURRENT_TERMS_VERSION;
-  }
+  document.querySelector("#declineCurrentTermsBtn")?.addEventListener("click", async () => {
+    await signOut();
+    location.replace("/signin");
+  });
   const accountButton = document.querySelector("#accountBtn");
   const accountMenu = document.querySelector("#accountMenu");
   const closeAccountMenu = () => {
@@ -447,6 +432,12 @@ function bindAuthEvents() {
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") closeAccountMenu();
   });
+}
+
+function updateTermsVersionLabels() {
+  for (const node of document.querySelectorAll("[data-terms-version]")) {
+    node.textContent = currentTermsVersion || "current";
+  }
 }
 
 function updateAccountButton() {

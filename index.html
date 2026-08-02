@@ -421,10 +421,6 @@
         <div class="auth-brand"><span>N</span><strong>Nifty Slides</strong></div>
         <h1 id="authTitle">Your presentations, ready anywhere.</h1>
         <p>Sign in to create, edit, and present decks. Audience participation never requires an account.</p>
-        <label class="auth-legal-consent" for="authTermsConsent">
-          <input id="authTermsConsent" type="checkbox" required />
-          <span>I agree to the <a href="/terms" target="_blank" rel="noopener">Nifty Slides Terms of Service</a> (version <span data-terms-version>2026-07-31</span>).</span>
-        </label>
         <button id="googleSignInBtn" class="auth-google" type="button">Continue with Google</button>
         <div class="auth-divider"><span>or use any email address</span></div>
         <form id="emailAuthForm">
@@ -461,9 +457,10 @@
         </div>
         <label class="auth-legal-consent" for="currentTermsConsent">
           <input id="currentTermsConsent" type="checkbox" required />
-          <span>I have read and agree to the <a href="/terms" target="_blank" rel="noopener">Terms of Service</a> (version <span data-terms-version>2026-07-31</span>).</span>
+          <span>I have read and agree to the <a href="/terms" target="_blank" rel="noopener">Terms of Service</a> (version <span data-terms-version>current</span>).</span>
         </label>
         <button id="acceptCurrentTermsBtn" class="auth-google" type="button">Accept and continue</button>
+        <button id="declineCurrentTermsBtn" type="button">Sign out</button>
         <p id="termsAcceptanceMessage" class="auth-message" aria-live="polite"></p>
       </div>
     </div>

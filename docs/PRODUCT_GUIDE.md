@@ -15,6 +15,8 @@ First name, last name, and email are the only required profile fields. Google su
 
 Signed-in decks receive an account-specific Editor URL such as `/decks/{deck-id}/edit`. Every cloud-deck request is validated using the signed-in identity and filtered by owner. Existing decks saved in the browser are copied to the account once after the first successful sign-in; the browser copy is retained as a safety fallback if an individual deck cannot be migrated.
 
+After sign-in, Nifty Slides checks whether the account has accepted the currently published Terms of Service. A blocking review panel appears only when acceptance is missing or a newer Terms version has been published. Each acceptance is stored in Supabase as an append-only record containing the user, immutable document version, and server-generated timestamp. Deck and account APIs remain unavailable until the current version is accepted. The public Terms page is always available at `/terms`, and declining signs the user out without recording acceptance.
+
 Accounts are protected by a production rollout switch. Until Google and email-code delivery are configured and `AUTH_ENABLED=true` is set on the Cloudflare Worker, Nifty Slides continues using its existing browser-local deck library and does not show a sign-in gate.
 
 ## The Four Views

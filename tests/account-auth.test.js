@@ -7,6 +7,11 @@ const workerSource = await readFile(new URL("../worker/index.ts", import.meta.ur
 const storageSource = await readFile(new URL("../src/storage.js", import.meta.url), "utf8");
 const indexSource = await readFile(new URL("../index.html", import.meta.url), "utf8");
 const viteSource = await readFile(new URL("../vite.config.ts", import.meta.url), "utf8");
+const appSource = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
+const legalMigration = await readFile(
+  new URL("../supabase/migrations/202608020001_versioned_legal_acceptance.sql", import.meta.url),
+  "utf8"
+);
 
 test("accounts support Google OAuth and passwordless email codes", () => {
   assert.match(authSource, /\/api\/auth\/config/);
@@ -22,6 +27,29 @@ test("signed-in users have a top-right account menu and sign-out action", () => 
   assert.match(indexSource, /id="accountMenu"/);
   assert.match(indexSource, /id="signOutBtn"/);
   assert.match(indexSource, /class="account-menu-email"/);
+});
+
+test("Terms acceptance is a versioned post-login gate rather than a repeated sign-in checkbox", () => {
+  assert.doesNotMatch(indexSource, /id="authTermsConsent"/);
+  assert.match(indexSource, /id="termsAcceptanceOverlay"/);
+  assert.match(indexSource, /id="acceptCurrentTermsBtn"/);
+  assert.match(indexSource, /id="declineCurrentTermsBtn"/);
+  assert.match(appSource, /currentTermsVersion = terms\.currentVersion/);
+  assert.match(appSource, /acceptCurrentTerms\(currentTermsVersion, "existing-account"\)/);
+  assert.doesNotMatch(authSource, /PENDING_TERMS_KEY|rememberTermsConsent|completePendingTermsAcceptance/);
+});
+
+test("Terms acceptance is append-only in Supabase and enforced before account data", () => {
+  assert.match(legalMigration, /create table if not exists public\.legal_documents/);
+  assert.match(legalMigration, /create table if not exists public\.legal_acceptances/);
+  assert.match(legalMigration, /unique \(user_id, document_id\)/);
+  assert.match(legalMigration, /enable row level security/);
+  assert.match(legalMigration, /auth\.uid\(\) = user_id/);
+  assert.match(legalMigration, /revoke update, delete/);
+  assert.match(workerSource, /\/rest\/v1\/legal_documents/);
+  assert.match(workerSource, /\/rest\/v1\/legal_acceptances/);
+  assert.match(workerSource, /TERMS_ACCEPTANCE_REQUIRED/);
+  assert.match(workerSource, /TERMS_ACCEPTANCE_REQUIRED[\s\S]*url\.pathname === "\/api\/account"/);
 });
 
 test("sign-out clears the local session before remote logout and returns to sign-in", async () => {

@@ -141,9 +141,19 @@ export class LiveSessionHub {
 
 const DEFAULT_SUPABASE_URL = "https://bfyamyqgxrjuapvrsxcg.supabase.co";
 const DEFAULT_SUPABASE_KEY = "sb_publishable_paIqZAOodaEzuAw4GKtNig_inpDEafR";
-const CURRENT_TERMS_VERSION = "2026-07-31";
 
 type AccountUser = { id: string; email: string; user_metadata?: Record<string, unknown> };
+type LegalDocument = {
+  id: string;
+  version: string;
+  effective_at: string;
+  content_sha256: string;
+};
+type LegalAcceptance = {
+  accepted_version: string;
+  accepted_at: string;
+  acceptance_source: string;
+};
 
 async function handleAccountApi(request: Request, env: Env, url: URL): Promise<Response> {
   if (request.method === "OPTIONS") return new Response(null, { status: 204 });
@@ -155,28 +165,42 @@ async function handleAccountApi(request: Request, env: Env, url: URL): Promise<R
     await upsertUserProfile(env.DB, user);
     if (url.pathname === "/api/account/terms") {
       if (request.method === "GET") {
-        return json(await termsAcceptanceStatus(env.DB, user.id));
+        return json(await termsAcceptanceStatus(request, env, user.id));
       }
       if (request.method === "POST") {
         const payload = await readJson(request);
         const version = stringValue(payload.version);
-        if (version !== CURRENT_TERMS_VERSION) {
+        const current = await currentTermsDocument(request, env);
+        if (version !== current.version) {
           return json({ error: "Please review and accept the current Terms of Service." }, 409);
         }
         const source = ["signup", "existing-account"].includes(stringValue(payload.source))
           ? stringValue(payload.source) : "existing-account";
-        await env.DB.prepare(
-          `INSERT OR IGNORE INTO hyslides_legal_acceptances
-            (id, user_id, document_type, document_version, source)
-            VALUES (?, ?, 'terms', ?, ?)`
-        ).bind(crypto.randomUUID(), user.id, CURRENT_TERMS_VERSION, source).run();
-        return json(await termsAcceptanceStatus(env.DB, user.id), 201);
+        await supabaseRest(request, env, "/rest/v1/legal_acceptances?on_conflict=user_id,document_id", {
+          method: "POST",
+          headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
+          body: JSON.stringify({
+            user_id: user.id,
+            document_id: current.id,
+            accepted_version: current.version,
+            acceptance_source: source,
+          }),
+        });
+        return json(await termsAcceptanceStatus(request, env, user.id), 201);
       }
       return json({ error: "Method not allowed." }, 405);
     }
+    const terms = await termsAcceptanceStatus(request, env, user.id);
+    if (!terms.accepted) {
+      return json({
+        error: "Please accept the current Terms of Service before using your account.",
+        code: "TERMS_ACCEPTANCE_REQUIRED",
+        currentVersion: terms.currentVersion,
+      }, 403);
+    }
     if (url.pathname === "/api/account") {
       if (request.method === "GET") {
-        return json(await accountProfile(env.DB, user.id));
+        return json(await accountProfile(env.DB, user.id, terms));
       }
       if (request.method === "PATCH") {
         const payload = await readJson(request);
@@ -188,7 +212,7 @@ async function handleAccountApi(request: Request, env: Env, url: URL): Promise<R
           stringValue(payload.lastName).slice(0, 80),
           user.id
         ).run();
-        return json(await accountProfile(env.DB, user.id));
+        return json(await accountProfile(env.DB, user.id, terms));
       }
       return json({ error: "Method not allowed." }, 405);
     }
@@ -252,14 +276,6 @@ async function ensureAccountSchema(db: D1Database) {
     )`),
     db.prepare(`CREATE INDEX IF NOT EXISTS hyslides_decks_owner_updated
       ON hyslides_decks(owner_id, updated_at DESC)`),
-    db.prepare(`CREATE TABLE IF NOT EXISTS hyslides_legal_acceptances (
-      id TEXT PRIMARY KEY, user_id TEXT NOT NULL, document_type TEXT NOT NULL,
-      document_version TEXT NOT NULL, source TEXT NOT NULL DEFAULT 'existing-account',
-      accepted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE(user_id, document_type, document_version)
-    )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS hyslides_legal_acceptances_user
-      ON hyslides_legal_acceptances(user_id, accepted_at DESC)`),
   ]);
 }
 
@@ -275,28 +291,74 @@ async function upsertUserProfile(db: D1Database, user: AccountUser) {
   ).bind(user.id, user.email || "", firstName, lastName).run();
 }
 
-async function accountProfile(db: D1Database, userId: string) {
+async function accountProfile(
+  db: D1Database,
+  userId: string,
+  terms: Awaited<ReturnType<typeof termsAcceptanceStatus>>,
+) {
   const profile = await db.prepare(
     `SELECT user_id AS userId, email, first_name AS firstName, last_name AS lastName,
       created_at AS createdAt, updated_at AS updatedAt FROM hyslides_user_profiles WHERE user_id = ?`
   ).bind(userId).first<Record<string, unknown>>();
-  const terms = await termsAcceptanceStatus(db, userId);
   return { ...profile, termsVersion: terms.acceptedVersion, termsAcceptedAt: terms.acceptedAt };
 }
 
-async function termsAcceptanceStatus(db: D1Database, userId: string) {
-  const row = await db.prepare(
-    `SELECT document_version AS acceptedVersion, accepted_at AS acceptedAt
-      FROM hyslides_legal_acceptances
-      WHERE user_id = ? AND document_type = 'terms' AND document_version = ?
-      ORDER BY accepted_at DESC LIMIT 1`
-  ).bind(userId, CURRENT_TERMS_VERSION).first<{ acceptedVersion: string; acceptedAt: string }>();
+async function currentTermsDocument(request: Request, env: Env): Promise<LegalDocument> {
+  const rows = await supabaseRest<LegalDocument[]>(
+    request,
+    env,
+    "/rest/v1/legal_documents?document_type=eq.terms&status=eq.published" +
+      "&select=id,version,effective_at,content_sha256&order=effective_at.desc&limit=1",
+  );
+  if (!rows[0]) throw new Error("The current Terms of Service are unavailable.");
+  return rows[0];
+}
+
+async function termsAcceptanceStatus(request: Request, env: Env, userId: string) {
+  const document = await currentTermsDocument(request, env);
+  const rows = await supabaseRest<LegalAcceptance[]>(
+    request,
+    env,
+    "/rest/v1/legal_acceptances?user_id=eq." + encodeURIComponent(userId) +
+      "&document_id=eq." + encodeURIComponent(document.id) +
+      "&select=accepted_version,accepted_at,acceptance_source&order=accepted_at.desc&limit=1",
+  );
+  const row = rows[0];
   return {
     accepted: Boolean(row),
-    currentVersion: CURRENT_TERMS_VERSION,
-    acceptedVersion: row?.acceptedVersion || null,
-    acceptedAt: row?.acceptedAt || null,
+    currentVersion: document.version,
+    effectiveAt: document.effective_at,
+    contentSha256: document.content_sha256,
+    acceptedVersion: row?.accepted_version || null,
+    acceptedAt: row?.accepted_at || null,
+    acceptanceSource: row?.acceptance_source || null,
   };
+}
+
+async function supabaseRest<T = unknown>(
+  request: Request,
+  env: Env,
+  path: string,
+  init: RequestInit = {},
+): Promise<T> {
+  const authorization = request.headers.get("Authorization") || "";
+  if (!authorization.startsWith("Bearer ")) throw new Error("Sign in required.");
+  const headers = new Headers(init.headers || {});
+  headers.set("apikey", env.SUPABASE_PUBLISHABLE_KEY || DEFAULT_SUPABASE_KEY);
+  headers.set("Authorization", authorization);
+  if (init.body) headers.set("Content-Type", "application/json");
+  const response = await fetch(`${env.SUPABASE_URL || DEFAULT_SUPABASE_URL}${path}`, {
+    ...init,
+    headers,
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
+    throw new Error(stringValue(payload.message || payload.error || "Legal record request failed."));
+  }
+  if (response.status === 204 || !response.headers.get("content-type")?.includes("application/json")) {
+    return undefined as T;
+  }
+  return response.json() as Promise<T>;
 }
 
 async function listAccountDecks(db: D1Database, ownerId: string) {

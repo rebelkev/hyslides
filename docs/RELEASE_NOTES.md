@@ -2,6 +2,8 @@
 
 ## Current Development Build
 
+- Replaced repeated sign-in consent with a versioned post-login Terms gate. Nifty Slides now checks the current published document after authentication, records acceptance in an append-only Supabase table with a server timestamp, and blocks account and deck APIs until the current version is accepted.
+- Added a public `/terms` page and a clear sign-out path for users who decline. The acceptance panel explicitly confirms that users retain ownership of their presentations, uploads, audience responses, and other submitted content.
 - Fixed deck-specific Editor URLs so the Worker serves the Nifty Slides editor shell without forwarding the original request headers into Cloudflare's static asset binding.
 - Added a staged account foundation with Google OAuth and passwordless email codes for personal or business addresses. Nifty Slides does not collect or store passwords.
 - Added owner-scoped D1 profiles and cloud decks, protected deck APIs, one-time browser-deck migration, and account-specific Editor URLs in the form `/decks/{deck-id}/edit`.
