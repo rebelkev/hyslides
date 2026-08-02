@@ -40,7 +40,7 @@ const worker = {
       return env.ASSETS.fetch(new Request(assetUrl, { method: "GET" }));
     };
 
-    if (url.pathname === "/" || url.pathname === "/signin" || /^\/decks\/[^/]+\/edit$/.test(url.pathname)) {
+    if (url.pathname === "/" || url.pathname === "/signin" || url.pathname === "/dashboard" || /^\/decks\/[^/]+\/edit$/.test(url.pathname)) {
       return serveAsset("/index.html");
     }
 

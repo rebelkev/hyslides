@@ -46,6 +46,66 @@
         <symbol id="icon-settings" viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM4 13v-2l2-1 .5-1.2-.7-2.1 1.4-1.4 2.1.7L10.5 5l.5-2h2l.5 2 1.2 1 2.1-.7 1.4 1.4-.7 2.1L18 10l2 1v2l-2 1-.5 1.2.7 2.1-1.4 1.4-2.1-.7-1.2 1-.5 2h-2l-.5-2-1.2-1-2.1.7-1.4-1.4.7-2.1L6 14z" /></symbol>
       </defs>
     </svg>
+    <div id="dashboardApp" class="dashboard-app hidden" aria-hidden="true">
+      <header class="dashboard-header">
+        <a class="dashboard-brand" href="/dashboard" aria-label="Nifty Slides dashboard">
+          <span class="brand-mark" aria-hidden="true">N</span>
+          <span>Nifty Slides</span>
+        </a>
+        <div class="dashboard-account-wrap">
+          <button id="dashboardAccountBtn" class="dashboard-account-button" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="dashboardAccountMenu">
+            <span class="dashboard-account-avatar" aria-hidden="true">?</span>
+            <span class="dashboard-account-name">Account</span>
+            <span aria-hidden="true">⌄</span>
+          </button>
+          <div id="dashboardAccountMenu" class="dashboard-account-menu hidden" role="menu" aria-label="Account menu">
+            <div class="account-identity">
+              <span class="dashboard-menu-avatar" aria-hidden="true">?</span>
+              <span>
+                <strong class="dashboard-menu-name">Account</strong>
+                <small class="dashboard-menu-email"></small>
+              </span>
+            </div>
+            <button id="dashboardSignOutBtn" class="account-sign-out" type="button" role="menuitem">Sign out</button>
+          </div>
+        </div>
+      </header>
+      <main class="dashboard-main">
+        <div class="dashboard-heading">
+          <div>
+            <p class="dashboard-eyebrow">Workspace</p>
+            <h1>Your presentations</h1>
+            <p>Create, edit, and present from anywhere.</p>
+          </div>
+        </div>
+        <div id="dashboardStatus" class="dashboard-status" role="status" aria-live="polite"></div>
+        <section id="dashboardDeckGrid" class="dashboard-grid" aria-label="Your presentations"></section>
+      </main>
+      <div id="dashboardDialogOverlay" class="dashboard-dialog-overlay hidden" aria-hidden="true">
+        <section class="dashboard-dialog" role="dialog" aria-modal="true" aria-labelledby="dashboardDialogTitle">
+          <header>
+            <div>
+              <h2 id="dashboardDialogTitle">Presentation</h2>
+              <p id="dashboardDialogDescription"></p>
+            </div>
+            <button id="closeDashboardDialogBtn" class="dashboard-dialog-close" type="button" aria-label="Close">×</button>
+          </header>
+          <form id="dashboardRenameForm" class="hidden">
+            <label for="dashboardDeckNameInput">Presentation name</label>
+            <input id="dashboardDeckNameInput" type="text" maxlength="160" required />
+            <div class="dashboard-dialog-actions">
+              <button type="button" data-dashboard-dialog-cancel>Cancel</button>
+              <button class="primary" type="submit">Save name</button>
+            </div>
+          </form>
+          <div id="dashboardDeleteControls" class="dashboard-dialog-actions hidden">
+            <button type="button" data-dashboard-dialog-cancel>Cancel</button>
+            <button id="confirmDashboardDeleteBtn" class="danger" type="button">Delete presentation</button>
+          </div>
+        </section>
+      </div>
+    </div>
+
     <div id="app" class="app-shell" data-mode="edit">
       <header class="topbar" aria-label="Main toolbar">
         <div class="app-menu-wrap">

@@ -164,6 +164,8 @@ const ACTIVE_SESSION_KEY = "hyslides.activeSession";
 
 let deck = createSeedDeck();
 let currentTermsVersion = "";
+let dashboardDecks = [];
+let dashboardDialogDeckId = "";
 let activeSlideIndex = 0;
 let selectedSlideIndexes = new Set([0]);
 let slideSelectionAnchor = 0;
@@ -301,8 +303,9 @@ async function init() {
     return;
   }
   const publicView = presenterWindowMode || presentationWindowMode || location.hash.startsWith("#audience");
+  let accountsEnabled = false;
   if (!publicView) {
-    const accountsEnabled = await accountAuthEnabled();
+    accountsEnabled = await accountAuthEnabled();
     document.querySelector("#accountMenuWrap")?.classList.toggle("hidden", !accountsEnabled);
     if (accountsEnabled) {
       await restoreAuthSession();
@@ -314,7 +317,7 @@ async function init() {
         document.querySelector("#authOverlay")?.setAttribute("aria-hidden", "false");
         return;
       }
-      if (location.pathname === "/signin") history.replaceState(null, "", "/");
+      if (location.pathname === "/signin") history.replaceState(null, "", "/dashboard");
       try {
         const terms = await termsAcceptanceStatus();
         currentTermsVersion = terms.currentVersion || "";
@@ -333,6 +336,11 @@ async function init() {
         return;
       }
     }
+  }
+  if (accountsEnabled && isAuthenticated() && !publicView && ["/", "/dashboard"].includes(location.pathname)) {
+    if (location.pathname !== "/dashboard") history.replaceState(null, "", "/dashboard");
+    await openDashboard();
+    return;
   }
   const saved = await loadCurrentDeck().catch(() => null);
   deck = normalizeDeck(saved || createSeedDeck());
@@ -355,6 +363,306 @@ async function init() {
     document.body.classList.add("audience-window");
     openAudience();
   }
+}
+
+async function openDashboard() {
+  document.title = "Your presentations — Nifty Slides";
+  document.body.classList.add("dashboard-window");
+  dom.app?.classList.add("hidden");
+  const dashboard = document.querySelector("#dashboardApp");
+  dashboard?.classList.remove("hidden");
+  dashboard?.setAttribute("aria-hidden", "false");
+  bindDashboardEvents();
+  updateDashboardAccount();
+  await refreshDashboard();
+}
+
+function bindDashboardEvents() {
+  const dashboard = document.querySelector("#dashboardApp");
+  if (!dashboard || dashboard.dataset.bound === "true") return;
+  dashboard.dataset.bound = "true";
+  const accountButton = document.querySelector("#dashboardAccountBtn");
+  const accountMenu = document.querySelector("#dashboardAccountMenu");
+  const closeAccountMenu = () => {
+    accountMenu?.classList.add("hidden");
+    accountButton?.setAttribute("aria-expanded", "false");
+  };
+  accountButton?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const opening = accountMenu?.classList.contains("hidden");
+    accountMenu?.classList.toggle("hidden", !opening);
+    accountButton?.setAttribute("aria-expanded", String(Boolean(opening)));
+  });
+  document.querySelector("#dashboardSignOutBtn")?.addEventListener("click", async () => {
+    closeAccountMenu();
+    await signOut();
+    location.replace("/signin");
+  });
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest(".dashboard-account-wrap")) closeAccountMenu();
+    if (!event.target.closest(".dashboard-card-menu-wrap")) closeDashboardCardMenus();
+  });
+  document.querySelector("#dashboardDeckGrid")?.addEventListener("click", handleDashboardGridClick);
+  document.querySelector("#dashboardRenameForm")?.addEventListener("submit", renameDashboardDeck);
+  document.querySelector("#confirmDashboardDeleteBtn")?.addEventListener("click", confirmDashboardDelete);
+  document.querySelector("#closeDashboardDialogBtn")?.addEventListener("click", closeDashboardDialog);
+  document.querySelector("#dashboardDialogOverlay")?.addEventListener("click", (event) => {
+    if (event.target.id === "dashboardDialogOverlay") closeDashboardDialog();
+  });
+  dashboard.querySelectorAll("[data-dashboard-dialog-cancel]").forEach((button) => {
+    button.addEventListener("click", closeDashboardDialog);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeAccountMenu();
+      closeDashboardCardMenus();
+      closeDashboardDialog();
+    }
+  });
+}
+
+function updateDashboardAccount() {
+  const user = authUser();
+  const firstName = user?.user_metadata?.first_name || "";
+  const lastName = user?.user_metadata?.last_name || "";
+  const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
+  const label = fullName || user?.email?.split("@")[0] || "Account";
+  const initials = fullName
+    ? fullName.split(/\s+/).slice(0, 2).map((part) => part[0]).join("")
+    : label.slice(0, 2);
+  for (const node of document.querySelectorAll(".dashboard-account-avatar, .dashboard-menu-avatar")) {
+    node.textContent = initials.toUpperCase();
+  }
+  const accountName = document.querySelector(".dashboard-account-name");
+  const menuName = document.querySelector(".dashboard-menu-name");
+  const menuEmail = document.querySelector(".dashboard-menu-email");
+  if (accountName) accountName.textContent = firstName || label;
+  if (menuName) menuName.textContent = label;
+  if (menuEmail) menuEmail.textContent = user?.email || "";
+}
+
+async function refreshDashboard(message = "") {
+  const grid = document.querySelector("#dashboardDeckGrid");
+  const status = document.querySelector("#dashboardStatus");
+  if (!grid) return;
+  if (status) status.textContent = message || "Loading presentations…";
+  grid.setAttribute("aria-busy", "true");
+  grid.innerHTML = dashboardLoadingMarkup();
+  try {
+    dashboardDecks = (await loadDecks()).map(normalizeDeck);
+    renderDashboard();
+    if (status) status.textContent = message;
+  } catch (error) {
+    grid.innerHTML = `<div class="dashboard-error"><strong>We couldn’t load your presentations.</strong><span>${escapeHtml(error.message)}</span><button type="button" data-dashboard-action="retry">Try again</button></div>`;
+    if (status) status.textContent = "Unable to load presentations.";
+  } finally {
+    grid.removeAttribute("aria-busy");
+  }
+}
+
+function dashboardLoadingMarkup() {
+  return `<article class="dashboard-create-card dashboard-loading-card" aria-hidden="true"></article>${Array.from({ length: 3 }, () => `<article class="dashboard-deck-card dashboard-loading-card" aria-hidden="true"></article>`).join("")}`;
+}
+
+function renderDashboard() {
+  const grid = document.querySelector("#dashboardDeckGrid");
+  if (!grid) return;
+  const sortedDecks = [...dashboardDecks].sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
+  grid.innerHTML = `
+    <button class="dashboard-create-card" type="button" data-dashboard-action="create">
+      <span class="dashboard-create-icon" aria-hidden="true">+</span>
+      <span><strong>Create presentation</strong><small>Start with a blank slide</small></span>
+    </button>
+    ${sortedDecks.map(dashboardDeckCardMarkup).join("")}
+  `;
+  requestAnimationFrame(() => renderDashboardThumbnails(sortedDecks));
+}
+
+function dashboardDeckCardMarkup(savedDeck) {
+  const title = savedDeck.title?.trim() || "Untitled presentation";
+  return `<article class="dashboard-deck-card" data-dashboard-deck-id="${attr(savedDeck.id)}">
+    <button class="dashboard-deck-open" type="button" data-dashboard-action="open" data-deck-id="${attr(savedDeck.id)}" aria-label="Open ${attr(title)}">
+      <span class="dashboard-thumbnail"><canvas width="640" height="360" data-dashboard-thumbnail="${attr(savedDeck.id)}" aria-hidden="true"></canvas></span>
+      <span class="dashboard-card-copy"><strong>${escapeHtml(title)}</strong><small>${escapeHtml(formatDashboardDate(savedDeck.updatedAt))}</small></span>
+    </button>
+    <div class="dashboard-card-menu-wrap">
+      <button class="dashboard-card-menu-button" type="button" data-dashboard-action="menu" data-deck-id="${attr(savedDeck.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="More actions for ${attr(title)}">•••</button>
+      <div class="dashboard-card-menu hidden" role="menu">
+        <button type="button" role="menuitem" data-dashboard-action="rename" data-deck-id="${attr(savedDeck.id)}">Rename</button>
+        <button type="button" role="menuitem" data-dashboard-action="duplicate" data-deck-id="${attr(savedDeck.id)}">Duplicate</button>
+        <div role="separator"></div>
+        <button class="danger" type="button" role="menuitem" data-dashboard-action="delete" data-deck-id="${attr(savedDeck.id)}">Delete</button>
+      </div>
+    </div>
+  </article>`;
+}
+
+async function renderDashboardThumbnails(savedDecks) {
+  await Promise.all(savedDecks.map(async (savedDeck) => {
+    const canvas = document.querySelector(`[data-dashboard-thumbnail="${CSS.escape(savedDeck.id)}"]`);
+    const slide = savedDeck.slides?.[0];
+    if (!canvas || !slide) return;
+    const context = canvas.getContext("2d");
+    context.setTransform(0.5, 0, 0, 0.5, 0, 0);
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
+    await drawSlideAsync(context, slide, savedDeck, { footer: false });
+  }));
+}
+
+function formatDashboardDate(value) {
+  const date = new Date(value || 0);
+  if (Number.isNaN(date.getTime())) return "Edited recently";
+  const today = new Date();
+  const sameDay = date.toDateString() === today.toDateString();
+  return `Edited ${sameDay ? date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : date.toLocaleDateString([], { month: "short", day: "numeric", year: date.getFullYear() === today.getFullYear() ? undefined : "numeric" })}`;
+}
+
+async function handleDashboardGridClick(event) {
+  const control = event.target.closest("[data-dashboard-action]");
+  if (!control) return;
+  const action = control.dataset.dashboardAction;
+  const deckId = control.dataset.deckId || "";
+  if (action === "retry") return refreshDashboard();
+  if (action === "create") return createDashboardDeck();
+  if (action === "open") return openDashboardDeck(deckId);
+  if (action === "menu") {
+    event.stopPropagation();
+    const menu = control.nextElementSibling;
+    const opening = menu?.classList.contains("hidden");
+    closeDashboardCardMenus();
+    menu?.classList.toggle("hidden", !opening);
+    control.setAttribute("aria-expanded", String(Boolean(opening)));
+    return;
+  }
+  closeDashboardCardMenus();
+  if (action === "rename") return openDashboardDialog("rename", deckId);
+  if (action === "duplicate") return duplicateDashboardDeck(deckId);
+  if (action === "delete") return openDashboardDialog("delete", deckId);
+}
+
+function closeDashboardCardMenus() {
+  document.querySelectorAll(".dashboard-card-menu").forEach((menu) => menu.classList.add("hidden"));
+  document.querySelectorAll(".dashboard-card-menu-button").forEach((button) => button.setAttribute("aria-expanded", "false"));
+}
+
+async function createDashboardDeck() {
+  const blankDeck = createDeck({
+    title: "Untitled presentation",
+    slides: [createSlide({ title: "Blank slide", layout: "blank", elements: [] })],
+  });
+  setDashboardBusy(true, "Creating presentation…");
+  try {
+    const saved = await saveDeck(blankDeck, { updateRoute: false });
+    openDashboardDeck(saved.id);
+  } catch (error) {
+    setDashboardBusy(false, error.message);
+  }
+}
+
+function openDashboardDeck(deckId) {
+  if (!deckId) return;
+  location.assign(`/decks/${encodeURIComponent(deckId)}/edit`);
+}
+
+async function duplicateDashboardDeck(deckId) {
+  const source = dashboardDecks.find((item) => item.id === deckId);
+  if (!source) return;
+  const cloned = typeof structuredClone === "function" ? structuredClone(source) : JSON.parse(JSON.stringify(source));
+  const duplicate = createDeck({
+    ...cloned,
+    id: createDeck().id,
+    title: uniqueDashboardCopyTitle(source.title),
+    updatedAt: new Date().toISOString(),
+    settings: {
+      ...(cloned.settings || {}),
+      audienceCode: createFreshAudienceAccessCode(source.settings?.audienceCode || ""),
+    },
+  });
+  clearDeckEngagementResults(duplicate);
+  setDashboardBusy(true, "Duplicating presentation…");
+  try {
+    await saveDeck(duplicate, { updateRoute: false });
+    await refreshDashboard("Presentation duplicated.");
+  } catch (error) {
+    setDashboardBusy(false, error.message);
+  }
+}
+
+function uniqueDashboardCopyTitle(title = "Untitled presentation") {
+  const base = `${String(title).replace(/\s+copy(?:\s+\d+)?$/i, "").trim() || "Untitled presentation"} copy`;
+  const titles = new Set(dashboardDecks.map((item) => String(item.title || "").toLowerCase()));
+  if (!titles.has(base.toLowerCase())) return base;
+  let suffix = 2;
+  while (titles.has(`${base} ${suffix}`.toLowerCase())) suffix += 1;
+  return `${base} ${suffix}`;
+}
+
+function openDashboardDialog(mode, deckId) {
+  const savedDeck = dashboardDecks.find((item) => item.id === deckId);
+  if (!savedDeck) return;
+  dashboardDialogDeckId = deckId;
+  const overlay = document.querySelector("#dashboardDialogOverlay");
+  const title = document.querySelector("#dashboardDialogTitle");
+  const description = document.querySelector("#dashboardDialogDescription");
+  const renameForm = document.querySelector("#dashboardRenameForm");
+  const deleteControls = document.querySelector("#dashboardDeleteControls");
+  const input = document.querySelector("#dashboardDeckNameInput");
+  const deleting = mode === "delete";
+  if (title) title.textContent = deleting ? "Delete presentation?" : "Rename presentation";
+  if (description) description.textContent = deleting
+    ? `“${savedDeck.title || "Untitled presentation"}” will be permanently removed.`
+    : "Choose a clear name you’ll recognize later.";
+  renameForm?.classList.toggle("hidden", deleting);
+  deleteControls?.classList.toggle("hidden", !deleting);
+  if (input) input.value = savedDeck.title || "Untitled presentation";
+  overlay?.classList.remove("hidden");
+  overlay?.setAttribute("aria-hidden", "false");
+  if (!deleting) requestAnimationFrame(() => input?.select());
+}
+
+function closeDashboardDialog() {
+  dashboardDialogDeckId = "";
+  const overlay = document.querySelector("#dashboardDialogOverlay");
+  overlay?.classList.add("hidden");
+  overlay?.setAttribute("aria-hidden", "true");
+}
+
+async function renameDashboardDeck(event) {
+  event.preventDefault();
+  const savedDeck = dashboardDecks.find((item) => item.id === dashboardDialogDeckId);
+  const input = document.querySelector("#dashboardDeckNameInput");
+  const nextTitle = input?.value.trim();
+  if (!savedDeck || !nextTitle) return;
+  closeDashboardDialog();
+  setDashboardBusy(true, "Saving name…");
+  try {
+    await saveDeck({ ...savedDeck, title: nextTitle }, { updateRoute: false });
+    await refreshDashboard("Presentation renamed.");
+  } catch (error) {
+    setDashboardBusy(false, error.message);
+  }
+}
+
+async function confirmDashboardDelete() {
+  const deckId = dashboardDialogDeckId;
+  if (!deckId) return;
+  closeDashboardDialog();
+  setDashboardBusy(true, "Deleting presentation…");
+  try {
+    await deleteDeck(deckId);
+    await refreshDashboard("Presentation deleted.");
+  } catch (error) {
+    setDashboardBusy(false, error.message);
+  }
+}
+
+function setDashboardBusy(busy, message = "") {
+  const grid = document.querySelector("#dashboardDeckGrid");
+  const status = document.querySelector("#dashboardStatus");
+  grid?.classList.toggle("is-busy", busy);
+  if (grid) grid.toggleAttribute("inert", busy);
+  if (status) status.textContent = message;
 }
 
 function bindAuthEvents() {
@@ -811,10 +1119,8 @@ function upgradeIconButtons() {
 }
 
 async function openDeckLibrary() {
-  await saveDeck(deck).catch(() => null);
-  dom.deckLibraryOverlay.classList.remove("hidden");
-  dom.deckLibraryOverlay.setAttribute("aria-hidden", "false");
-  renderDeckLibrary();
+  await saveDeck(deck, { updateRoute: false }).catch(() => null);
+  location.assign("/dashboard");
 }
 
 function closeDeckLibrary() {

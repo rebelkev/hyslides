@@ -2,6 +2,8 @@
 
 ## Current Development Build
 
+- Added an authenticated **Your presentations** dashboard as the default destination after sign-in. It uses a responsive card grid with a permanent **Create presentation** card, rendered first-slide thumbnails, last-edited details, direct deck opening, and an account menu with sign-out.
+- Added dashboard actions to rename, duplicate, and permanently delete an owned presentation. Duplicates receive independent deck IDs, live access codes, and cleared engagement results; deletion requires an explicit confirmation.
 - Replaced repeated sign-in consent with a versioned post-login Terms gate. Nifty Slides now checks the current published document after authentication, records acceptance in an append-only Supabase table with a server timestamp, and blocks account and deck APIs until the current version is accepted.
 - Added a public `/terms` page and a clear sign-out path for users who decline. The acceptance panel explicitly confirms that users retain ownership of their presentations, uploads, audience responses, and other submitted content.
 - Fixed deck-specific Editor URLs so the Worker serves the Nifty Slides editor shell without forwarding the original request headers into Cloudflare's static asset binding.

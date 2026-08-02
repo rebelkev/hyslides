@@ -9,7 +9,8 @@ const MIGRATION_KEY_PREFIX = "cloudMigration:";
 
 restoreDeckRouteAfterBootstrap();
 
-export async function saveDeck(deck) {
+export async function saveDeck(deck, options = {}) {
+  const { updateRoute = true } = options;
   const db = await openDb();
   const deckToSave = {
     ...deck,
@@ -25,7 +26,7 @@ export async function saveDeck(deck) {
     });
     if (!response.ok) throw new Error(await apiError(response));
     const cloudDeck = await response.json();
-    updateDeckRoute(cloudDeck.id);
+    if (updateRoute) updateDeckRoute(cloudDeck.id);
     return cloudDeck;
   }
   return deckToSave;
