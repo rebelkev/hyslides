@@ -93,8 +93,14 @@
   - Migrate existing browser-saved decks into the signed-in account only after explicit confirmation
 - Server-backed deck library:
   - Owner-scoped D1 deck storage and deck-specific Editor URLs are implemented
+  - Make the authenticated deck dashboard the default post-login destination instead of opening an arbitrary presentation
+  - Present decks in a responsive card grid with a permanent **Create presentation** card in the first position
+  - Give each deck card a clear hover/focus state, thumbnail, title, last-edited time, and direct open action
+  - Add an overflow menu to rename, duplicate, and move a deck to recoverable trash, with confirmation for destructive actions
+  - Preserve the user’s most recent search, sort, and display preferences without changing deck ownership or URLs
   - Add R2-backed media objects so large images and imported assets are stored separately from deck JSON
   - Add account deck search, sorting, archive/recovery, quota messaging, and explicit migration status
+  - Add folders after the core dashboard is stable, including folder creation, rename, deck movement, search, and a clear **All presentations** view
 - Cross-presentation slide transfer:
   - Copy a slide into another presentation the user can access
   - Choose the exact destination position before copying
