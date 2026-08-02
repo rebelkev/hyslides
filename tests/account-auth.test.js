@@ -8,6 +8,7 @@ const storageSource = await readFile(new URL("../src/storage.js", import.meta.ur
 const indexSource = await readFile(new URL("../index.html", import.meta.url), "utf8");
 const viteSource = await readFile(new URL("../vite.config.ts", import.meta.url), "utf8");
 const appSource = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
+const stylesSource = await readFile(new URL("../styles.css", import.meta.url), "utf8");
 const legalMigration = await readFile(
   new URL("../supabase/migrations/202608020001_versioned_legal_acceptance.sql", import.meta.url),
   "utf8"
@@ -37,6 +38,14 @@ test("Terms acceptance is a versioned post-login gate rather than a repeated sig
   assert.match(appSource, /currentTermsVersion = terms\.currentVersion/);
   assert.match(appSource, /acceptCurrentTerms\(currentTermsVersion, "existing-account"\)/);
   assert.doesNotMatch(authSource, /PENDING_TERMS_KEY|rememberTermsConsent|completePendingTermsAcceptance/);
+});
+
+test("Terms acceptance keeps the consent switch compact without covering its label", () => {
+  assert.match(
+    stylesSource,
+    /\.auth-card \.auth-legal-consent input\[type="checkbox"\]\s*\{[\s\S]*?flex:\s*0 0 36px;[\s\S]*?height:\s*20px;[\s\S]*?width:\s*36px;/
+  );
+  assert.doesNotMatch(stylesSource, /\.auth-card \.auth-legal-consent input\s*\{[^}]*width:\s*18px/);
 });
 
 test("Terms acceptance is append-only in Supabase and enforced before account data", () => {

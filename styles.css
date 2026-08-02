@@ -4165,7 +4165,14 @@ body.dashboard-window {
   font-weight: 600;
   line-height: 1.45;
 }
-.auth-card .auth-legal-consent input { width: 18px; height: 18px; margin: 2px 0 0; }
+.auth-card .auth-legal-consent input[type="checkbox"] {
+  display: inline-block;
+  flex: 0 0 36px;
+  height: 20px;
+  margin: 2px 0 0;
+  min-height: 20px;
+  width: 36px;
+}
 .auth-card .auth-legal-consent a { color: #2454d6; }
 .legal-ownership-callout {
   display: grid;
