@@ -189,7 +189,7 @@ function liveImagePlaceholder() {
 export function liveStateDeck(state) {
   return {
     id: state.deckId || "live-deck",
-    title: state.deckTitle || "HySlides Live",
+    title: state.deckTitle || "Nifty Slides Live",
     theme: cloneJson(state.theme || state.slide?.liveTheme || {}),
     settings: {
       audienceCode: state.audienceCode || state.code,
@@ -405,8 +405,8 @@ function appBaseUrl() {
     url.hash = "";
     return url.href;
   }
-  if (typeof location !== "undefined") return location.href.split("#")[0];
-  return "http://localhost/hyslides/";
+  if (typeof location !== "undefined") return `${location.origin}/`;
+  return "http://localhost/";
 }
 
 async function publishSupabaseLiveSession(code, snapshot) {
@@ -415,7 +415,7 @@ async function publishSupabaseLiveSession(code, snapshot) {
   const record = {
     code,
     deck_id: snapshot?.deckId || "deck",
-    deck_title: snapshot?.deckTitle || "HySlides deck",
+    deck_title: snapshot?.deckTitle || "Nifty Slides deck",
     audience_code: normalizeLiveCode(snapshot?.audienceCode || code),
     active_slide_id: activeSlideId,
     active_slide_index: Number(snapshot?.activeSlideIndex || 0),

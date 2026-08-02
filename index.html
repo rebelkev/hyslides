@@ -3,9 +3,9 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>HySlides</title>
+    <title>Nifty Slides</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/hyslides/styles.css" />
+    <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <svg class="icon-sprite" aria-hidden="true" width="0" height="0">
@@ -50,11 +50,11 @@
       <header class="topbar" aria-label="Main toolbar">
         <div class="app-menu-wrap">
           <button id="appMenuBtn" class="brand app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="appMenu">
-            <span class="brand-mark" aria-hidden="true">H</span>
-            <span>HySlides</span>
+            <span class="brand-mark" aria-hidden="true">N</span>
+            <span>Nifty Slides</span>
             <span class="app-menu-chevron" aria-hidden="true">⌄</span>
           </button>
-          <div id="appMenu" class="app-menu hidden" role="menu" aria-label="HySlides menu">
+          <div id="appMenu" class="app-menu hidden" role="menu" aria-label="Nifty Slides menu">
             <button id="newDeckBtn" type="button" role="menuitem" data-icon="plus">New deck</button>
             <button id="saveDeckBtn" type="button" role="menuitem" data-icon="save">Save now</button>
             <button id="deckLibraryBtn" type="button" role="menuitem" data-icon="folder">Open saved decks</button>
@@ -172,7 +172,7 @@
     <div id="helpFaqOverlay" class="modal-overlay hidden" aria-hidden="true">
       <section class="help-faq-card" role="dialog" aria-modal="true" aria-labelledby="helpFaqTitle">
         <header class="presenter-head">
-          <div><strong id="helpFaqTitle">HySlides help</strong><span>Quick instructions for creating and presenting.</span></div>
+          <div><strong id="helpFaqTitle">Nifty Slides help</strong><span>Quick instructions for creating and presenting.</span></div>
           <button id="closeHelpFaqBtn" type="button">Close</button>
         </header>
         <div class="help-faq-content">
@@ -180,7 +180,7 @@
           <section><h3>Present and invite participants</h3><p>Select Present to open Presenter View. Participants join using the QR code or six-digit access code and follow the current slide from their own device.</p></section>
           <section><h3>Use audience engagement</h3><p>Add an Engagement element or engagement template, customize its choices, then go live. Results update on the slide as responses arrive.</p></section>
           <section><h3>What are the four views?</h3><p><strong>Editor View</strong> builds slides. <strong>Presentation View</strong> is projected to the room. <strong>Participant View</strong> appears on audience devices. <strong>Presenter View</strong> controls the live presentation.</p></section>
-          <section><h3>Where are saved decks?</h3><p>Open the HySlides menu and choose Open saved decks. Decks currently remain in this browser until user accounts and cloud storage are introduced.</p></section>
+          <section><h3>Where are saved decks?</h3><p>Open the Nifty Slides menu and choose Open saved decks. Signed-in decks are saved to your account.</p></section>
         </div>
       </section>
     </div>
@@ -201,8 +201,8 @@
     <div id="presenterOverlay" class="presenter hidden" data-mobile-tab="control" aria-hidden="true">
       <header class="presenter-topbar">
         <div class="presenter-brand">
-          <span class="brand-mark" aria-hidden="true">H</span>
-          <div><strong>Presenter View</strong><span id="presenterDeckTitle">HySlides</span></div>
+          <span class="brand-mark" aria-hidden="true">N</span>
+          <div><strong>Presenter View</strong><span id="presenterDeckTitle">Nifty Slides</span></div>
         </div>
         <div class="presenter-health" aria-label="Live presentation status">
           <span><small>Elapsed</small><strong id="presenterTimer">00:00</strong></span>
@@ -272,7 +272,7 @@
         <button id="prevSlideBtn" type="button">Previous</button>
         <button id="nextSlideBtn" class="primary" type="button">Next</button>
       </footer>
-      <div id="presentationBlackout" class="presentation-blackout hidden"><span>HySlides</span></div>
+      <div id="presentationBlackout" class="presentation-blackout hidden"><span>Nifty Slides</span></div>
       <div id="presentationQuestionOverlay" class="presentation-question-overlay hidden" role="status" aria-live="polite">
         <div class="presentation-question-card">
           <span>Audience question</span>
@@ -296,7 +296,7 @@
 
     <main id="remoteControllerApp" class="remote-controller hidden" aria-live="polite">
       <header class="remote-controller-head">
-        <div><span>HySlides remote</span><strong id="remoteDeckTitle">Connecting…</strong></div>
+        <div><span>Nifty Slides remote</span><strong id="remoteDeckTitle">Connecting…</strong></div>
         <span id="remoteConnectionStatus" class="remote-status">Connecting</span>
       </header>
       <nav class="remote-controller-tabs" role="tablist" aria-label="Remote controller sections">
@@ -346,7 +346,7 @@
     <div id="audienceOverlay" class="audience hidden" aria-hidden="true">
       <div class="audience-card">
         <div class="presenter-head">
-          <strong id="audienceDeckTitle">HySlides</strong>
+          <strong id="audienceDeckTitle">Nifty Slides</strong>
           <button id="closeAudienceBtn" type="button" title="Close">Close</button>
         </div>
         <div class="audience-slide-frame">
@@ -418,9 +418,13 @@
 
     <div id="authOverlay" class="auth-overlay hidden" aria-hidden="true">
       <div class="auth-card" role="dialog" aria-modal="true" aria-labelledby="authTitle">
-        <div class="auth-brand"><span>H</span><strong>HySlides</strong></div>
+        <div class="auth-brand"><span>N</span><strong>Nifty Slides</strong></div>
         <h1 id="authTitle">Your presentations, ready anywhere.</h1>
         <p>Sign in to create, edit, and present decks. Audience participation never requires an account.</p>
+        <label class="auth-legal-consent" for="authTermsConsent">
+          <input id="authTermsConsent" type="checkbox" required />
+          <span>I agree to the <a href="/terms" target="_blank" rel="noopener">Nifty Slides Terms of Service</a> (version <span data-terms-version>2026-07-31</span>).</span>
+        </label>
         <button id="googleSignInBtn" class="auth-google" type="button">Continue with Google</button>
         <div class="auth-divider"><span>or use any email address</span></div>
         <form id="emailAuthForm">
@@ -446,8 +450,26 @@
       </div>
     </div>
 
+    <div id="termsAcceptanceOverlay" class="auth-overlay hidden" aria-hidden="true">
+      <div class="auth-card" role="dialog" aria-modal="true" aria-labelledby="termsAcceptanceTitle">
+        <div class="auth-brand"><span>N</span><strong>Nifty Slides</strong></div>
+        <h1 id="termsAcceptanceTitle">Please review our Terms.</h1>
+        <p>Before continuing, please accept the current Nifty Slides Terms of Service. Your acceptance is recorded with the document version and a server timestamp.</p>
+        <div class="legal-ownership-callout">
+          <strong>Your work remains yours.</strong>
+          <span>You retain ownership of presentations, uploads, audience responses, and other content you create or submit.</span>
+        </div>
+        <label class="auth-legal-consent" for="currentTermsConsent">
+          <input id="currentTermsConsent" type="checkbox" required />
+          <span>I have read and agree to the <a href="/terms" target="_blank" rel="noopener">Terms of Service</a> (version <span data-terms-version>2026-07-31</span>).</span>
+        </label>
+        <button id="acceptCurrentTermsBtn" class="auth-google" type="button">Accept and continue</button>
+        <p id="termsAcceptanceMessage" class="auth-message" aria-live="polite"></p>
+      </div>
+    </div>
+
     <input id="imageInput" class="sr-only" type="file" accept="image/*" />
     <script defer src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" crossorigin="anonymous"></script>
-    <script type="module" src="/hyslides/src/app.js"></script>
+    <script type="module" src="/src/app.js"></script>
   </body>
 </html>

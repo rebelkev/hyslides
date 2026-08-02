@@ -50,7 +50,7 @@ export async function importPptx(file) {
 export function pptxCapabilities() {
   return [
     "Imports basic text boxes, font families, text formatting and spacing, theme colors, layout placeholders, shapes, images, simple chart references, and slide order.",
-    "Matching title, subtitle, and body placeholders are linked to HySlides global typography; one-off formatting remains custom.",
+    "Matching title, subtitle, and body placeholders are linked to Nifty Slides global typography; one-off formatting remains custom.",
     "Unsupported PowerPoint features are listed in the deck inspector after import.",
     "Animations, transitions, SmartArt, advanced charts, embedded media, comments, and complex masters are reserved for later phases.",
   ];
@@ -213,7 +213,7 @@ async function slideXmlForDeck(slide, deck, slideIndex, media, unsupported) {
       unsupported.add("Tables export as editable text blocks until native table export is added.");
       body.push(tablePreviewXml(element, shapeId));
     } else if (element.type === "engagement") {
-      unsupported.add("Engagement elements export as editable preview text; live audience behavior stays in HySlides.");
+      unsupported.add("Engagement elements export as editable preview text; live audience behavior stays in Nifty Slides.");
       body.push(engagementPreviewXml(element, shapeId));
     }
     shapeId += 1;
@@ -472,8 +472,8 @@ function corePropsXml(deck) {
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <dc:title>${xml(deck.title)}</dc:title>
-  <dc:creator>HySlides</dc:creator>
-  <cp:lastModifiedBy>HySlides</cp:lastModifiedBy>
+  <dc:creator>Nifty Slides</dc:creator>
+  <cp:lastModifiedBy>Nifty Slides</cp:lastModifiedBy>
   <dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created>
   <dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified>
 </cp:coreProperties>`;
@@ -482,7 +482,7 @@ function corePropsXml(deck) {
 function appPropsXml(deck) {
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
-  <Application>HySlides</Application>
+  <Application>Nifty Slides</Application>
   <PresentationFormat>Widescreen</PresentationFormat>
   <Slides>${deck.slides.length}</Slides>
 </Properties>`;
@@ -492,7 +492,7 @@ function themeXml(deck) {
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="${xml(deck.theme.name)}">
   <a:themeElements>
-    <a:clrScheme name="HySlides">
+    <a:clrScheme name="Nifty Slides">
       <a:dk1><a:srgbClr val="${hex(deck.theme.colors.ink)}"/></a:dk1>
       <a:lt1><a:srgbClr val="FFFFFF"/></a:lt1>
       <a:dk2><a:srgbClr val="1D232A"/></a:dk2>
@@ -506,8 +506,8 @@ function themeXml(deck) {
       <a:hlink><a:srgbClr val="${hex(deck.theme.colors.primary)}"/></a:hlink>
       <a:folHlink><a:srgbClr val="${hex(deck.theme.colors.coral)}"/></a:folHlink>
     </a:clrScheme>
-    <a:fontScheme name="HySlides"><a:majorFont><a:latin typeface="${xml(deck.theme.fonts.heading)}"/></a:majorFont><a:minorFont><a:latin typeface="${xml(deck.theme.fonts.body)}"/></a:minorFont></a:fontScheme>
-    <a:fmtScheme name="HySlides"><a:fillStyleLst/><a:lnStyleLst/><a:effectStyleLst/><a:bgFillStyleLst/></a:fmtScheme>
+    <a:fontScheme name="Nifty Slides"><a:majorFont><a:latin typeface="${xml(deck.theme.fonts.heading)}"/></a:majorFont><a:minorFont><a:latin typeface="${xml(deck.theme.fonts.body)}"/></a:minorFont></a:fontScheme>
+    <a:fmtScheme name="Nifty Slides"><a:fillStyleLst/><a:lnStyleLst/><a:effectStyleLst/><a:bgFillStyleLst/></a:fmtScheme>
   </a:themeElements>
 </a:theme>`;
 }
@@ -888,7 +888,7 @@ function applyPowerPointTheme(deck, powerPointTheme) {
       deck.importReport.push(`Font substitution may occur for ${unavailableFonts.join(", ")} because ${unavailableFonts.length === 1 ? "it is" : "they are"} not available in this browser.`);
     }
   } else {
-    deck.importReport.push("No PowerPoint theme fonts were found; HySlides defaults were retained.");
+    deck.importReport.push("No PowerPoint theme fonts were found; Nifty Slides defaults were retained.");
   }
   if (deck.theme.brandColorStyles.length) {
     deck.importReport.push(`${deck.theme.brandColorStyles.length} PowerPoint theme colors were added as global color styles.`);

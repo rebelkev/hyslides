@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
-  <title id="title">HySlides</title>
+  <title id="title">Nifty Slides</title>
   <rect width="64" height="64" rx="14" fill="#1d232a"/>
-  <path d="M15 15h9v13h16V15h9v34h-9V36H24v13h-9V15Z" fill="#fff"/>
+  <path d="M15 49V15h9l16 20V15h9v34h-9L24 29v20h-9Z" fill="#fff"/>
   <circle cx="49" cy="15" r="6" fill="#0c8b7f" stroke="#1d232a" stroke-width="3"/>
 </svg>

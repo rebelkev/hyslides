@@ -1,4 +1,4 @@
-# HySlides Roadmap
+# Nifty Slides Roadmap
 
 ## Current Foundation
 
@@ -115,7 +115,7 @@
   - Enforce entitlements on the server for every protected API action as well as in the interface
   - Track usage counters and show warnings before a user reaches a plan limit
   - Preserve existing content after a downgrade; prevent new over-limit creation rather than deleting decks, slides, responses, or media
-  - Keep billing-provider subscription state separate from HySlides' internal entitlement state so payment providers can be changed later
+  - Keep billing-provider subscription state separate from Nifty Slides' internal entitlement state so payment providers can be changed later
   - Manage the global template library, starter decks, approved fonts, icons, stock-media providers, and featured resources
   - Review reported or abusive public/session content and apply moderation actions with a reason
   - Monitor authentication, email delivery, Worker errors, live-session health, API quotas, storage usage, and deployment status
@@ -170,6 +170,6 @@
 - QR and access-code slide elements are protected and hidden rather than permanently deleted.
 - Live response and participant data is retained for 14 days.
 - Accounts should precede admin tools and persistent cross-device deck storage.
-- Billing should use provider webhooks to update an internal subscription record; product access is always determined by the server-side HySlides entitlement system.
+- Billing should use provider webhooks to update an internal subscription record; product access is always determined by the server-side Nifty Slides entitlement system.
 - The public marketing site and authenticated Editor should use separate web surfaces while sharing Supabase authentication and the same account/subscription records.
 - Cross-presentation slide copying should follow accounts, server-backed deck ownership, and team permissions.

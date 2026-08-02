@@ -98,7 +98,7 @@ async function migrateBrowserDecks(db) {
       if (!response.ok) throw new Error(await apiError(response));
     } catch (error) {
       migrationComplete = false;
-      console.warn(`HySlides kept "${localDeck.title || localDeck.id}" in this browser because cloud migration failed.`, error);
+      console.warn(`Nifty Slides kept "${localDeck.title || localDeck.id}" in this browser because cloud migration failed.`, error);
     }
   }
   if (migrationComplete) {
@@ -131,7 +131,7 @@ export function exportDeckJson(deck) {
   const blob = new Blob([JSON.stringify(deck, null, 2)], {
     type: "application/json",
   });
-  downloadBlob(blob, `${slug(deck.title)}.hyslides.json`);
+  downloadBlob(blob, `${slug(deck.title)}.niftyslides.json`);
 }
 
 export async function importDeckJson(file) {

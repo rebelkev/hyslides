@@ -1,9 +1,9 @@
-# HySlides Release Notes
+# Nifty Slides Release Notes
 
 ## Current Development Build
 
-- Fixed deck-specific Editor URLs so the Worker serves the HySlides editor shell without forwarding the original request headers into Cloudflare's static asset binding.
-- Added a staged account foundation with Google OAuth and passwordless email codes for personal or business addresses. HySlides does not collect or store passwords.
+- Fixed deck-specific Editor URLs so the Worker serves the Nifty Slides editor shell without forwarding the original request headers into Cloudflare's static asset binding.
+- Added a staged account foundation with Google OAuth and passwordless email codes for personal or business addresses. Nifty Slides does not collect or store passwords.
 - Added owner-scoped D1 profiles and cloud decks, protected deck APIs, one-time browser-deck migration, and account-specific Editor URLs in the form `/decks/{deck-id}/edit`.
 - Added an account rollout switch so the existing browser-only Editor remains available until the production authentication providers are configured and explicitly enabled.
 - Restored mixed rich-text bullets: typing `* ` at the beginning of a line creates a bullet without converting the entire text box, and normal paragraphs can coexist with bulleted lines.
@@ -14,7 +14,7 @@
 - Added drag-to-reorder layering and per-element eye controls to the Elements panel. Hidden elements remain recoverable in the tree while disappearing from the canvas, thumbnails, live views, and PowerPoint export.
 - Separated persistent Editor countdown elements from Presenter session timers. **Add session timer** now creates a temporary synchronized floating overlay without modifying or autosaving the active slide, and ending it removes the overlay from every view.
 - Kept the icon library and Properties panel at their current scroll positions when trying different icons, and removed the brief default-icon flash by preloading the chosen SVG before repainting.
-- Replaced checkbox visuals throughout HySlides with consistent accessible toggle switches while preserving keyboard and label behavior, and removed the non-interactive icon-library status text.
+- Replaced checkbox visuals throughout Nifty Slides with consistent accessible toggle switches while preserving keyboard and label behavior, and removed the non-interactive icon-library status text.
 - Fixed element color styles being visually overridden by linked global typography colors.
 - Rebuilt icon SVG generation so the selected HEX color is embedded directly without recoloring unrelated interface icons.
 - Added regression coverage for linked text colors, global typography colors, and exact icon colors.
@@ -49,7 +49,7 @@
 - Added deck-wide slide-number and legal disclaimer controls, including disclaimer text, linked typography style, and six placement choices. Individual slides can inherit, show, or hide either item; both render above the background but below normal slide elements.
 - Streamlined element Properties by removing coordinate and size fields, placing Name, Rotation, and Opacity first, following them with element content controls, moving animation controls last, and replacing the Locked checkbox with a lock/unlock icon beside the element type.
 - Replaced the full-width text-alignment field with compact left, center, and right alignment buttons.
-- Moved New deck, Save now, Open saved decks, and Help & FAQ into an application menu opened from the HySlides mark. The remaining top-bar actions now align with the slide-editing toolbar and the new help panel explains the four views, autosave, presenting, and engagement basics.
+- Moved New deck, Save now, Open saved decks, and Help & FAQ into an application menu opened from the Nifty Slides mark. The remaining top-bar actions now align with the slide-editing toolbar and the new help panel explains the four views, autosave, presenting, and engagement basics.
 - Replaced linked poll-chart label/value textareas with the same editable option rows used by Poll and Multiple Choice elements. Every option now receives a distinct default color that editors can override using a compact picker with the deck's named global swatches; the color follows that option into live charts, slide results, and Participant View.
 - Removed the duplicate Primary and Accent color controls from slide Properties. Those values remain as internal deck defaults and named global color styles managed through Global Deck Settings.
 - Fixed live word clouds so the engagement element receives current D1 totals, repeated phrases render at clearly different sizes, and case-insensitive matches preserve the capitalization of the first submitted response.
@@ -100,7 +100,7 @@
 
 ### Design System
 
-- Added a dedicated HySlides favicon based on the dark-square “H” brand mark, with a teal live-status accent.
+- Added a dedicated Nifty Slides favicon based on the dark-square “H” brand mark, with a teal live-status accent.
 - Upgraded saved swatches to named, linked deck color styles.
 - Style edits update linked elements throughout a deck.
 - Deleting or unlinking a style preserves element appearance.

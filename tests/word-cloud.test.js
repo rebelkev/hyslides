@@ -33,10 +33,10 @@ test("word cloud merges capitalization and spacing variants before weighting", (
 
 test("word cloud preserves the first submitted capitalization while grouping case-insensitively", () => {
   assert.deepEqual(mergeWordCloudEntries([
-    ["HySlides", 1],
-    ["hyslides", 2],
-    ["HYSLIDES", 3],
-  ]), [["HySlides", 6]]);
+    ["Nifty Slides", 1],
+    ["nifty slides", 2],
+    ["NIFTY SLIDES", 3],
+  ]), [["Nifty Slides", 6]]);
 });
 
 test("word cloud uses non-overlapping positions inside its element", () => {

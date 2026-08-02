@@ -44,7 +44,7 @@ function buildPdf(images) {
     );
   });
 
-  const parts = [encoder.encode("%PDF-1.4\n%HySlides\n")];
+  const parts = [encoder.encode("%PDF-1.4\n%Nifty Slides\n")];
   const offsets = [0];
   let length = parts[0].length;
 

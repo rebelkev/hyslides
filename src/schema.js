@@ -121,7 +121,7 @@ export function uid(prefix = "id") {
 export function createTheme(overrides = {}) {
   return {
     id: uid("theme"),
-    name: "HySlides Studio",
+    name: "Nifty Slides Studio",
     fonts: {
       heading: "Inter",
       body: "Inter",
@@ -455,7 +455,7 @@ export function createDeck(overrides = {}) {
   return {
     id: uid("deck"),
     version: 1,
-    title: "HySlides Product Narrative",
+    title: "Nifty Slides Product Narrative",
     updatedAt: new Date().toISOString(),
     theme: createTheme(),
     settings: {
@@ -506,7 +506,7 @@ export function createSeedDeck() {
           y: 114,
           w: 720,
           h: 156,
-          text: "HySlides",
+          text: "Nifty Slides",
           fontSize: 82,
           fontWeight: 800,
           color: "#1d232a",
@@ -1048,7 +1048,18 @@ export function normalizeDeck(raw) {
     sections,
     slides,
   });
+  migrateLegacyProductBrand(deck);
   return deck;
+}
+
+function migrateLegacyProductBrand(deck) {
+  if (deck.title === "HySlides Product Narrative") deck.title = "Nifty Slides Product Narrative";
+  if (deck.theme?.name === "HySlides Studio") deck.theme.name = "Nifty Slides Studio";
+  for (const slide of deck.slides || []) {
+    for (const element of slide.elements || []) {
+      if (element.type === "text" && element.text === "HySlides") element.text = "Nifty Slides";
+    }
+  }
 }
 
 export function normalizeBrandColorStyles(styles, fallbackColors = []) {

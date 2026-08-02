@@ -1,6 +1,6 @@
 # Real-Time Session Delivery QA
 
-HySlides uses a per-session Cloudflare Durable Object and WebSocket channel for
+Nifty Slides uses a per-session Cloudflare Durable Object and WebSocket channel for
 immediate updates. D1 remains the durable source of truth for session state,
 responses, participant records, and session history. A slower 15-second poll is
 retained only for recovery when a WebSocket is unavailable.

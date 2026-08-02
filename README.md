@@ -1,6 +1,6 @@
-# HySlides
+# Nifty Slides
 
-HySlides is a web-based presentation editor focused on slide design fidelity first, with optional audience engagement modules layered around the deck workflow.
+Nifty Slides is a web-based presentation editor focused on slide design fidelity first, with optional audience engagement modules layered around the deck workflow.
 
 ## Documentation
 
@@ -77,7 +77,7 @@ Clearly marked as later-phase support:
 - Transition import/export
 - Precise typography parity for every PowerPoint feature
 
-When unsupported features are detected on import or export, HySlides adds them to the inspector so the limitation is visible.
+When unsupported features are detected on import or export, Nifty Slides adds them to the inspector so the limitation is visible.
 
 ## Tests
 
@@ -91,7 +91,7 @@ Open `tests/browser-tests.html` through the local server. The tests cover:
 
 Starting a presentation creates a named session instance for the deck’s access code. Participants scan the QR code or enter the six-digit code and submit responses to the current interactive slide. Results and participant presence are synchronized through Cloudflare D1.
 
-For local static use, the QR code still appears, but phones cannot reach a `127.0.0.1` link on the presenter's computer. Use a hosted HySlides URL or a LAN-accessible URL for real phone participation.
+For local static use, the QR code still appears, but phones cannot reach a `127.0.0.1` link on the presenter's computer. Use a hosted Nifty Slides URL or a LAN-accessible URL for real phone participation.
 
 Ended sessions and their participant/response records are retained for 14 days. See the technical handoff for storage and API details.
 

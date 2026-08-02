@@ -79,13 +79,18 @@ import {
 } from "./icon-assets.js";
 import { backgroundShaderOptions } from "./backgrounds.js";
 import {
+  acceptCurrentTerms,
   accountAuthEnabled,
   authUser,
+  completePendingTermsAcceptance,
+  CURRENT_TERMS_VERSION,
   isAuthenticated,
+  rememberTermsConsent,
   requestEmailCode,
   restoreAuthSession,
   signInWithGoogle,
   signOut,
+  termsAcceptanceStatus,
   verifyEmailCode,
 } from "./auth.js";
 
@@ -306,8 +311,26 @@ async function init() {
       bindAuthEvents();
       updateAccountButton();
       if (!isAuthenticated()) {
+        if (location.pathname !== "/signin") history.replaceState(null, "", "/signin");
         document.querySelector("#authOverlay")?.classList.remove("hidden");
         document.querySelector("#authOverlay")?.setAttribute("aria-hidden", "false");
+        return;
+      }
+      if (location.pathname === "/signin") history.replaceState(null, "", "/");
+      try {
+        await completePendingTermsAcceptance();
+        const terms = await termsAcceptanceStatus();
+        if (!terms.accepted) {
+          document.querySelector("#termsAcceptanceOverlay")?.classList.remove("hidden");
+          document.querySelector("#termsAcceptanceOverlay")?.setAttribute("aria-hidden", "false");
+          return;
+        }
+      } catch (error) {
+        const overlay = document.querySelector("#termsAcceptanceOverlay");
+        overlay?.classList.remove("hidden");
+        overlay?.setAttribute("aria-hidden", "false");
+        const message = document.querySelector("#termsAcceptanceMessage");
+        if (message) message.textContent = error.message;
         return;
       }
     }
@@ -336,10 +359,24 @@ async function init() {
 }
 
 function bindAuthEvents() {
-  document.querySelector("#googleSignInBtn")?.addEventListener("click", signInWithGoogle);
+  const requireSignupConsent = () => {
+    const checkbox = document.querySelector("#authTermsConsent");
+    const message = document.querySelector("#authMessage");
+    if (!checkbox?.checked) {
+      if (message) message.textContent = "Please accept the Terms of Service to continue.";
+      checkbox?.focus();
+      return false;
+    }
+    rememberTermsConsent();
+    return true;
+  };
+  document.querySelector("#googleSignInBtn")?.addEventListener("click", () => {
+    if (requireSignupConsent()) signInWithGoogle();
+  });
   document.querySelector("#emailAuthForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const message = document.querySelector("#authMessage");
+    if (!requireSignupConsent()) return;
     try {
       const email = await requestEmailCode(document.querySelector("#authEmail")?.value, {
         firstName: document.querySelector("#authFirstName")?.value,
@@ -360,11 +397,30 @@ function bindAuthEvents() {
         document.querySelector("#authEmail")?.value,
         document.querySelector("#authCode")?.value
       );
+      await acceptCurrentTerms("signup");
       location.reload();
     } catch (error) {
       message.textContent = error.message;
     }
   });
+  document.querySelector("#acceptCurrentTermsBtn")?.addEventListener("click", async () => {
+    const checkbox = document.querySelector("#currentTermsConsent");
+    const message = document.querySelector("#termsAcceptanceMessage");
+    if (!checkbox?.checked) {
+      if (message) message.textContent = "Please confirm that you agree to the Terms of Service.";
+      checkbox?.focus();
+      return;
+    }
+    try {
+      await acceptCurrentTerms("existing-account");
+      location.reload();
+    } catch (error) {
+      if (message) message.textContent = error.message;
+    }
+  });
+  for (const node of document.querySelectorAll("[data-terms-version]")) {
+    node.textContent = CURRENT_TERMS_VERSION;
+  }
   const accountButton = document.querySelector("#accountBtn");
   const accountMenu = document.querySelector("#accountMenu");
   const closeAccountMenu = () => {
@@ -383,7 +439,7 @@ function bindAuthEvents() {
   document.querySelector("#signOutBtn")?.addEventListener("click", async () => {
     closeAccountMenu();
     await signOut();
-    location.replace("/hyslides/");
+    location.replace("/signin");
   });
   document.addEventListener("click", (event) => {
     if (!event.target.closest("#accountMenuWrap")) closeAccountMenu();
@@ -474,7 +530,7 @@ function bindEvents() {
 
   document.querySelector("#newDeckBtn").addEventListener("click", () => {
     deck = createDeck({
-      title: "Untitled HySlides deck",
+      title: "Untitled Nifty Slides deck",
       slides: [layoutTemplates[0].apply()],
     });
     activeSlideIndex = 0;
@@ -928,7 +984,7 @@ function renderGlobalSettings() {
         </div>
         <small>These items sit above the slide background and below normal slide elements, so shapes and other content can cover them. Each slide can inherit, show, or hide them.</small>
       </div>`)}
-    ${globalSettingsSectionMarkup("colors", "Color styles", "Named global swatches available in every HySlides color picker.", globalColorStylesMarkup())}
+    ${globalSettingsSectionMarkup("colors", "Color styles", "Named global swatches available in every Nifty Slides color picker.", globalColorStylesMarkup())}
     ${globalSettingsSectionMarkup("background", "Default background", "Applied automatically to newly created blank slides.", `
       <div class="global-default-background">
         <div class="field-row"><label for="globalDefaultBackgroundType">Style</label><select id="globalDefaultBackgroundType">
@@ -1304,7 +1360,7 @@ function formatSessionDate(value) {
 }
 
 function safeFilename(value) {
-  return String(value || "hyslides-session").replace(/[^a-z0-9-_]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 100) || "hyslides-session";
+  return String(value || "nifty-slides-session").replace(/[^a-z0-9-_]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 100) || "nifty-slides-session";
 }
 
 async function renderDeckLibrary() {
@@ -4541,7 +4597,7 @@ function launchPresenterWindow() {
     "_blank"
   );
   if (!presenterWindow) {
-    setStatus("Allow HySlides to open presenter mode in a new tab");
+    setStatus("Allow Nifty Slides to open presenter mode in a new tab");
     return;
   }
   presenterWindow.focus();
@@ -4555,7 +4611,7 @@ function openPresentationWindow() {
   publishPresentationControlState();
   presentationWindow = window.open(`${location.href.split("#")[0]}#presentation`, "_blank");
   if (!presentationWindow) {
-    setStatus("Allow HySlides to open Presentation View in a new tab");
+    setStatus("Allow Nifty Slides to open Presentation View in a new tab");
     return;
   }
   presentationWindow.focus();
@@ -5475,7 +5531,7 @@ function renderAudience() {
       <label for="audienceAccessCodeInput">Enter the 6-digit presentation access code</label>
       <input id="audienceAccessCodeInput" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="123456" required />
       <button type="submit">Join presentation</button>
-      <small>HySlides uses an anonymous device identifier to prevent duplicate responses. Responses and participant records are retained for 14 days.</small>
+      <small>Nifty Slides uses an anonymous device identifier to prevent duplicate responses. Responses and participant records are retained for 14 days.</small>
     </form>
   `;
   dom.audienceContent.querySelector("#audienceJoinForm")?.addEventListener("submit", (event) => {
@@ -5601,7 +5657,7 @@ async function publishCurrentLiveSession(force = false) {
     liveSession.retryAfter = Date.now() + liveRetryDelay(liveSession.consecutiveFailures);
     if (liveSession.consecutiveFailures >= 3) liveSession.backendAvailable = false;
     liveSession.status = isLocalJoinUrl(liveSession.joinUrl)
-      ? "Local QR only. Host HySlides or use a network URL for phones."
+      ? "Local QR only. Host Nifty Slides or use a network URL for phones."
       : `Live sync unavailable: ${error.message}`;
   } finally {
     liveSession.publishing = false;
@@ -6938,7 +6994,7 @@ function updateDocumentTitle(title = "") {
       : location.hash.startsWith("#audience")
         ? "Participant"
         : "Editor";
-  document.title = `${viewName} · ${deckName} | HySlides`;
+  document.title = `${viewName} · ${deckName} | Nifty Slides`;
 }
 
 function queueEditorPresenterSync() {
@@ -7427,7 +7483,7 @@ async function executeRemoteControllerCommand(command) {
 function initRemoteController() {
   const code = remoteControllerMatch?.[1] || "";
   const token = remoteControllerMatch?.[2] || "";
-  document.title = "Presenter Remote — HySlides";
+  document.title = "Presenter Remote — Nifty Slides";
   document.querySelectorAll("[data-remote-tab]").forEach((button) => button.addEventListener("click", () => {
     document.querySelectorAll("[data-remote-tab]").forEach((item) => item.classList.toggle("active", item === button));
     document.querySelectorAll("[data-remote-panel]").forEach((panel) => panel.classList.toggle("active", panel.dataset.remotePanel === button.dataset.remoteTab));
@@ -7502,7 +7558,7 @@ function renderRemoteController(state) {
   const slides = Array.isArray(state.slides) ? state.slides : [];
   const index = clamp(Number(state.activeSlideIndex) || 0, 0, Math.max(0, slides.length - 1));
   const current = slides[index] || {};
-  document.querySelector("#remoteDeckTitle").textContent = state.deckTitle || "HySlides";
+  document.querySelector("#remoteDeckTitle").textContent = state.deckTitle || "Nifty Slides";
   const status = document.querySelector("#remoteConnectionStatus");
   status.textContent = state.live?.status === "active" ? "Live" : state.live?.status || "Connected";
   status.classList.remove("error");

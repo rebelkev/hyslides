@@ -3806,6 +3806,33 @@ body.remote-controller-window > :not(#remoteControllerApp):not(script) {
 .auth-inline input { min-width: 0; }
 .auth-message { min-height: 22px; margin: 12px 0 0; color: #2454d6 !important; font-weight: 650; }
 .auth-card small { display: block; margin-top: 18px; color: #7a8698; }
+.auth-card .auth-legal-consent {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 10px;
+  margin: 18px 0 4px;
+  padding: 14px;
+  border: 1px solid #dbe2ec;
+  border-radius: 12px;
+  background: #f8faff;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+.auth-card .auth-legal-consent input { width: 18px; height: 18px; margin: 2px 0 0; }
+.auth-card .auth-legal-consent a { color: #2454d6; }
+.legal-ownership-callout {
+  display: grid;
+  gap: 4px;
+  margin: 18px 0;
+  padding: 14px 16px;
+  border-left: 4px solid #0c9a87;
+  border-radius: 10px;
+  color: #1d232a;
+  background: #effaf8;
+}
+.legal-ownership-callout span { color: #536176; font-size: 14px; line-height: 1.45; }
 
 @media (max-width: 560px) {
   .auth-card { padding: 24px; border-radius: 18px; }

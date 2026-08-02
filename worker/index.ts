@@ -35,30 +35,43 @@ const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
-    if (url.pathname === "/") {
-      return Response.redirect(new URL("/hyslides/index.html", url), 307);
+    const serveAsset = (pathname: string) => {
+      const assetUrl = new URL(pathname, url);
+      return env.ASSETS.fetch(new Request(assetUrl, { method: "GET" }));
+    };
+
+    if (url.pathname === "/" || url.pathname === "/signin" || /^\/decks\/[^/]+\/edit$/.test(url.pathname)) {
+      return serveAsset("/index.html");
     }
 
-    if (url.pathname === "/hyslides") {
-      return Response.redirect(new URL("/hyslides/index.html", url), 307);
+    if (url.pathname === "/terms") {
+      return serveAsset("/terms.html");
     }
 
-    if (/^\/decks\/[^/]+\/edit$/.test(url.pathname)) {
-      const deckId = decodeURIComponent(url.pathname.match(/^\/decks\/([^/]+)\/edit$/)?.[1] || "");
-      const editorShellUrl = new URL("/hyslides/index.html", url);
-      editorShellUrl.searchParams.set("deck", deckId);
-      return Response.redirect(editorShellUrl, 307);
+    if (url.pathname === "/hyslides" || url.pathname === "/hyslides/" || url.pathname === "/hyslides/index.html") {
+      return Response.redirect(new URL("/signin", url), 308);
+    }
+
+    if (url.pathname === "/hyslides/terms.html") {
+      return Response.redirect(new URL("/terms", url), 308);
     }
 
     if (url.pathname === "/api/auth/config") {
       return json({ enabled: accountsEnabled(env) });
     }
 
-    if (url.pathname === "/api/account" || url.pathname === "/api/decks" || url.pathname.startsWith("/api/decks/")) {
+    if (url.pathname === "/api/account" || url.pathname.startsWith("/api/account/") || url.pathname === "/api/decks" || url.pathname.startsWith("/api/decks/")) {
       return handleAccountApi(request, env, url);
     }
 
-    if (url.pathname.startsWith("/hyslides/")) {
+    if (
+      url.pathname === "/index.html" ||
+      url.pathname === "/styles.css" ||
+      url.pathname === "/terms.html" ||
+      url.pathname === "/favicon.svg" ||
+      url.pathname.startsWith("/src/") ||
+      url.pathname.startsWith("/hyslides/")
+    ) {
       return env.ASSETS.fetch(request);
     }
 
@@ -128,6 +141,7 @@ export class LiveSessionHub {
 
 const DEFAULT_SUPABASE_URL = "https://bfyamyqgxrjuapvrsxcg.supabase.co";
 const DEFAULT_SUPABASE_KEY = "sb_publishable_paIqZAOodaEzuAw4GKtNig_inpDEafR";
+const CURRENT_TERMS_VERSION = "2026-07-31";
 
 type AccountUser = { id: string; email: string; user_metadata?: Record<string, unknown> };
 
@@ -139,6 +153,27 @@ async function handleAccountApi(request: Request, env: Env, url: URL): Promise<R
     const user = await authenticatedUser(request, env);
     await ensureAccountSchema(env.DB);
     await upsertUserProfile(env.DB, user);
+    if (url.pathname === "/api/account/terms") {
+      if (request.method === "GET") {
+        return json(await termsAcceptanceStatus(env.DB, user.id));
+      }
+      if (request.method === "POST") {
+        const payload = await readJson(request);
+        const version = stringValue(payload.version);
+        if (version !== CURRENT_TERMS_VERSION) {
+          return json({ error: "Please review and accept the current Terms of Service." }, 409);
+        }
+        const source = ["signup", "existing-account"].includes(stringValue(payload.source))
+          ? stringValue(payload.source) : "existing-account";
+        await env.DB.prepare(
+          `INSERT OR IGNORE INTO hyslides_legal_acceptances
+            (id, user_id, document_type, document_version, source)
+            VALUES (?, ?, 'terms', ?, ?)`
+        ).bind(crypto.randomUUID(), user.id, CURRENT_TERMS_VERSION, source).run();
+        return json(await termsAcceptanceStatus(env.DB, user.id), 201);
+      }
+      return json({ error: "Method not allowed." }, 405);
+    }
     if (url.pathname === "/api/account") {
       if (request.method === "GET") {
         return json(await accountProfile(env.DB, user.id));
@@ -217,6 +252,14 @@ async function ensureAccountSchema(db: D1Database) {
     )`),
     db.prepare(`CREATE INDEX IF NOT EXISTS hyslides_decks_owner_updated
       ON hyslides_decks(owner_id, updated_at DESC)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS hyslides_legal_acceptances (
+      id TEXT PRIMARY KEY, user_id TEXT NOT NULL, document_type TEXT NOT NULL,
+      document_version TEXT NOT NULL, source TEXT NOT NULL DEFAULT 'existing-account',
+      accepted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, document_type, document_version)
+    )`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS hyslides_legal_acceptances_user
+      ON hyslides_legal_acceptances(user_id, accepted_at DESC)`),
   ]);
 }
 
@@ -232,11 +275,28 @@ async function upsertUserProfile(db: D1Database, user: AccountUser) {
   ).bind(user.id, user.email || "", firstName, lastName).run();
 }
 
-function accountProfile(db: D1Database, userId: string) {
-  return db.prepare(
+async function accountProfile(db: D1Database, userId: string) {
+  const profile = await db.prepare(
     `SELECT user_id AS userId, email, first_name AS firstName, last_name AS lastName,
       created_at AS createdAt, updated_at AS updatedAt FROM hyslides_user_profiles WHERE user_id = ?`
-  ).bind(userId).first();
+  ).bind(userId).first<Record<string, unknown>>();
+  const terms = await termsAcceptanceStatus(db, userId);
+  return { ...profile, termsVersion: terms.acceptedVersion, termsAcceptedAt: terms.acceptedAt };
+}
+
+async function termsAcceptanceStatus(db: D1Database, userId: string) {
+  const row = await db.prepare(
+    `SELECT document_version AS acceptedVersion, accepted_at AS acceptedAt
+      FROM hyslides_legal_acceptances
+      WHERE user_id = ? AND document_type = 'terms' AND document_version = ?
+      ORDER BY accepted_at DESC LIMIT 1`
+  ).bind(userId, CURRENT_TERMS_VERSION).first<{ acceptedVersion: string; acceptedAt: string }>();
+  return {
+    accepted: Boolean(row),
+    currentVersion: CURRENT_TERMS_VERSION,
+    acceptedVersion: row?.acceptedVersion || null,
+    acceptedAt: row?.acceptedAt || null,
+  };
 }
 
 async function listAccountDecks(db: D1Database, ownerId: string) {
@@ -590,7 +650,7 @@ async function publishLiveSession(db: D1Database, code: string, payload: Record<
   }
 
   const deckId = stringValue(payload.deckId) || "deck";
-  const deckTitle = stringValue(payload.deckTitle) || "HySlides deck";
+  const deckTitle = stringValue(payload.deckTitle) || "Nifty Slides deck";
   const instanceId = stringValue(payload.instanceId) || crypto.randomUUID();
   const sessionName = stringValue(payload.sessionName).trim() || `${deckTitle} — ${new Date().toISOString()}`;
   const activeSlideIndex = numberValue(payload.activeSlideIndex);
@@ -827,7 +887,7 @@ async function createRemotePairing(db: D1Database, code: string, session: LiveSe
         VALUES (?, ?, ?, CURRENT_TIMESTAMP, datetime('now', '+8 hours'))`
     ).bind(tokenHash, code, session.instance_id),
   ]);
-  const controllerUrl = new URL("/hyslides/index.html", url);
+  const controllerUrl = new URL("/", url);
   controllerUrl.hash = `remote-${code}-${token}`;
   return {
     controllerUrl: controllerUrl.toString(),

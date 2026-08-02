@@ -1,6 +1,8 @@
 const SUPABASE_URL = "https://bfyamyqgxrjuapvrsxcg.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_paIqZAOodaEzuAw4GKtNig_inpDEafR";
 const SESSION_KEY = "hyslides.auth.session";
+export const CURRENT_TERMS_VERSION = "2026-07-31";
+const PENDING_TERMS_KEY = "hyslides.auth.pendingTerms";
 
 let currentSession = readSession();
 let authEnabled;
@@ -55,11 +57,39 @@ export async function restoreAuthSession() {
 }
 
 export function signInWithGoogle() {
-  const redirectTo = `${location.origin}${location.pathname}`;
+  const redirectTo = `${location.origin}/signin`;
   const url = new URL(`${SUPABASE_URL}/auth/v1/authorize`);
   url.searchParams.set("provider", "google");
   url.searchParams.set("redirect_to", redirectTo);
   location.assign(url);
+}
+
+export function rememberTermsConsent() {
+  sessionStorage.setItem(PENDING_TERMS_KEY, CURRENT_TERMS_VERSION);
+}
+
+export async function termsAcceptanceStatus() {
+  const response = await authorizedFetch("/api/account/terms", {
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) throw new Error(await apiError(response, "Unable to verify Terms acceptance."));
+  return response.json();
+}
+
+export async function acceptCurrentTerms(source = "existing-account") {
+  const response = await authorizedFetch("/api/account/terms", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ version: CURRENT_TERMS_VERSION, source }),
+  });
+  if (!response.ok) throw new Error(await apiError(response, "Unable to record Terms acceptance."));
+  sessionStorage.removeItem(PENDING_TERMS_KEY);
+  return response.json();
+}
+
+export async function completePendingTermsAcceptance() {
+  if (sessionStorage.getItem(PENDING_TERMS_KEY) !== CURRENT_TERMS_VERSION) return null;
+  return acceptCurrentTerms("signup");
 }
 
 export async function requestEmailCode(email, profile = {}) {
@@ -173,4 +203,9 @@ function supabaseFetch(path, options = {}) {
 async function authError(response) {
   const payload = await response.json().catch(() => ({}));
   return payload.msg || payload.message || payload.error_description || "Authentication failed.";
+}
+
+async function apiError(response, fallback) {
+  const payload = await response.json().catch(() => ({}));
+  return payload.error || payload.message || fallback;
 }

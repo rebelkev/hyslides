@@ -1,8 +1,8 @@
-# HySlides Technical Handoff
+# Nifty Slides Technical Handoff
 
 ## Runtime and Hosting
 
-HySlides is deployed as a Cloudflare Worker built with Vinext/Vite and connected to the GitHub `main` branch. Cloudflare D1 is bound as `DB` and stores live session state and responses. The current Worker URL is:
+Nifty Slides is deployed as a Cloudflare Worker built with Vinext/Vite and connected to the GitHub `main` branch. Cloudflare D1 is bound as `DB` and stores live session state and responses. The current Worker URL is:
 
 `https://hyslides.kevin-639.workers.dev`
 
@@ -110,12 +110,12 @@ Before publishing a change:
 Add user accounts before server-backed deck ownership, admin template management, team workspaces, or durable cross-device analytics.
 # Account rollout
 
-HySlides uses Supabase Auth for Google OAuth and passwordless email codes. Cloudflare D1 remains the application database for user profiles and owner-scoped decks; HySlides never stores passwords.
+Nifty Slides uses Supabase Auth for Google OAuth and passwordless email codes. Cloudflare D1 remains the application database for user profiles and owner-scoped decks; Nifty Slides never stores passwords.
 
 The Worker environment variable `AUTH_ENABLED` is the production release gate. Leave it unset or set to `false` until:
 
 1. Google is enabled in Supabase Auth with the production Google client ID and secret.
-2. Supabase Site URL and redirect URLs include the production HySlides origin and deck routes.
+2. Supabase Site URL and redirect URLs include the production Nifty Slides origin and deck routes.
 3. The email template delivers a numeric one-time code using the Supabase token variable.
 4. Google sign-in, personal email, business email, refresh, sign-out, unauthorized deck access, and browser-deck migration pass on production.
 

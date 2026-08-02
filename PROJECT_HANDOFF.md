@@ -1,4 +1,4 @@
-# HySlides Project Handoff
+# Nifty Slides Project Handoff
 
 The maintained handoff documentation now lives in the `docs/` folder:
 

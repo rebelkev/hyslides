@@ -28,7 +28,7 @@ test("sign-out clears the local session before remote logout and returns to sign
   const signOutSource = authSource.match(/export async function signOut\(\) \{[\s\S]*?\n\}/)?.[0] || "";
   assert.ok(signOutSource.indexOf("clearSession()") < signOutSource.indexOf("supabaseFetch"));
   assert.match(signOutSource, /keepalive:\s*true/);
-  assert.match(appSource, /location\.replace\("\/hyslides\/"\)/);
+  assert.match(appSource, /location\.replace\("\/signin"\)/);
 });
 
 test("deck APIs verify bearer identity and enforce ownership", () => {
@@ -44,12 +44,16 @@ test("deck APIs verify bearer identity and enforce ownership", () => {
 });
 
 test("deck-specific editor routes safely bootstrap through the public editor shell", () => {
-  assert.match(workerSource, /editorShellUrl/);
-  assert.match(workerSource, /editorShellUrl\.searchParams\.set\("deck", deckId\)/);
-  assert.match(workerSource, /Response\.redirect\(editorShellUrl, 307\)/);
-  assert.match(storageSource, /new URLSearchParams\(location\.search\)\.get\("deck"\)/);
-  assert.match(storageSource, /restoreDeckRouteAfterBootstrap\(\)/);
+  assert.match(workerSource, /\/\^\\\/decks\\\/\[\^\/\]\+\\\/edit\$\//);
+  assert.match(workerSource, /return serveAsset\("\/index\.html"\)/);
   assert.match(storageSource, /history\.replaceState\(null, "", `\/decks\//);
+});
+
+test("clean public routes replace the legacy product path", () => {
+  assert.match(workerSource, /url\.pathname === "\/signin"/);
+  assert.match(workerSource, /url\.pathname === "\/terms"/);
+  assert.match(workerSource, /Response\.redirect\(new URL\("\/signin", url\), 308\)/);
+  assert.doesNotMatch(indexSource, /\/hyslides\//);
 });
 
 test("signed-in decks receive account-specific routes and browser migration", () => {
@@ -57,6 +61,6 @@ test("signed-in decks receive account-specific routes and browser migration", ()
   assert.match(storageSource, /\/api\/decks/);
   assert.match(storageSource, /\/decks\/\$\{encodeURIComponent\(deckId\)\}\/edit/);
   assert.match(storageSource, /cloud migration failed/);
-  assert.match(indexSource, /href="\/hyslides\/styles\.css"/);
-  assert.match(indexSource, /src="\/hyslides\/src\/app\.js"/);
+  assert.match(indexSource, /href="\/styles\.css"/);
+  assert.match(indexSource, /src="\/src\/app\.js"/);
 });
