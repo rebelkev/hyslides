@@ -12,6 +12,13 @@ const { d1, r2 } = hostingConfig;
 const localBindingConfig = {
   main: "./worker/index.ts",
   compatibility_flags: ["nodejs_compat"],
+  // Clean application routes such as /signin are served by the Worker from
+  // the compiled static shell. Explicitly expose the asset fetcher binding;
+  // a directory-only assets configuration bypasses the Worker for physical
+  // files but does not make env.ASSETS available at runtime.
+  assets: {
+    binding: "ASSETS",
+  },
   durable_objects: {
     bindings: [{ name: "LIVE_HUB", class_name: "LiveSessionHub" }],
   },

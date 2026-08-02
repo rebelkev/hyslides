@@ -6,6 +6,7 @@ const authSource = await readFile(new URL("../src/auth.js", import.meta.url), "u
 const workerSource = await readFile(new URL("../worker/index.ts", import.meta.url), "utf8");
 const storageSource = await readFile(new URL("../src/storage.js", import.meta.url), "utf8");
 const indexSource = await readFile(new URL("../index.html", import.meta.url), "utf8");
+const viteSource = await readFile(new URL("../vite.config.ts", import.meta.url), "utf8");
 
 test("accounts support Google OAuth and passwordless email codes", () => {
   assert.match(authSource, /\/api\/auth\/config/);
@@ -54,6 +55,11 @@ test("clean public routes replace the legacy product path", () => {
   assert.match(workerSource, /url\.pathname === "\/terms"/);
   assert.match(workerSource, /Response\.redirect\(new URL\("\/signin", url\), 308\)/);
   assert.doesNotMatch(indexSource, /\/hyslides\//);
+});
+
+test("clean routes can fetch the compiled application shell in production", () => {
+  assert.match(viteSource, /assets:\s*\{\s*binding:\s*"ASSETS"/);
+  assert.match(workerSource, /env\.ASSETS\.fetch/);
 });
 
 test("signed-in decks receive account-specific routes and browser migration", () => {
