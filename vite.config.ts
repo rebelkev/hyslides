@@ -18,6 +18,13 @@ const localBindingConfig = {
   // files but does not make env.ASSETS available at runtime.
   assets: {
     binding: "ASSETS",
+    not_found_handling: "single-page-application",
+    run_worker_first: [
+      "/api/*",
+      "/_vinext/image",
+      "/hyslides",
+      "/hyslides/*",
+    ],
   },
   durable_objects: {
     bindings: [{ name: "LIVE_HUB", class_name: "LiveSessionHub" }],

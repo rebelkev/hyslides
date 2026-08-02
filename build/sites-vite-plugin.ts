@@ -26,14 +26,9 @@ export function sites(): Plugin {
     },
     async closeBundle() {
       const outputDirectory = resolve(root, "dist", ".openai");
-      const legacyOutputDirectories = [
-        resolve(root, "dist", "client", "hyslides"),
-        resolve(root, "dist", "server", "public", "hyslides"),
-      ];
       const appOutputDirectories = [
         resolve(root, "dist", "client"),
         resolve(root, "dist", "server", "public"),
-        ...legacyOutputDirectories,
       ];
       const hostingConfig = resolve(root, ".openai", "hosting.json");
       const drizzleSource = resolve(root, "drizzle");
@@ -46,9 +41,8 @@ export function sites(): Plugin {
 
       await rm(outputDirectory, { recursive: true, force: true });
       await mkdir(outputDirectory, { recursive: true });
-      for (const output of legacyOutputDirectories) {
-        await rm(output, { recursive: true, force: true });
-      }
+      await rm(resolve(root, "dist", "client", "hyslides"), { recursive: true, force: true });
+      await rm(resolve(root, "dist", "server", "public", "hyslides"), { recursive: true, force: true });
       for (const output of appOutputDirectories) {
         await mkdir(output, { recursive: true });
       }

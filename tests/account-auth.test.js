@@ -62,6 +62,14 @@ test("clean routes can fetch the compiled application shell in production", () =
   assert.match(workerSource, /env\.ASSETS\.fetch/);
 });
 
+test("Cloudflare serves clean app routes as an SPA and reserves APIs and legacy redirects for the Worker", async () => {
+  assert.match(viteSource, /not_found_handling:\s*"single-page-application"/);
+  assert.match(viteSource, /run_worker_first:\s*\[[\s\S]*"\/api\/\*"[\s\S]*"\/hyslides\/\*"/);
+
+  const buildPlugin = await readFile(new URL("../build/sites-vite-plugin.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(buildPlugin, /\.\.\.legacyOutputDirectories/);
+});
+
 test("signed-in decks receive account-specific routes and browser migration", () => {
   assert.match(storageSource, /cloudMigration:/);
   assert.match(storageSource, /\/api\/decks/);
