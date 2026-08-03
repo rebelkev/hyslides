@@ -17,6 +17,13 @@ test("authenticated accounts land on a dedicated presentations dashboard", () =>
   assert.match(indexSource, />Your presentations</);
 });
 
+test("dashboard brand is an inert home link while the editor stays hidden during account routing", () => {
+  assert.match(indexSource, /id="dashboardBrandHome"[^>]*href="\/dashboard"[^>]*aria-current="page"/);
+  assert.match(indexSource, /id="app" class="app-shell hidden"/);
+  assert.match(appSource, /#dashboardBrandHome[\s\S]*?event\.preventDefault\(\)/);
+  assert.match(appSource, /dom\.app\?\.classList\.remove\("hidden"\);\s*const saved = await loadCurrentDeck/);
+});
+
 test("dashboard presents create-first cards with open and overflow actions", () => {
   assert.match(appSource, /Create presentation/);
   assert.match(appSource, /data-dashboard-action="open"/);

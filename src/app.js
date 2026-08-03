@@ -342,6 +342,7 @@ async function init() {
     await openDashboard();
     return;
   }
+  dom.app?.classList.remove("hidden");
   const saved = await loadCurrentDeck().catch(() => null);
   deck = normalizeDeck(saved || createSeedDeck());
   if (!presenterWindowMode && !presentationWindowMode && !location.hash.startsWith("#audience")) {
@@ -387,6 +388,11 @@ function bindDashboardEvents() {
     accountMenu?.classList.add("hidden");
     accountButton?.setAttribute("aria-expanded", "false");
   };
+  document.querySelector("#dashboardBrandHome")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    closeAccountMenu();
+    closeDashboardCardMenus();
+  });
   accountButton?.addEventListener("click", (event) => {
     event.stopPropagation();
     const opening = accountMenu?.classList.contains("hidden");

@@ -48,7 +48,7 @@
     </svg>
     <div id="dashboardApp" class="dashboard-app hidden" aria-hidden="true">
       <header class="dashboard-header">
-        <a class="dashboard-brand" href="/dashboard" aria-label="Nifty Slides dashboard">
+        <a id="dashboardBrandHome" class="dashboard-brand" href="/dashboard" aria-label="Nifty Slides dashboard" aria-current="page">
           <span class="brand-mark" aria-hidden="true">N</span>
           <span>Nifty Slides</span>
         </a>
@@ -106,7 +106,7 @@
       </div>
     </div>
 
-    <div id="app" class="app-shell" data-mode="edit">
+    <div id="app" class="app-shell hidden" data-mode="edit">
       <header class="topbar" aria-label="Main toolbar">
         <div class="app-menu-wrap">
           <button id="appMenuBtn" class="brand app-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="appMenu">
