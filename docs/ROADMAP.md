@@ -45,6 +45,18 @@
 
 ## Following Milestones
 
+- Immersive Scene Backgrounds / Living Canvas:
+  - Let an editor upload a photograph, illustration, or graphic and convert it into a depth-aware animated scene beneath normal Nifty Slides content
+  - Start with a practical 2.5D workflow that creates foreground, middle-ground, and background depth from an image, then renders parallax, subtle camera drift, perspective, lighting, fog, particles, and pointer-responsive motion with Three.js
+  - Keep existing text, charts, engagement elements, media, and slide furniture editable as normal layers above the immersive scene
+  - Offer simple presentation-friendly controls rather than 3D-modeling terminology: depth intensity, camera movement, motion speed, perspective strength, lighting mood, atmospheric effects, interaction, loop, and text-readability overlay
+  - Preserve a static source image and automatically provide reduced-motion, battery-saver, unsupported-device, and low-performance fallbacks
+  - Adapt render quality, texture resolution, effects, and frame rate to the device; pause rendering when hidden and avoid retransmitting or remounting the scene during routine live-session updates
+  - Synchronize scene start time and presenter-controlled scene state across Presenter, Presentation, and Participant Views without requiring every participant device to render at the same quality
+  - Preload and precompile scene assets before a slide becomes active to prevent visible first-frame stalls
+  - Add upload limits, image optimization, safe asset storage, capability detection, accessibility controls, and performance telemetry before general release
+  - Phase two: allow editor-assisted subject separation, custom depth layers, camera paths, and optional placement of labels or slide elements at meaningful depths inside the scene
+  - Longer-term research: imported glTF environments, AI-assisted single-image 3D reconstruction, Gaussian-splat scenes, and reusable immersive-scene templates as premium capabilities
 - Editor property correctness:
   - Make the Properties-panel opacity value reliably update the selected element across the Editor, Presenter, Presentation, and Participant Views.
   - Rotate elements around their visual center while preserving their canvas position, selection bounds, resizing behavior, and export rendering.
